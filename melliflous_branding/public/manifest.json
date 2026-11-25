@@ -1,0 +1,23 @@
+{
+  "name": "Melliflous Group",
+  "short_name": "Melliflous",
+  "start_url": "/desk",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#1F4D3A",
+  "theme_color": "#1F4D3A",
+  "icons": [
+    {
+      "src": "/files/melliflous_icon_512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/melliflous_branding/images/melliflous_icon_512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
