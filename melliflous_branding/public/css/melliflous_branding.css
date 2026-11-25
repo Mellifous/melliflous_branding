@@ -1,0 +1,170 @@
+/* Company title and switcher, plus colour rings on desk-home tiles.
+   Scoped so it does not restyle website pages. body.desktop-page stays on for
+   the whole desk session in v16, so rules that must only affect the home
+   navbar name the .desktop-navbar. */
+
+.melliflous-company-switch {
+	-webkit-appearance: none;
+	appearance: none;
+	box-sizing: border-box;
+	max-width: min(100%, 22rem);
+	min-height: 36px;
+	margin: 0;
+	padding: 6px 2rem 6px 0.75rem;
+	border: 1px solid var(--border-color, #e5e7eb);
+	border-radius: var(--radius-md, 8px);
+	background-color: var(--surface-gray-1, #fff);
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath fill='none' stroke='%23666' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' d='M2 4.2 6 8l4-3.8'/%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: right 0.6rem center;
+	background-size: 12px 12px;
+	color: var(--ink-gray-9, #171717);
+	font: inherit;
+	font-size: 16px;
+	font-weight: var(--font-weight-semibold, 600);
+	line-height: 1.25;
+	text-overflow: ellipsis;
+	cursor: pointer;
+	touch-action: manipulation;
+}
+
+.melliflous-company-switch:focus {
+	outline: 2px solid var(--outline-gray-3, #8d99a6);
+	outline-offset: 1px;
+}
+
+.melliflous-company-slot {
+	flex: 1 0 100%;
+	width: 100%;
+	padding: 8px 12px 4px;
+	box-sizing: border-box;
+}
+
+/* Wide home: Frappe hides .desktop-navbar-title. Show the company name, or the
+   switcher, in the navbar instead. :not(.has-mobile-nav) keeps the phone rule,
+   which centres this same node, from being overridden. */
+body.desktop-page:not(.has-mobile-nav) .desktop-navbar > .desktop-navbar-title.melliflous-title,
+body.desktop-page:not(.has-mobile-nav) .desktop-navbar > select.desktop-navbar-title.melliflous-company-switch {
+	display: block;
+	position: static;
+	left: auto;
+	right: auto;
+	flex: 0 1 auto;
+	width: auto;
+	max-width: min(40vw, 22rem);
+	margin: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	text-align: start;
+	font-size: 16px;
+	font-weight: var(--font-weight-semibold, 600);
+	line-height: 1.25;
+	color: var(--ink-gray-9, #171717);
+}
+
+/* Phone home: the switcher is the centred header title. Core already positions
+   .desktop-navbar-title; this only makes the control look like that title and
+   keeps a 16px font so iOS Safari does not zoom on focus. The :not() rule that
+   hides other navbar children does not match this node. */
+body.has-mobile-nav.desktop-page .desktop-navbar > select.desktop-navbar-title.melliflous-company-switch {
+	display: block;
+	width: auto;
+	max-width: none;
+	height: var(--desktop-navbar-height, 52px);
+	min-height: 0;
+	padding-top: 0;
+	padding-bottom: 0;
+	border: 0;
+	border-radius: 0;
+	background-color: transparent;
+	box-shadow: none;
+	font-size: max(16px, var(--text-xl, 16px));
+	text-align: center;
+	text-align-last: center;
+}
+
+body.has-mobile-nav .melliflous-company-slot {
+	padding-top: 10px;
+	padding-right: max(12px, env(safe-area-inset-right));
+	padding-left: max(12px, env(safe-area-inset-left));
+}
+
+body.has-mobile-nav .melliflous-company-slot .melliflous-company-switch {
+	width: 100%;
+	max-width: none;
+	min-height: 44px;
+}
+
+/* Tile colours. A ring and a light pad sit behind the existing logo so the
+   artwork stays intact. Department tones apply to module tiles; app tiles use
+   the same attribute when their title is in the map. */
+body.desktop-page .desktop-icon[data-melliflous-tone] .icon-container,
+body.desktop-page .module-folder-app[data-melliflous-tone] .module-folder-logo {
+	border-radius: 16px;
+}
+
+body.desktop-page .desktop-icon[data-melliflous-tone="green"] .icon-container,
+body.desktop-page .module-folder-app[data-melliflous-tone="green"] .module-folder-logo {
+	box-shadow: 0 0 0 2px #1f9d55;
+	background-color: rgba(31, 157, 85, 0.14);
+}
+
+body.desktop-page .desktop-icon[data-melliflous-tone="orange"] .icon-container,
+body.desktop-page .module-folder-app[data-melliflous-tone="orange"] .module-folder-logo {
+	box-shadow: 0 0 0 2px #e07a1f;
+	background-color: rgba(224, 122, 31, 0.16);
+}
+
+body.desktop-page .desktop-icon[data-melliflous-tone="purple"] .icon-container,
+body.desktop-page .module-folder-app[data-melliflous-tone="purple"] .module-folder-logo {
+	box-shadow: 0 0 0 2px #7a45c4;
+	background-color: rgba(122, 69, 196, 0.14);
+}
+
+body.desktop-page .desktop-icon[data-melliflous-tone="blue"] .icon-container,
+body.desktop-page .module-folder-app[data-melliflous-tone="blue"] .module-folder-logo {
+	box-shadow: 0 0 0 2px #2f6fdb;
+	background-color: rgba(47, 111, 219, 0.14);
+}
+
+body.desktop-page .desktop-icon[data-melliflous-tone="teal"] .icon-container,
+body.desktop-page .module-folder-app[data-melliflous-tone="teal"] .module-folder-logo {
+	box-shadow: 0 0 0 2px #0e8f8a;
+	background-color: rgba(14, 143, 138, 0.14);
+}
+
+body.desktop-page .desktop-icon[data-melliflous-tone="brown"] .icon-container,
+body.desktop-page .module-folder-app[data-melliflous-tone="brown"] .module-folder-logo {
+	box-shadow: 0 0 0 2px #8a5a32;
+	background-color: rgba(138, 90, 50, 0.16);
+}
+
+body.desktop-page .desktop-icon[data-melliflous-tone="pink"] .icon-container,
+body.desktop-page .module-folder-app[data-melliflous-tone="pink"] .module-folder-logo {
+	box-shadow: 0 0 0 2px #d4538c;
+	background-color: rgba(212, 83, 140, 0.14);
+}
+
+body.desktop-page .desktop-icon[data-melliflous-tone="yellow"] .icon-container,
+body.desktop-page .module-folder-app[data-melliflous-tone="yellow"] .module-folder-logo {
+	box-shadow: 0 0 0 2px #d4a017;
+	background-color: rgba(212, 160, 23, 0.2);
+}
+
+body.desktop-page .desktop-icon[data-melliflous-tone="red"] .icon-container,
+body.desktop-page .module-folder-app[data-melliflous-tone="red"] .module-folder-logo {
+	box-shadow: 0 0 0 2px #d23b3b;
+	background-color: rgba(210, 59, 59, 0.14);
+}
+
+body.desktop-page .desktop-icon[data-melliflous-tone="brand"] .icon-container,
+body.desktop-page .module-folder-app[data-melliflous-tone="brand"] .module-folder-logo {
+	box-shadow: 0 0 0 2px #1f4d3a;
+	background-color: rgba(31, 77, 58, 0.12);
+}
+
+[data-theme="dark"] body.desktop-page .desktop-icon[data-melliflous-tone="brand"] .icon-container,
+[data-theme="dark"] body.desktop-page .module-folder-app[data-melliflous-tone="brand"] .module-folder-logo {
+	box-shadow: 0 0 0 2px #8fceb4;
+}
