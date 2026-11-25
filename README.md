@@ -82,6 +82,8 @@ Colours key off the English label. A translated tile title will not match, and t
 
 ## Install on Frappe Cloud
 
+Frappe Cloud reads `[tool.bench.frappe-dependencies]` from the root `pyproject.toml` before it will add the app. This repo declares `frappe = ">=16.0.0-dev,<17.0.0"`. The Python package, `hooks.py` (`app_title`, `required_apps = ["frappe"]`), `patches.txt`, and `__version__` sit in `melliflous_branding/` at the repository root, and the build backend is `flit_core`.
+
 The bench group needs the app, then the site needs it installed. Order:
 
 1. Merge this repository to `main` (or point the bench at the branch you deployed).
