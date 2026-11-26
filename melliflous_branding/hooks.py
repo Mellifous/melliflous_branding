@@ -5,12 +5,26 @@ app_description = "Desk branding for Melliflous Group on Frappe v16"
 app_email = "developers@melliflous.com"
 app_license = "MIT"
 
-# This app is not a destination. It stays off the apps screen on purpose.
 required_apps = ["frappe"]
+
+# Quick Actions tile on the v16 apps screen. /app/... redirects to /desk/...
+add_to_apps_screen = [
+	{
+		"name": "melliflous_branding",
+		"logo": "/assets/melliflous_branding/images/melliflous_icon_512.png",
+		"title": "Quick Actions",
+		"route": "/desk/quick-actions",
+		"has_permission": "melliflous_branding.access.can_show_quick_actions",
+		"sequence_id": 12,
+	}
+]
 
 # Includes in <head> of desk.html (styles in head, script at the end of body).
 app_include_css = "/assets/melliflous_branding/css/melliflous_branding.css"
-app_include_js = "/assets/melliflous_branding/js/melliflous_branding.js"
+app_include_js = [
+	"/assets/melliflous_branding/js/melliflous_branding.js",
+	"/assets/melliflous_branding/js/quick_actions.js",
+]
 
 # Desk boot. sessions.get calls extend_bootinfo on every boot, including a
 # cached one. boot.get_bootinfo still calls boot_session. Register both.

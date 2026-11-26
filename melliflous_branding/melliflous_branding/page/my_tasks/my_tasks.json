@@ -1,0 +1,15 @@
+{
+ "doctype": "Page",
+ "icon": "circle-check",
+ "module": "Melliflous Branding",
+ "name": "my-tasks",
+ "page_name": "my-tasks",
+ "roles": [
+  {
+   "role": "All"
+  }
+ ],
+ "standard": "Yes",
+ "system_page": 0,
+ "title": "My Tasks"
+}

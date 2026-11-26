@@ -1,0 +1,15 @@
+{
+ "doctype": "Page",
+ "icon": "list-todo",
+ "module": "Melliflous Branding",
+ "name": "give-task",
+ "page_name": "give-task",
+ "roles": [
+  {
+   "role": "All"
+  }
+ ],
+ "standard": "Yes",
+ "system_page": 0,
+ "title": "Give a Task"
+}
