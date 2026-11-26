@@ -1,0 +1,15 @@
+{
+ "doctype": "Page",
+ "icon": "user-plus",
+ "module": "Melliflous Branding",
+ "name": "add-team-member",
+ "page_name": "add-team-member",
+ "roles": [
+  {
+   "role": "System Manager"
+  }
+ ],
+ "standard": "Yes",
+ "system_page": 0,
+ "title": "Add Team Member"
+}

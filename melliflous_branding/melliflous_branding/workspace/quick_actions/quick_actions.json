@@ -1,0 +1,132 @@
+{
+ "charts": [],
+ "content": "[{\"id\": \"qa1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Add Team Member\", \"col\": 12}}, {\"id\": \"qa2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Give a Task\", \"col\": 12}}, {\"id\": \"qa3\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Quick Lead\", \"col\": 12}}, {\"id\": \"qa4\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"My Tasks\", \"col\": 12}}]",
+ "creation": "2026-11-26 00:00:00",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "zap",
+ "is_hidden": 0,
+ "label": "Quick Actions",
+ "links": [
+  {
+   "type": "Card Break",
+   "label": "Quick Actions",
+   "hidden": 0,
+   "is_query_report": 0,
+   "link_count": 0,
+   "onboard": 0
+  },
+  {
+   "type": "Link",
+   "label": "Add Team Member",
+   "link_type": "Page",
+   "link_to": "add-team-member",
+   "hidden": 0,
+   "is_query_report": 0,
+   "link_count": 0,
+   "onboard": 0,
+   "dependencies": ""
+  },
+  {
+   "type": "Link",
+   "label": "Give a Task",
+   "link_type": "Page",
+   "link_to": "give-task",
+   "hidden": 0,
+   "is_query_report": 0,
+   "link_count": 0,
+   "onboard": 0,
+   "dependencies": ""
+  },
+  {
+   "type": "Link",
+   "label": "Quick Lead",
+   "link_type": "Page",
+   "link_to": "quick-lead",
+   "hidden": 0,
+   "is_query_report": 0,
+   "link_count": 0,
+   "onboard": 0,
+   "dependencies": ""
+  },
+  {
+   "type": "Link",
+   "label": "My Tasks",
+   "link_type": "Page",
+   "link_to": "my-tasks",
+   "hidden": 0,
+   "is_query_report": 0,
+   "link_count": 0,
+   "onboard": 0,
+   "dependencies": ""
+  }
+ ],
+ "modified": "2026-11-26 00:00:00",
+ "modified_by": "Administrator",
+ "module": "Melliflous Branding",
+ "name": "Quick Actions",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "restrict_to_domain": "",
+ "roles": [
+  {
+   "role": "All"
+  }
+ ],
+ "sequence_id": 1.0,
+ "shortcuts": [
+  {
+   "color": "",
+   "doc_view": "",
+   "icon": "user-plus",
+   "label": "Add Team Member",
+   "link_to": "add-team-member",
+   "type": "Page",
+   "url": "",
+   "stats_filter": "",
+   "format": ""
+  },
+  {
+   "color": "",
+   "doc_view": "",
+   "icon": "list-todo",
+   "label": "Give a Task",
+   "link_to": "give-task",
+   "type": "Page",
+   "url": "",
+   "stats_filter": "",
+   "format": ""
+  },
+  {
+   "color": "",
+   "doc_view": "",
+   "icon": "contact",
+   "label": "Quick Lead",
+   "link_to": "quick-lead",
+   "type": "Page",
+   "url": "",
+   "stats_filter": "",
+   "format": ""
+  },
+  {
+   "color": "",
+   "doc_view": "",
+   "icon": "circle-check",
+   "label": "My Tasks",
+   "link_to": "my-tasks",
+   "type": "Page",
+   "url": "",
+   "stats_filter": "",
+   "format": ""
+  }
+ ],
+ "standard": 1,
+ "title": "Quick Actions",
+ "type": "Workspace"
+}

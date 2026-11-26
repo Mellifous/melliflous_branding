@@ -1,0 +1,15 @@
+{
+ "doctype": "Page",
+ "icon": "contact",
+ "module": "Melliflous Branding",
+ "name": "quick-lead",
+ "page_name": "quick-lead",
+ "roles": [
+  {
+   "role": "All"
+  }
+ ],
+ "standard": "Yes",
+ "system_page": 0,
+ "title": "Quick Lead"
+}

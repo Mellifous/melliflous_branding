@@ -1,6 +1,6 @@
 # Melliflous Branding
 
-Desk branding for the Melliflous Group sites on Frappe v16. It does not add a DocType, a workspace, or an apps-screen tile, and it does not patch Frappe. Uninstalling the app removes the hooks and the assets. A user's saved default company is left in place, because that value belongs to the user, not to this app.
+Desk branding and a few plain screens for the Melliflous Group sites on Frappe v16. It does not add a DocType and it does not patch Frappe. Uninstalling the app removes the hooks, the pages, and the assets. A user's saved default company is left in place, because that value belongs to the user, not to this app.
 
 Site this was written for: [https://melliflous.m.frappe.cloud](https://melliflous.m.frappe.cloud), on a private bench with Frappe v16, ERPNext v16, HRMS, India Compliance, and Frappe CRM v16. Companies on that site are Melliflous International Multi Trade Pvt Ltd, Melliflous Foods (OPC) Pvt Ltd, Melliflous Beverages, and AJ Enterprises. The app does not hard-code those names. It reads Company from the site.
 
@@ -70,6 +70,28 @@ Module tiles are on screen in two cases:
 
 Colours key off the English label. A translated tile title will not match, and the tile stays neutral. The logo artwork is not recoloured. A ring and a light pad sit behind it.
 
+## Quick Actions
+
+A **Quick Actions** tile on the desk home, a **Quick Actions** workspace, and a sidebar named Melliflous Branding. v16 opens desk pages at `/desk/...`. The old `/app/...` address redirects there.
+
+| Screen | Route | Who |
+| --- | --- | --- |
+| Add Team Member | `/desk/add-team-member` | System Manager only |
+| Give a Task | `/desk/give-task` | Anyone who can use the desk |
+| Quick Lead | `/desk/quick-lead` | Anyone who can use the desk |
+| My Tasks | `/desk/my-tasks` | The signed-in person |
+| Quick Actions | `/desk/quick-actions` | The workspace of large shortcuts |
+
+**Add Team Member.** Full name, email, mobile, a tick for each company, one default company, and a job: Owner / Admin (System Manager), Accounts, HR, Sales Manager, Sales Rep / Van, Plant / Stock, or CRM Sales. Save creates or updates the user, turns welcome email off, and gives them the desk roles for that job. A Role Profile already on the user is cleared, because on v16 a profile replaces the whole role list and would undo the choice. Unrelated roles such as Employee stay. One Company user permission is kept per ticked company, with Is Default on the chosen company. Unticked companies are removed. Administrator and Guest are left alone. The same page lists people, with Edit.
+
+**Give a Task.** Pick a person, write what to do, set a due date (tomorrow if left empty) and a priority (Medium if left empty). Company and a link to a record are optional. A linked record is assigned with Frappe's assign-to, which also creates the ToDo. Open tasks are grouped by person. Overdue dates are red. Mark done closes the ToDo. A System Manager sees every open task. Everyone else sees the tasks they gave.
+
+**Quick Lead.** Name, mobile, shop, city, source (Field Visit unless another is chosen), who follows up, and the next follow-up date (tomorrow if left empty). Save creates a **CRM Lead** when Frappe CRM is installed, otherwise an ERPNext **Lead**, and a follow-up ToDo. Below the form, today's and overdue follow-ups have Call (`tel:`) and WhatsApp (`wa.me`) buttons. A 10-digit mobile is treated as an Indian number.
+
+**My Tasks.** Only the signed-in person's open ToDos, with Mark done.
+
+These records are imported on `bench migrate` from the app's page, workspace, and sidebar files. The patch `ensure_quick_actions` imports them once as well, so a site that already had the app picks them up on the next update.
+
 ## v16 details that shaped this
 
 - The home header title is hidden on a wide desk and shown only on the phone tab-bar layout. The company name is shown in that header on a wide desk as well, because otherwise the replacement would only be visible on a phone and in the tab.
@@ -95,6 +117,8 @@ The bench group needs the app, then the site needs it installed. Order:
 7. Open the site **melliflous** (`melliflous.m.frappe.cloud`) and install the app `melliflous_branding` from the site's app list. Frappe is already on the bench. `required_apps` is only `frappe`, so ERPNext, HRMS, CRM, and India Compliance do not have to be named for the install to succeed.
 8. Hard-refresh `https://melliflous.m.frappe.cloud/desk`. On iPhone Safari, use Add to Home Screen from that URL, not from the login page.
 
+The app is already on private bench group **bench-52993**. For a later change that is already on `main`: open that bench group, **Deploy** so the bench picks up the commit, then on the site **melliflous** press **Update Now**. Update Now runs migrate, which loads new pages, the Quick Actions workspace, and the sidebar. Hard-refresh `/desk` after it finishes.
+
 Confirm the site file `/files/melliflous_icon_512.png` is public. That is the icon the manifest and the apple touch link ask iOS to use.
 
 To remove it: on the site, uninstall `melliflous_branding`, then remove the app from the bench group on a later deploy if you do not want the code on the bench. No tables are dropped. Users keep the company default the picker saved.
@@ -102,8 +126,9 @@ To remove it: on the site, uninstall `melliflous_branding`, then remove the app 
 ## Develop
 
 ```bash
-python -m unittest melliflous_branding.tests.test_branding
+python -m unittest melliflous_branding.tests.test_branding melliflous_branding.tests.test_quick
 node --check melliflous_branding/public/js/melliflous_branding.js
+node --check melliflous_branding/public/js/quick_actions.js
 ```
 
 The unit tests cover the title, who sees the picker, User Permission filtering, tile colours, and the head tags. They do not need a site. A full `bench` install was not run in the environment this was built in: Frappe v16 requires Python 3.14, and that image was not available there.

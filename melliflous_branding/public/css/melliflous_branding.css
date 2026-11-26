@@ -168,3 +168,98 @@ body.desktop-page .module-folder-app[data-melliflous-tone="brand"] .module-folde
 [data-theme="dark"] body.desktop-page .module-folder-app[data-melliflous-tone="brand"] .module-folder-logo {
 	box-shadow: 0 0 0 2px #8fceb4;
 }
+
+/* Quick Actions pages. Large type and tap targets for a phone. */
+.melliflous-quick {
+	max-width: 40rem;
+	margin: 0 auto;
+	padding: 4px 16px 48px;
+}
+.melliflous-quick h2 {
+	margin: 28px 0 8px;
+	font-size: 1.25rem;
+}
+.melliflous-quick label,
+.melliflous-quick .field-label {
+	display: block;
+	margin: 16px 0 6px;
+	font-weight: 600;
+}
+.melliflous-quick .form-control,
+.melliflous-quick select.form-control {
+	min-height: 48px;
+	font-size: 16px;
+	width: 100%;
+}
+.melliflous-quick .btn-save {
+	min-height: 52px;
+	width: 100%;
+	margin-top: 20px;
+	font-size: 1.05rem;
+}
+.melliflous-quick .company-tick {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	min-height: 48px;
+	margin-top: 8px;
+	padding: 8px 12px;
+	border: 1px solid var(--border-color, #e5e7eb);
+	border-radius: 12px;
+	font-size: 16px;
+}
+.melliflous-quick .company-tick input {
+	width: 22px;
+	height: 22px;
+	flex: 0 0 auto;
+}
+.melliflous-quick .banner {
+	margin-top: 12px;
+	padding: 12px 14px;
+	border-radius: 12px;
+	background: #e7f6ee;
+	color: #135c36;
+}
+.melliflous-quick .banner.is-error {
+	background: #fde8e8;
+	color: #8d1d1d;
+}
+.melliflous-card {
+	margin-top: 10px;
+	padding: 12px 14px;
+	border: 1px solid var(--border-color, #e5e7eb);
+	border-radius: 12px;
+	background: var(--surface-base, #fff);
+}
+.melliflous-card .who {
+	font-weight: 700;
+}
+.melliflous-card .meta {
+	color: var(--ink-gray-7, #4b5563);
+	margin-top: 4px;
+}
+.melliflous-card .is-overdue {
+	color: #c0392b;
+	font-weight: 700;
+}
+.melliflous-card .actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-top: 12px;
+}
+.melliflous-card .actions .btn,
+.melliflous-quick .btn-row .btn {
+	min-height: 44px;
+	flex: 1 1 auto;
+}
+.melliflous-quick .match-list {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin-top: 8px;
+}
+.melliflous-quick .picked {
+	margin-top: 8px;
+	font-weight: 600;
+}
