@@ -190,6 +190,7 @@ class TestShippedDesk(unittest.TestCase):
 		)
 		patches = (PACKAGE / "patches.txt").read_text()
 		self.assertIn("melliflous_branding.patches.v0_3.ensure_team_files", patches)
+		self.assertIn("melliflous_branding.patches.v0_4.show_team_files", patches)
 
 	def test_quick_actions_links_chat_and_files(self):
 		workspace = json.loads(
@@ -209,6 +210,8 @@ class TestShippedDesk(unittest.TestCase):
 		)
 		self.assertEqual(page["name"], "team-files")
 		self.assertEqual(page["title"], "Team Files")
+		self.assertEqual(page["system_page"], 1)
+		self.assertEqual(page["page_name"], "team-files")
 
 		sidebar = json.loads(
 			(

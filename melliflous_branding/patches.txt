@@ -6,3 +6,4 @@
 # Patches added in this section will be executed after doctypes are migrated
 melliflous_branding.patches.v0_2.ensure_quick_actions
 melliflous_branding.patches.v0_3.ensure_team_files
+melliflous_branding.patches.v0_4.show_team_files

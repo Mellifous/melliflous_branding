@@ -307,31 +307,65 @@ body.desktop-page .module-folder-app[data-melliflous-tone="brand"] .module-folde
 	border-radius: 8px;
 	background: var(--surface-gray-1, #f8faf9);
 }
-.melliflous-team-links {
-	padding-bottom: 4px;
+.melliflous-tiles {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 12px;
+	max-width: 40rem;
+	margin: 4px auto 8px;
+	padding: 8px max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left));
+	box-sizing: border-box;
 }
-.melliflous-team-links a.btn-save {
+.melliflous-tile {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	justify-content: flex-end;
+	min-height: 148px;
+	padding: 16px;
+	border-radius: 18px;
+	background: #1f4d3a;
+	color: #fff;
+	text-decoration: none;
+	box-sizing: border-box;
+	touch-action: manipulation;
+}
+.melliflous-tile-files {
+	background: #0e8f8a;
+}
+.melliflous-tile-icon {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	text-decoration: none;
-	touch-action: manipulation;
-}
-.melliflous-team-links a.btn-save + a.btn-save {
-	margin-top: 10px;
-}
-
-/* Quick Actions workspace: full-width shortcuts that are easy to tap. */
-body.melliflous-quick-home .shortcut-widget-box {
-	min-height: 64px;
+	width: 44px;
+	height: 44px;
+	margin-bottom: auto;
 	border-radius: 12px;
+	background: rgba(255, 255, 255, 0.16);
 }
-body.melliflous-quick-home .shortcut-widget-box .widget-title,
-body.melliflous-quick-home .shortcut-widget-box .widget-title-text {
-	font-size: 1.1rem;
+.melliflous-tile-icon svg {
+	width: 26px;
+	height: 26px;
+}
+.melliflous-tile-label {
+	font-size: 1.25rem;
 	font-weight: 700;
+	line-height: 1.2;
 }
-body.melliflous-quick-home.has-team-links .ce-block:has([shortcut_name="Team Chat"]),
-body.melliflous-quick-home.has-team-links .ce-block:has([shortcut_name="Team Files"]) {
-	display: none;
+.melliflous-tile-hint {
+	margin-top: 4px;
+	font-size: 0.95rem;
+	font-weight: 500;
+	opacity: 0.9;
+}
+.melliflous-tile-duplicate {
+	display: none !important;
+}
+@media (max-width: 560px) {
+	.melliflous-tiles {
+		grid-template-columns: 1fr;
+	}
+	.melliflous-tile {
+		min-height: 112px;
+	}
 }
