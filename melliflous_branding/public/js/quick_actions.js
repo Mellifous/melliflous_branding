@@ -530,6 +530,8 @@ window.melliflous_quick = (function () {
 	}
 
 	function mountFiles(page) {
+		const main = page && page.main;
+		if (main && main.find && main.find(".melliflous-quick").length) return;
 		const root = el("div", "melliflous-quick");
 		page.main.empty().append(root);
 		const userType = frappe.boot && frappe.boot.user && frappe.boot.user.user_type;
@@ -730,43 +732,103 @@ window.melliflous_quick = (function () {
 	function onQuickHome() {
 		if (!window.frappe || !frappe.get_route) return false;
 		const route = frappe.get_route() || [];
-		return route[0] === "Workspaces" && route[1] === "Quick Actions";
+		if (!route.length) return false;
+		const name = route[route.length - 1];
+		return name === "Quick Actions" && (route[0] === "Workspaces" || route[0] === "quick-actions");
 	}
 
-	function visibleSection() {
-		const sections = Array.from(document.querySelectorAll(".layout-main-section"));
-		return sections.find((node) => node.offsetParent !== null) || sections[sections.length - 1] || null;
+	function quickActionsSection() {
+		const page = document.getElementById("page-Workspaces");
+		if (page && !page.classList.contains("hidden")) {
+			const section = page.querySelector(".layout-main-section");
+			if (section) return section;
+		}
+		if (!onQuickHome()) return null;
+		return (
+			Array.from(document.querySelectorAll(".layout-main-section")).find(
+				(node) => node.offsetParent !== null
+			) || null
+		);
 	}
 
-	function teamLinks() {
-		const wrap = el("div", "melliflous-quick melliflous-team-links");
-		const chat = el("a", "btn btn-primary btn-save", __("Team Chat"));
-		chat.href = "/raven";
-		const files = el("a", "btn btn-primary btn-save", __("Team Files"));
-		files.href = "/desk/team-files";
-		files.addEventListener("click", (event) => {
-			if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
-			event.preventDefault();
-			frappe.set_route("team-files");
-		});
-		wrap.appendChild(chat);
-		wrap.appendChild(files);
+	function tileIcon(kind) {
+		const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+		svg.setAttribute("viewBox", "0 0 24 24");
+		svg.setAttribute("aria-hidden", "true");
+		const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+		path.setAttribute("fill", "none");
+		path.setAttribute("stroke", "currentColor");
+		path.setAttribute("stroke-width", "1.8");
+		path.setAttribute("stroke-linecap", "round");
+		path.setAttribute("stroke-linejoin", "round");
+		path.setAttribute(
+			"d",
+			kind === "chat"
+				? "M5 6.5h14v8.2H8.2L5 17.5z"
+				: "M4 7.5h6l2 2h8v8.2H4z"
+		);
+		svg.appendChild(path);
+		return svg;
+	}
+
+	function teamTile(href, label, hint, kind) {
+		const link = el("a", `melliflous-tile melliflous-tile-${kind}`);
+		link.href = href;
+		const icon = el("span", "melliflous-tile-icon");
+		icon.appendChild(tileIcon(kind));
+		link.appendChild(icon);
+		link.appendChild(el("span", "melliflous-tile-label", label));
+		link.appendChild(el("span", "melliflous-tile-hint", hint));
+		return link;
+	}
+
+	function teamTiles() {
+		const wrap = el("div", "melliflous-tiles");
+		wrap.appendChild(teamTile("/raven", __("Team Chat"), __("Message the team"), "chat"));
+		wrap.appendChild(
+			teamTile("/desk/team-files", __("Team Files"), __("Share a file"), "files")
+		);
 		return wrap;
+	}
+
+	function hideDuplicateRows(section) {
+		const wanted = { "Team Chat": true, "Team Files": true };
+		section.querySelectorAll(".ce-block, .shortcut-widget-box, .widget").forEach((node) => {
+			if (node.closest(".melliflous-tiles")) return;
+			const named = (node.getAttribute("shortcut_name") || node.getAttribute("aria-label") || "").trim();
+			const title = node.querySelector(".widget-title-text, .widget-title");
+			const label = named || (title ? title.textContent.replace(/\s+/g, " ").trim() : "");
+			if (!wanted[label]) return;
+			(node.closest(".ce-block") || node).classList.add("melliflous-tile-duplicate");
+		});
 	}
 
 	function decorateQuickHome() {
 		const home = onQuickHome();
 		document.body.classList.toggle("melliflous-quick-home", home);
-		if (!home) {
-			document.body.classList.remove("has-team-links");
-			return;
-		}
-		const section = visibleSection();
+		if (!home) return;
+		const section = quickActionsSection();
 		if (!section) return;
-		if (!section.querySelector(".melliflous-team-links")) {
-			section.prepend(teamLinks());
+		if (!section.querySelector(".melliflous-tiles")) {
+			section.prepend(teamTiles());
 		}
-		document.body.classList.add("has-team-links");
+		hideDuplicateRows(section);
+	}
+
+	function showTeamFiles() {
+		const route = (window.frappe && frappe.get_route && frappe.get_route()) || [];
+		if (route[0] !== "team-files") return;
+		const wrapper = frappe.pages && frappe.pages["team-files"];
+		if (!wrapper || wrapper.querySelector(".melliflous-quick")) return;
+		if (!(window.melliflous_quick && melliflous_quick.mountFiles)) return;
+		const page =
+			wrapper.page ||
+			frappe.ui.make_app_page({
+				parent: wrapper,
+				title: __("Team Files"),
+				single_column: true,
+			});
+		melliflous_quick.mountFiles(page);
 	}
 
 	let quickHomeTimer = 0;
@@ -775,15 +837,31 @@ window.melliflous_quick = (function () {
 		quickHomeTimer = window.setTimeout(decorateQuickHome, 40);
 	}
 
+	function scheduleDeskPages() {
+		scheduleQuickHome();
+		showTeamFiles();
+	}
+
+	// A visit while migrate was still importing this page stores an empty script
+	// in the browser. Drop it so the next open reads the file from the app.
+	try {
+		localStorage.removeItem("_page:team-files");
+	} catch (error) {
+		/* private browsing */
+	}
+
 	if (window.frappe && frappe.router && frappe.router.on) {
-		frappe.router.on("change", scheduleQuickHome);
+		frappe.router.on("change", scheduleDeskPages);
+	}
+	if (window.jQuery) {
+		window.jQuery(document).on("page-change", scheduleDeskPages);
 	}
 	document.addEventListener(
 		"click",
 		(event) => {
 			if (!onQuickHome()) return;
 			const box = event.target.closest && event.target.closest('[shortcut_name="Team Chat"]');
-			if (!box || (event.target.closest && event.target.closest(".melliflous-team-links"))) return;
+			if (!box || (event.target.closest && event.target.closest(".melliflous-tiles"))) return;
 			event.preventDefault();
 			event.stopPropagation();
 			window.location.assign("/raven");
@@ -791,9 +869,12 @@ window.melliflous_quick = (function () {
 		true
 	);
 	if (window.MutationObserver && document.body) {
-		new MutationObserver(scheduleQuickHome).observe(document.body, { childList: true, subtree: true });
+		new MutationObserver(scheduleDeskPages).observe(document.body, {
+			childList: true,
+			subtree: true,
+		});
 	}
-	scheduleQuickHome();
+	scheduleDeskPages();
 
 	return { mountTeam, mountTasks, mountLead, mountFiles };
 })();
