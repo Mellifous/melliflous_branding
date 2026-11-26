@@ -1,0 +1,326 @@
+{
+ "actions": [],
+ "allow_import": 1,
+ "allow_rename": 0,
+ "autoname": "naming_series:",
+ "creation": "2026-11-26 18:00:00.000000",
+ "description": "Primary (sell-in) target for one customer. Achievement is the company-currency net total of submitted Sales Invoices before GST. Credit notes are subtracted.",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "customer",
+  "company",
+  "period_type",
+  "column_break_period",
+  "target_month",
+  "target_quarter",
+  "from_date",
+  "to_date",
+  "target_section",
+  "target_amount",
+  "currency",
+  "column_break_target",
+  "target_qty",
+  "uom",
+  "filter_section",
+  "item_group",
+  "column_break_filter",
+  "brand",
+  "owner_section",
+  "sales_person",
+  "column_break_owner",
+  "sales_user",
+  "remarks",
+  "achievement_section",
+  "achieved_amount",
+  "gap",
+  "column_break_achievement",
+  "achievement_pct",
+  "status",
+  "achieved_qty"
+ ],
+ "fields": [
+  {
+   "default": "CPT-.YYYY.-",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Series",
+   "no_copy": 1,
+   "options": "CPT-.YYYY.-",
+   "reqd": 1,
+   "set_only_once": 1
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Customer",
+   "options": "Customer",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "default": "Monthly",
+   "fieldname": "period_type",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Period Type",
+   "options": "Monthly\nQuarterly",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_period",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.period_type=='Monthly'",
+   "description": "Pick any day. From and To fill in for that month.",
+   "fieldname": "target_month",
+   "fieldtype": "Date",
+   "label": "Month"
+  },
+  {
+   "depends_on": "eval:doc.period_type=='Quarterly'",
+   "description": "Pick any day. From and To fill in for that fiscal quarter.",
+   "fieldname": "target_quarter",
+   "fieldtype": "Date",
+   "label": "Quarter"
+  },
+  {
+   "fieldname": "from_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "From Date",
+   "read_only": 1,
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "to_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "To Date",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "target_section",
+   "fieldtype": "Section Break",
+   "label": "Target"
+  },
+  {
+   "description": "Net total before GST, in the company currency.",
+   "fieldname": "target_amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Target Amount",
+   "non_negative": 1,
+   "options": "currency",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "company.default_currency",
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_target",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "target_qty",
+   "fieldtype": "Float",
+   "label": "Target Qty",
+   "non_negative": 1
+  },
+  {
+   "description": "Required with a quantity target. A stock UOM such as Kg counts stock qty. Any other UOM counts lines sold in that UOM.",
+   "fieldname": "uom",
+   "fieldtype": "Link",
+   "label": "UOM",
+   "options": "UOM"
+  },
+  {
+   "fieldname": "filter_section",
+   "fieldtype": "Section Break",
+   "label": "What counts"
+  },
+  {
+   "description": "Counts invoice lines in this item group and the groups under it. Leave blank to count every line.",
+   "fieldname": "item_group",
+   "fieldtype": "Link",
+   "label": "Item Group",
+   "options": "Item Group"
+  },
+  {
+   "fieldname": "column_break_filter",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Counts invoice lines of this brand. Leave blank to count every brand. Can be combined with item group.",
+   "fieldname": "brand",
+   "fieldtype": "Link",
+   "label": "Brand",
+   "options": "Brand"
+  },
+  {
+   "fieldname": "owner_section",
+   "fieldtype": "Section Break",
+   "label": "Who owns it"
+  },
+  {
+   "fieldname": "sales_person",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Sales Person",
+   "options": "Sales Person",
+   "search_index": 1
+  },
+  {
+   "fieldname": "column_break_owner",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "The desk user this target belongs to. A Sales User can read targets where they are this user, the document owner, or the Sales Person linked to their Employee.",
+   "fieldname": "sales_user",
+   "fieldtype": "Link",
+   "label": "Sales User",
+   "options": "User",
+   "search_index": 1
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "achievement_section",
+   "fieldtype": "Section Break",
+   "label": "Achievement"
+  },
+  {
+   "fieldname": "achieved_amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Achieved Amount",
+   "no_copy": 1,
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "description": "Target amount minus achieved amount. Negative means the target was beaten.",
+   "fieldname": "gap",
+   "fieldtype": "Currency",
+   "label": "Gap",
+   "no_copy": 1,
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_achievement",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "achievement_pct",
+   "fieldtype": "Percent",
+   "in_list_view": 1,
+   "label": "Achievement %",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "no_copy": 1,
+   "options": "\nAchieved\nNot Achieved\nIn Progress",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "depends_on": "eval:doc.target_qty",
+   "fieldname": "achieved_qty",
+   "fieldtype": "Float",
+   "label": "Achieved Qty",
+   "no_copy": 1,
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-11-26 18:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Melliflous Branding",
+ "name": "Customer Primary Target",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "select": 1,
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales Manager",
+   "select": 1,
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 0,
+   "delete": 0,
+   "email": 0,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales User",
+   "select": 1,
+   "share": 0,
+   "write": 0
+  }
+ ],
+ "row_format": "Dynamic",
+ "search_fields": "customer,status,sales_person",
+ "sort_field": "from_date",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
