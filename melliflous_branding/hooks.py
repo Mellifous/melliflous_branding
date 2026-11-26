@@ -49,3 +49,19 @@ doc_events = {
 		"before_validate": "melliflous_branding.team_files.keep_team_file_private",
 	}
 }
+
+# Customer primary targets. The daily job rewrites achieved amount, gap, percent,
+# and status. Sales User is limited to the targets they own.
+scheduler_events = {
+	"daily": [
+		"melliflous_branding.target_records.refresh_primary_targets",
+	],
+}
+
+permission_query_conditions = {
+	"Customer Primary Target": "melliflous_branding.target_records.get_permission_query_conditions",
+}
+
+has_permission = {
+	"Customer Primary Target": "melliflous_branding.target_records.has_target_permission",
+}

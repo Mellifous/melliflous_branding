@@ -1,6 +1,6 @@
 # Melliflous Branding
 
-Desk branding and a few plain screens for the Melliflous Group sites on Frappe v16. It does not add a DocType and it does not patch Frappe. Uninstalling the app removes the hooks, the pages, and the assets. A user's saved default company is left in place, because that value belongs to the user, not to this app.
+Desk branding, a few plain screens, and a primary sales target for each customer, for the Melliflous Group sites on Frappe v16. Uninstalling the app removes the hooks, the pages, the assets, and the Customer Primary Target records. A user's saved default company is left in place, because that value belongs to the user, not to this app.
 
 Site this was written for: [https://melliflous.m.frappe.cloud](https://melliflous.m.frappe.cloud), on a private bench with Frappe v16, ERPNext v16, HRMS, India Compliance, and Frappe CRM v16. Companies on that site are Melliflous International Multi Trade Pvt Ltd, Melliflous Foods (OPC) Pvt Ltd, Melliflous Beverages, and AJ Enterprises. The app does not hard-code those names. It reads Company from the site.
 
@@ -96,7 +96,25 @@ A **Quick Actions** tile on the desk home, a **Quick Actions** workspace, and a 
 
 **Team Chat.** On the Quick Actions workspace (`/desk/quick-actions`, which v16 shows as `/desk/melliflous-branding/quick-actions`) two large tiles sit above the other shortcuts: Team Chat (`/raven`, same window) and Team Files. The plain shortcut rows for those two are hidden once the tiles are in place. `desk_tiles.js` does this, so an older cached `quick_actions.js` does not leave only the rows. The sidebar still lists both. On migrate, every enabled System User who does not already have **Raven User** is given that role, so they can open the chat. Administrator and Guest are skipped. If the Raven app is not installed and the role does not exist, the step does nothing.
 
-These records are imported on `bench migrate` from the app's page, workspace, and sidebar files. The patches `ensure_quick_actions` and `ensure_team_files` import them once as well, so a site that already had the app picks them up on the next update. `ensure_team_files` also creates the folder and grants Raven User.
+These records are imported on `bench migrate` from the app's page, workspace, and sidebar files. The patches `ensure_quick_actions`, `ensure_team_files`, and `show_team_files` import them once as well, so a site that already had the app picks them up on the next update. `ensure_team_files` also creates the folder and grants Raven User.
+
+## Customer targets
+
+A primary (sell-in) target for one customer, for a month or a quarter. The amount is the net total before GST, in the company currency. Submitted Sales Invoices count. A credit note (a Sales Invoice with Is Return ticked) is subtracted, whether ERPNext stored that amount as a negative or a positive. Opening a target, saving it, or the daily job refreshes the achieved amount, the gap, the percent, and the status.
+
+Status is **Achieved** at 100% or more. It is **In Progress** while the period has not ended. It is **Not Achieved** once the period has ended below 100%. On the report, green is 100% or more, amber is 70 to 99, and red is under 70.
+
+An item group counts that group and the groups under it. A brand counts invoice lines of that brand. Leave both blank to count the whole invoice. Two targets for the same customer, company, item group, and brand cannot cover overlapping dates.
+
+**Set one target.** Open Customer Primary Target (Quick Actions → Customer Targets). Pick the customer, the company, and a day in the month or quarter. Enter the target amount. Quantity and UOM are optional. Sales Person and Sales User say who it belongs to. Saving fills the achieved numbers from Sales Invoices in that period.
+
+**Set a month for many customers.** On the Customer Primary Target list, **Set Targets for Month**. Pick the company and any day in the month, optionally an item group, a brand, a sales person, or a customer group, then Load Customers. Type the amounts and Save Targets. A customer who already has that month is updated. A blank amount is skipped. The list stops at 500 customers; narrow it with the sales person or customer group when it does.
+
+**Read the result.** Open Target vs Achievement. Filter by company, period, customer, sales person, and status. The table has a total row. The bar chart compares target and achieved, and shows the 15 largest targets when there are more.
+
+Sales Manager and System Manager can create, edit, and delete every target, and they can run the report. A Sales User can run the report and read a target when they are its owner, its Sales User, or the Sales Person is linked to their Employee (`Sales Person → Employee → User ID`). A Sales User cannot create or edit targets.
+
+Quick Actions has both shortcuts, and so does the Melliflous Branding sidebar. On migrate, the same two links are added to the Selling sidebar and the CRM sidebar (the CRM module is FCRM) when those modules exist. On an older desk that still opens the workspace page, they are added to the Selling and CRM workspaces as well. That step does not pin those workspaces, so a later ERPNext update can still refresh them, and the links are put back on the next migrate.
 
 ## v16 details that shaped this
 
@@ -123,32 +141,38 @@ The bench group needs the app, then the site needs it installed. Order:
 7. Open the site **melliflous** (`melliflous.m.frappe.cloud`) and install the app `melliflous_branding` from the site's app list. Frappe is already on the bench. `required_apps` is only `frappe`, so ERPNext, HRMS, CRM, and India Compliance do not have to be named for the install to succeed.
 8. Hard-refresh `https://melliflous.m.frappe.cloud/desk`. On iPhone Safari, use Add to Home Screen from that URL, not from the login page.
 
-The app is already on private bench group **bench-52993**. For a later change that is already on `main`: open that bench group, **Deploy** so the bench picks up the commit, then on the site **melliflous** press **Update Now**. Update Now runs migrate, which loads new pages, the Quick Actions workspace, and the sidebar, creates **Home/Team Files** if it is missing, and gives Raven User to enabled desk users when that role exists. Hard-refresh `/desk` after it finishes.
+The app is already on private bench group **bench-52993**. For a later change that is already on `main`: open that bench group, **Deploy** so the bench picks up the commit, then on the site **melliflous** press **Update Now**. Update Now runs migrate, which loads new pages, the Quick Actions workspace, and the sidebar, creates **Home/Team Files** if it is missing, gives Raven User to enabled desk users when that role exists, and creates Customer Primary Target plus the Target vs Achievement report. Hard-refresh `/desk` after it finishes.
 
 Confirm the site file `/files/melliflous_icon_512.png` is public. That is the icon the manifest and the apple touch link ask iOS to use.
 
-To remove it: on the site, uninstall `melliflous_branding`, then remove the app from the bench group on a later deploy if you do not want the code on the bench. No tables are dropped. Users keep the company default the picker saved.
+To remove it: on the site, uninstall `melliflous_branding`, then remove the app from the bench group on a later deploy if you do not want the code on the bench. Uninstall drops the Customer Primary Target table. Users keep the company default the picker saved.
 
 ## Develop
 
 ```bash
-python -m unittest melliflous_branding.tests.test_branding melliflous_branding.tests.test_quick melliflous_branding.tests.test_files
+python -m unittest melliflous_branding.tests.test_branding melliflous_branding.tests.test_quick melliflous_branding.tests.test_files melliflous_branding.tests.test_targets
 node --check melliflous_branding/public/js/melliflous_branding.js
 node --check melliflous_branding/public/js/quick_actions.js
 node --check melliflous_branding/public/js/desk_tiles.js
 node --check melliflous_branding/melliflous_branding/page/team_files/team_files.js
+node --check melliflous_branding/melliflous_branding/doctype/customer_primary_target/customer_primary_target.js
+node --check melliflous_branding/melliflous_branding/doctype/customer_primary_target/customer_primary_target_list.js
+node --check melliflous_branding/melliflous_branding/report/customer_target_vs_achievement/customer_target_vs_achievement.js
 ```
 
-The unit tests cover the title, who sees the picker, User Permission filtering, tile colours, and the head tags. They do not need a site. A full `bench` install was not run in the environment this was built in: Frappe v16 requires Python 3.14, and that image was not available there.
+The unit tests cover the title, who sees the picker, User Permission filtering, tile colours, the head tags, and the target rules (periods, credit notes, overlap, the report total, and who can see a row). They do not need a site. A full `bench` install was not run in the environment this was built in: Frappe v16 requires Python 3.14, and that image was not available there.
 
-Hooks, and nothing else:
+Hooks:
 
 | Hook | What it does |
 | --- | --- |
 | `app_include_css` / `app_include_js` | Switcher, title, and tile colours inside the desk. |
 | `extend_bootinfo` and `boot_session` | Companies, the current default, whether to show the picker, and the tone map. |
 | `after_request` | Apple touch icon, manifest link, and `apple-mobile-web-app-title` on `/desk` HTML. |
-| `after_install` / `after_migrate` | Create Home/Team Files if it is missing. On migrate, grant Raven User to enabled desk users when that role exists. |
+| `after_install` / `after_migrate` | Create Home/Team Files if it is missing. On migrate, grant Raven User to enabled desk users when that role exists, and add the target links to Selling and CRM when those modules exist. |
 | `doc_events` File `before_validate` | A file saved into Team Files is forced private. |
+| `scheduler_events` daily | Refresh achieved amount, gap, percent, and status on every Customer Primary Target. |
+| `permission_query_conditions` / `has_permission` | A Sales User reads only the targets they own. Sales Manager and System Manager read all of them. |
 | `melliflous_branding.api.set_default_company` | Whitelisted POST. Writes the user default `company`. |
 | `melliflous_branding.team_files` | Whitelisted list, upload, download, and delete. Each one requires a desk user and stays inside Home/Team Files. |
+| `melliflous_branding.target_records` | Whitelisted month bounds, the bulk target list, and saving a month of targets. Sales Manager or System Manager only, for the bulk save. |

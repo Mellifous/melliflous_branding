@@ -13,7 +13,9 @@ def after_install():
 
 def after_migrate():
 	from melliflous_branding.raven_roles import grant_missing_raven_roles
+	from melliflous_branding.target_records import ensure_target_places
 	from melliflous_branding.team_files import ensure_team_folders
 
 	ensure_team_folders()
 	grant_missing_raven_roles()
+	ensure_target_places()

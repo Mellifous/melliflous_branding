@@ -1,6 +1,6 @@
 {
  "charts": [],
- "content": "[{\"id\": \"qa5\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Team Chat\", \"col\": 12}}, {\"id\": \"qa6\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Team Files\", \"col\": 12}}, {\"id\": \"qa1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Add Team Member\", \"col\": 12}}, {\"id\": \"qa2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Give a Task\", \"col\": 12}}, {\"id\": \"qa3\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Quick Lead\", \"col\": 12}}, {\"id\": \"qa4\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"My Tasks\", \"col\": 12}}]",
+ "content": "[{\"id\": \"qa5\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Team Chat\", \"col\": 12}}, {\"id\": \"qa6\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Team Files\", \"col\": 12}}, {\"id\": \"qa1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Add Team Member\", \"col\": 12}}, {\"id\": \"qa2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Give a Task\", \"col\": 12}}, {\"id\": \"qa3\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Quick Lead\", \"col\": 12}}, {\"id\": \"qa4\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"My Tasks\", \"col\": 12}}, {\"id\": \"qa7\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Customer Targets\", \"col\": 12}}, {\"id\": \"qa8\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Target vs Achievement\", \"col\": 12}}]",
  "creation": "2026-11-26 00:00:00",
  "custom_blocks": [],
  "docstatus": 0,
@@ -73,9 +73,39 @@
    "link_count": 0,
    "onboard": 0,
    "dependencies": ""
+  },
+  {
+   "type": "Card Break",
+   "label": "Targets",
+   "hidden": 0,
+   "is_query_report": 0,
+   "link_count": 0,
+   "onboard": 0
+  },
+  {
+   "type": "Link",
+   "label": "Customer Targets",
+   "link_type": "DocType",
+   "link_to": "Customer Primary Target",
+   "hidden": 0,
+   "is_query_report": 0,
+   "link_count": 0,
+   "onboard": 0,
+   "dependencies": ""
+  },
+  {
+   "type": "Link",
+   "label": "Target vs Achievement",
+   "link_type": "Report",
+   "link_to": "Customer Target vs Achievement",
+   "hidden": 0,
+   "is_query_report": 1,
+   "link_count": 0,
+   "onboard": 0,
+   "dependencies": ""
   }
  ],
- "modified": "2026-11-26 12:00:00",
+ "modified": "2026-11-26 18:00:00",
  "modified_by": "Administrator",
  "module": "Melliflous Branding",
  "name": "Quick Actions",
@@ -157,6 +187,29 @@
    "url": "",
    "stats_filter": "",
    "format": ""
+  },
+  {
+   "color": "",
+   "doc_view": "List",
+   "icon": "target",
+   "label": "Customer Targets",
+   "link_to": "Customer Primary Target",
+   "type": "DocType",
+   "url": "",
+   "stats_filter": "",
+   "format": ""
+  },
+  {
+   "color": "",
+   "doc_view": "",
+   "icon": "chart-column",
+   "label": "Target vs Achievement",
+   "link_to": "Customer Target vs Achievement",
+   "type": "Report",
+   "url": "",
+   "stats_filter": "",
+   "format": "",
+   "report_ref_doctype": "Customer Primary Target"
   }
  ],
  "standard": 1,
