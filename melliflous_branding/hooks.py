@@ -20,10 +20,12 @@ add_to_apps_screen = [
 ]
 
 # Includes in <head> of desk.html (styles in head, script at the end of body).
+# desk_tiles.js is its own file so a cached quick_actions.js cannot hide the tiles.
 app_include_css = "/assets/melliflous_branding/css/melliflous_branding.css"
 app_include_js = [
 	"/assets/melliflous_branding/js/melliflous_branding.js",
 	"/assets/melliflous_branding/js/quick_actions.js",
+	"/assets/melliflous_branding/js/desk_tiles.js",
 ]
 
 # Desk boot. sessions.get calls extend_bootinfo on every boot, including a

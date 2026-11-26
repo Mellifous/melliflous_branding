@@ -212,6 +212,12 @@ class TestShippedDesk(unittest.TestCase):
 		self.assertEqual(page["title"], "Team Files")
 		self.assertEqual(page["system_page"], 1)
 		self.assertEqual(page["page_name"], "team-files")
+		script = (PACKAGE / "melliflous_branding" / "page" / "team_files" / "team_files.js").read_text()
+		self.assertIn("Choose files", script)
+		self.assertIn("layout-main-section", script)
+		self.assertIn("form_options", script)
+		self.assertNotIn("melliflous_quick.mountFiles", script)
+		self.assertIn("desk_tiles.js", (PACKAGE / "hooks.py").read_text())
 
 		sidebar = json.loads(
 			(
