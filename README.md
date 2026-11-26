@@ -80,9 +80,11 @@ A **Quick Actions** tile on the desk home, a **Quick Actions** workspace, and a 
 | Give a Task | `/desk/give-task` | Anyone who can use the desk |
 | Quick Lead | `/desk/quick-lead` | Anyone who can use the desk |
 | My Tasks | `/desk/my-tasks` | The signed-in person |
+| Team Files | `/desk/team-files` | Anyone who can use the desk |
+| Team Chat | `/raven` | Anyone who can use the desk, when Raven is installed |
 | Quick Actions | `/desk/quick-actions` | The workspace of large shortcuts |
 
-**Add Team Member.** Full name, email, mobile, a tick for each company, one default company, and a job: Owner / Admin (System Manager), Accounts, HR, Sales Manager, Sales Rep / Van, Plant / Stock, or CRM Sales. Save creates or updates the user, turns welcome email off, and gives them the desk roles for that job. A Role Profile already on the user is cleared, because on v16 a profile replaces the whole role list and would undo the choice. Unrelated roles such as Employee stay. One Company user permission is kept per ticked company, with Is Default on the chosen company. Unticked companies are removed. Administrator and Guest are left alone. The same page lists people, with Edit.
+**Add Team Member.** Full name, email, mobile, a tick for each company, one default company, and a job: Owner / Admin (System Manager), Accounts, HR, Sales Manager, Sales Rep / Van, Plant / Stock, or CRM Sales. Save creates or updates the user, turns welcome email off, and gives them the desk roles for that job. When the Raven User role exists, it is added as well so they can open Team Chat. A Role Profile already on the user is cleared, because on v16 a profile replaces the whole role list and would undo the choice. Unrelated roles such as Employee stay. One Company user permission is kept per ticked company, with Is Default on the chosen company. Unticked companies are removed. Administrator and Guest are left alone. The same page lists people, with Edit.
 
 **Give a Task.** Pick a person, write what to do, set a due date (tomorrow if left empty) and a priority (Medium if left empty). Company and a link to a record are optional. A linked record is assigned with Frappe's assign-to, which also creates the ToDo. Open tasks are grouped by person. Overdue dates are red. Mark done closes the ToDo. A System Manager sees every open task. Everyone else sees the tasks they gave.
 
@@ -90,7 +92,11 @@ A **Quick Actions** tile on the desk home, a **Quick Actions** workspace, and a 
 
 **My Tasks.** Only the signed-in person's open ToDos, with Mark done.
 
-These records are imported on `bench migrate` from the app's page, workspace, and sidebar files. The patch `ensure_quick_actions` imports them once as well, so a site that already had the app picks them up on the next update.
+**Team Files.** A shared folder for the desk, used because Frappe Drive does not install on this v16 bench. Drop a file on the page, or use Choose files. The file is stored with Frappe's File doctype, through `upload_file`, private (`is_private` 1), inside **Home/Team Files**. A folder is optional: General, Sales, Accounts, HR, Plant, or Marketing. The list shows the name, size, who uploaded it, the date, and the folder. Search matches the name or the folder. Download and Preview use this app's download method, which only serves a file from that folder. Delete is limited to the person who uploaded it, or a System Manager. The folder is created on install and on migrate if it is missing.
+
+**Team Chat.** A large button on Quick Actions opens `/raven` in the same window. The same shortcut is in the Quick Actions workspace and the sidebar. On migrate, every enabled System User who does not already have **Raven User** is given that role, so they can open the chat. Administrator and Guest are skipped. If the Raven app is not installed and the role does not exist, the step does nothing.
+
+These records are imported on `bench migrate` from the app's page, workspace, and sidebar files. The patches `ensure_quick_actions` and `ensure_team_files` import them once as well, so a site that already had the app picks them up on the next update. `ensure_team_files` also creates the folder and grants Raven User.
 
 ## v16 details that shaped this
 
@@ -117,7 +123,7 @@ The bench group needs the app, then the site needs it installed. Order:
 7. Open the site **melliflous** (`melliflous.m.frappe.cloud`) and install the app `melliflous_branding` from the site's app list. Frappe is already on the bench. `required_apps` is only `frappe`, so ERPNext, HRMS, CRM, and India Compliance do not have to be named for the install to succeed.
 8. Hard-refresh `https://melliflous.m.frappe.cloud/desk`. On iPhone Safari, use Add to Home Screen from that URL, not from the login page.
 
-The app is already on private bench group **bench-52993**. For a later change that is already on `main`: open that bench group, **Deploy** so the bench picks up the commit, then on the site **melliflous** press **Update Now**. Update Now runs migrate, which loads new pages, the Quick Actions workspace, and the sidebar. Hard-refresh `/desk` after it finishes.
+The app is already on private bench group **bench-52993**. For a later change that is already on `main`: open that bench group, **Deploy** so the bench picks up the commit, then on the site **melliflous** press **Update Now**. Update Now runs migrate, which loads new pages, the Quick Actions workspace, and the sidebar, creates **Home/Team Files** if it is missing, and gives Raven User to enabled desk users when that role exists. Hard-refresh `/desk` after it finishes.
 
 Confirm the site file `/files/melliflous_icon_512.png` is public. That is the icon the manifest and the apple touch link ask iOS to use.
 
@@ -126,9 +132,10 @@ To remove it: on the site, uninstall `melliflous_branding`, then remove the app 
 ## Develop
 
 ```bash
-python -m unittest melliflous_branding.tests.test_branding melliflous_branding.tests.test_quick
+python -m unittest melliflous_branding.tests.test_branding melliflous_branding.tests.test_quick melliflous_branding.tests.test_files
 node --check melliflous_branding/public/js/melliflous_branding.js
 node --check melliflous_branding/public/js/quick_actions.js
+node --check melliflous_branding/melliflous_branding/page/team_files/team_files.js
 ```
 
 The unit tests cover the title, who sees the picker, User Permission filtering, tile colours, and the head tags. They do not need a site. A full `bench` install was not run in the environment this was built in: Frappe v16 requires Python 3.14, and that image was not available there.
@@ -140,4 +147,7 @@ Hooks, and nothing else:
 | `app_include_css` / `app_include_js` | Switcher, title, and tile colours inside the desk. |
 | `extend_bootinfo` and `boot_session` | Companies, the current default, whether to show the picker, and the tone map. |
 | `after_request` | Apple touch icon, manifest link, and `apple-mobile-web-app-title` on `/desk` HTML. |
+| `after_install` / `after_migrate` | Create Home/Team Files if it is missing. On migrate, grant Raven User to enabled desk users when that role exists. |
+| `doc_events` File `before_validate` | A file saved into Team Files is forced private. |
 | `melliflous_branding.api.set_default_company` | Whitelisted POST. Writes the user default `company`. |
+| `melliflous_branding.team_files` | Whitelisted list, upload, download, and delete. Each one requires a desk user and stays inside Home/Team Files. |

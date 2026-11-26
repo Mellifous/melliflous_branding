@@ -73,8 +73,36 @@ LINKABLE_DOCTYPES = (
 )
 
 
+RAVEN_ROLE = "Raven User"
+
+
 def is_protected_user(name: str | None) -> bool:
 	return (name or "").strip().lower() in PROTECTED_USERS
+
+
+def raven_role_targets(users: list[dict], role_exists: bool) -> list[str]:
+	"""Enabled desk users who still need the Raven User role.
+
+	Returns nothing when that role is not installed. Administrator and Guest
+	are never included.
+	"""
+	if not role_exists:
+		return []
+	chosen: list[str] = []
+	seen: set[str] = set()
+	for user in users:
+		name = (user.get("name") or "").strip()
+		if not name or name in seen or is_protected_user(name):
+			continue
+		if not user.get("enabled"):
+			continue
+		if (user.get("user_type") or "") != "System User":
+			continue
+		if RAVEN_ROLE in set(user.get("roles") or ()):
+			continue
+		seen.add(name)
+		chosen.append(name)
+	return chosen
 
 
 def split_name(full_name: str | None) -> tuple[str, str]:

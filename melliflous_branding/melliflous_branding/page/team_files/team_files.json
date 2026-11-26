@@ -1,0 +1,15 @@
+{
+ "doctype": "Page",
+ "icon": "folder",
+ "module": "Melliflous Branding",
+ "name": "team-files",
+ "page_name": "team-files",
+ "roles": [
+  {
+   "role": "All"
+  }
+ ],
+ "standard": "Yes",
+ "system_page": 0,
+ "title": "Team Files"
+}

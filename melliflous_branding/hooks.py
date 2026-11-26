@@ -34,3 +34,16 @@ boot_session = ["melliflous_branding.boot.boot_session"]
 # iOS reads apple-touch-icon from the document HTML. Desk has no head-include
 # hook, so the tags are inserted into the /desk response here.
 after_request = ["melliflous_branding.boot.inject_pwa_head"]
+
+# Home/Team Files is created on install and again on every migrate if it is
+# missing. The same migrate gives Raven User to enabled desk users when that
+# role exists.
+after_install = "melliflous_branding.install.after_install"
+after_migrate = ["melliflous_branding.install.after_migrate"]
+
+# A file saved into Team Files is forced private before Frappe writes it.
+doc_events = {
+	"File": {
+		"before_validate": "melliflous_branding.team_files.keep_team_file_private",
+	}
+}
