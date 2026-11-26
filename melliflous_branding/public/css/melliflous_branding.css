@@ -173,7 +173,7 @@ body.desktop-page .module-folder-app[data-melliflous-tone="brand"] .module-folde
 .melliflous-quick {
 	max-width: 40rem;
 	margin: 0 auto;
-	padding: 4px 16px 48px;
+	padding: 4px max(16px, env(safe-area-inset-right)) 48px max(16px, env(safe-area-inset-left));
 }
 .melliflous-quick h2 {
 	margin: 28px 0 8px;
@@ -262,4 +262,76 @@ body.desktop-page .module-folder-app[data-melliflous-tone="brand"] .module-folde
 .melliflous-quick .picked {
 	margin-top: 8px;
 	font-weight: 600;
+}
+.melliflous-quick .hint {
+	margin: 8px 0 0;
+	color: var(--ink-gray-7, #4b5563);
+}
+.melliflous-quick .dropzone {
+	margin-top: 8px;
+	padding: 16px;
+	border: 2px dashed var(--border-color, #c5cdd6);
+	border-radius: 16px;
+	background: var(--surface-gray-1, #f8faf9);
+	text-align: center;
+}
+.melliflous-quick .dropzone.is-over {
+	border-color: #1f9d55;
+	background: #e7f6ee;
+}
+.melliflous-quick .dropzone p {
+	margin: 0;
+}
+.melliflous-quick .chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-top: 12px;
+}
+.melliflous-quick .chips .btn {
+	min-height: 44px;
+	border-radius: 999px;
+	touch-action: manipulation;
+}
+.melliflous-quick .chips .btn.is-on {
+	background: #1f4d3a;
+	border-color: #1f4d3a;
+	color: #fff;
+}
+.melliflous-quick .file-preview {
+	display: block;
+	width: 100%;
+	max-height: 240px;
+	margin-top: 10px;
+	object-fit: contain;
+	border-radius: 8px;
+	background: var(--surface-gray-1, #f8faf9);
+}
+.melliflous-team-links {
+	padding-bottom: 4px;
+}
+.melliflous-team-links a.btn-save {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	text-decoration: none;
+	touch-action: manipulation;
+}
+.melliflous-team-links a.btn-save + a.btn-save {
+	margin-top: 10px;
+}
+
+/* Quick Actions workspace: full-width shortcuts that are easy to tap. */
+body.melliflous-quick-home .shortcut-widget-box {
+	min-height: 64px;
+	border-radius: 12px;
+}
+body.melliflous-quick-home .shortcut-widget-box .widget-title,
+body.melliflous-quick-home .shortcut-widget-box .widget-title-text {
+	font-size: 1.1rem;
+	font-weight: 700;
+}
+body.melliflous-quick-home.has-team-links .ce-block:has([shortcut_name="Team Chat"]),
+body.melliflous-quick-home.has-team-links .ce-block:has([shortcut_name="Team Files"]) {
+	display: none;
 }

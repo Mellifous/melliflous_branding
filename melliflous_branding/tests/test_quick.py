@@ -15,6 +15,7 @@ from melliflous_branding.quick import (
 	is_protected_user,
 	next_day,
 	phone_links,
+	raven_role_targets,
 	role_label,
 	roles_to_assign,
 	safe_role_profile,
@@ -75,6 +76,31 @@ class TestTeamRules(unittest.TestCase):
 		self.assertEqual(guess_role({"HR User"}), "hr")
 		self.assertEqual(guess_role({"Sales User"}), "sales_rep")
 		self.assertIsNone(guess_role({"Employee"}))
+
+
+class TestRavenRole(unittest.TestCase):
+	def test_missing_role_does_nothing(self):
+		users = [
+			{"name": "aj@example.com", "enabled": 1, "user_type": "System User", "roles": set()},
+		]
+		self.assertEqual(raven_role_targets(users, role_exists=False), [])
+
+	def test_enabled_desk_users_without_the_role_are_chosen(self):
+		users = [
+			{"name": "Administrator", "enabled": 1, "user_type": "System User", "roles": set()},
+			{"name": "Guest", "enabled": 1, "user_type": "Website User", "roles": set()},
+			{"name": "off@example.com", "enabled": 0, "user_type": "System User", "roles": set()},
+			{"name": "web@example.com", "enabled": 1, "user_type": "Website User", "roles": set()},
+			{
+				"name": "has@example.com",
+				"enabled": 1,
+				"user_type": "System User",
+				"roles": {"Raven User", "Sales User"},
+			},
+			{"name": "new@example.com", "enabled": 1, "user_type": "System User", "roles": {"Sales User"}},
+			{"name": "new@example.com", "enabled": 1, "user_type": "System User", "roles": set()},
+		]
+		self.assertEqual(raven_role_targets(users, role_exists=True), ["new@example.com"])
 
 
 class TestTaskAndLeadRules(unittest.TestCase):

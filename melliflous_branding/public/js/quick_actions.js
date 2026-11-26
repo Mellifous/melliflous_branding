@@ -1,5 +1,5 @@
 // Simple screens for Quick Actions. Loaded on every desk page, used by the
-// four standard pages. Server methods check permission again.
+// standard pages. Server methods check permission again.
 window.melliflous_quick = (function () {
 	const TEAM = "melliflous_branding.team";
 	const TASKS = "melliflous_branding.tasks";
@@ -503,5 +503,297 @@ window.melliflous_quick = (function () {
 			.catch((error) => fail(error, note));
 	}
 
-	return { mountTeam, mountTasks, mountLead };
+	const FILES = "melliflous_branding.team_files";
+
+	function plain(text) {
+		return String(text || "")
+			.replace(/<[^>]*>/g, "")
+			.trim();
+	}
+
+	function messageFrom(payload) {
+		if (payload && payload._server_messages) {
+			try {
+				const messages = JSON.parse(payload._server_messages);
+				const first = JSON.parse(messages[0]);
+				if (first && first.message) return plain(first.message);
+			} catch (error) {
+				/* fall through */
+			}
+		}
+		return __("Something went wrong. Please try again.");
+	}
+
+	function fileHref(name, inline) {
+		const params = new URLSearchParams({ name: name, inline: inline ? "1" : "0" });
+		return `/api/method/${FILES}.download?${params}`;
+	}
+
+	function mountFiles(page) {
+		const root = el("div", "melliflous-quick");
+		page.main.empty().append(root);
+		const userType = frappe.boot && frappe.boot.user && frappe.boot.user.user_type;
+		if (userType && userType !== "System User") {
+			root.appendChild(el("p", "", __("You are not allowed to do this.")));
+			return;
+		}
+		const note = banner(root);
+		const zone = el("div", "dropzone");
+		zone.appendChild(el("p", "", __("Drop a file here, or choose one.")));
+		const folder = field(zone, __("Folder"), select());
+		addOption(folder, "", __("General"));
+		const choose = el("button", "btn btn-primary btn-save", __("Choose files"));
+		choose.type = "button";
+		const picker = el("input");
+		picker.type = "file";
+		picker.multiple = true;
+		picker.hidden = true;
+		zone.appendChild(choose);
+		zone.appendChild(picker);
+		root.appendChild(zone);
+		root.appendChild(el("p", "hint", __("Everyone on the desk can open these files.")));
+
+		const search = field(root, __("Search"), input("search"));
+		search.placeholder = __("Name or folder");
+		const chips = el("div", "chips");
+		root.appendChild(chips);
+		root.appendChild(el("h2", "", __("Files")));
+		const list = el("div");
+		root.appendChild(list);
+
+		let activeTag = "All";
+		let timer = 0;
+		let requestId = 0;
+
+		function drawChips(tags) {
+			chips.replaceChildren();
+			const choices = ["All", "General"].concat(tags || []);
+			choices.forEach((tag) => {
+				const button = el("button", "btn btn-default", __(tag));
+				button.type = "button";
+				button.classList.toggle("is-on", tag === activeTag);
+				button.addEventListener("click", () => {
+					activeTag = tag;
+					drawChips(tags);
+					load();
+				});
+				chips.appendChild(button);
+			});
+		}
+
+		function drawFiles(rows) {
+			list.replaceChildren();
+			if (!rows.length) {
+				list.appendChild(
+					el(
+						"p",
+						"",
+						search.value.trim() || activeTag !== "All" ? __("Nothing matches.") : __("No files yet.")
+					)
+				);
+				return;
+			}
+			rows.forEach((row) => {
+				const card = el("div", "melliflous-card");
+				card.appendChild(el("div", "who", row.file_name || __("File")));
+				const bits = [row.tag_label || __("General"), row.size_label || ""];
+				if (row.uploader) bits.push(row.uploader);
+				if (row.added) bits.push(prettyDate(row.added));
+				card.appendChild(el("div", "meta", bits.filter(Boolean).join(" · ")));
+				if (row.is_image) {
+					const image = el("img", "file-preview");
+					image.alt = row.file_name || "";
+					image.src = fileHref(row.name, true);
+					card.appendChild(image);
+				}
+				const actions = el("div", "actions");
+				const download = el("a", "btn btn-default", __("Download"));
+				download.href = fileHref(row.name, false);
+				actions.appendChild(download);
+				if (row.can_preview) {
+					const preview = el("a", "btn btn-default", __("Preview"));
+					preview.href = fileHref(row.name, true);
+					preview.target = "_blank";
+					preview.rel = "noopener";
+					actions.appendChild(preview);
+				}
+				if (row.can_delete) {
+					const remove = el("button", "btn btn-default", __("Delete"));
+					remove.type = "button";
+					remove.addEventListener("click", () => {
+						if (!window.confirm(__("Delete this file?"))) return;
+						remove.disabled = true;
+						call(`${FILES}.delete_file`, { name: row.name })
+							.then((response) => {
+								note.show((response.message && response.message.message) || __("Deleted."));
+								load();
+							})
+							.catch((error) => {
+								remove.disabled = false;
+								fail(error, note);
+							});
+					});
+					actions.appendChild(remove);
+				}
+				card.appendChild(actions);
+				list.appendChild(card);
+			});
+		}
+
+		function load() {
+			const current = ++requestId;
+			return call(`${FILES}.list_files`, { search: search.value, tag: activeTag })
+				.then((response) => {
+					if (current !== requestId) return;
+					drawFiles((response.message && response.message.files) || []);
+				})
+				.catch((error) => {
+					if (current !== requestId) return;
+					fail(error, note);
+				});
+		}
+
+		function uploadOne(file) {
+			const body = new FormData();
+			body.append("file", file, file.name);
+			body.append("tag", folder.value || "");
+			body.append("is_private", "1");
+			return fetch(`/api/method/${FILES}.upload`, {
+				method: "POST",
+				headers: {
+					Accept: "application/json",
+					"X-Frappe-CSRF-Token": frappe.csrf_token,
+				},
+				body,
+			}).then(async (response) => {
+				const payload = await response.json().catch(() => ({}));
+				if (!response.ok) throw new Error(messageFrom(payload));
+				return payload.message;
+			});
+		}
+
+		async function uploadAll(fileList) {
+			const files = Array.from(fileList || []).filter((file) => file && file.name);
+			if (!files.length) return;
+			if (files.length > 20) {
+				note.show(__("Choose up to 20 files at a time."), true);
+				return;
+			}
+			note.clear();
+			choose.disabled = true;
+			let failed = "";
+			for (let index = 0; index < files.length; index += 1) {
+				note.show(__("Uploading {0} of {1}…", [String(index + 1), String(files.length)]));
+				try {
+					await uploadOne(files[index]);
+				} catch (error) {
+					failed = (error && error.message) || __("Something went wrong. Please try again.");
+					break;
+				}
+			}
+			choose.disabled = false;
+			picker.value = "";
+			await load();
+			if (failed) note.show(failed, true);
+			else note.show(__("Uploaded."));
+		}
+
+		choose.addEventListener("click", () => picker.click());
+		picker.addEventListener("change", () => uploadAll(picker.files));
+		["dragenter", "dragover"].forEach((eventName) => {
+			zone.addEventListener(eventName, (event) => {
+				event.preventDefault();
+				zone.classList.add("is-over");
+			});
+		});
+		zone.addEventListener("dragleave", () => zone.classList.remove("is-over"));
+		zone.addEventListener("drop", (event) => {
+			event.preventDefault();
+			zone.classList.remove("is-over");
+			uploadAll(event.dataTransfer && event.dataTransfer.files);
+		});
+		search.addEventListener("input", () => {
+			window.clearTimeout(timer);
+			timer = window.setTimeout(load, 250);
+		});
+
+		call(`${FILES}.form_options`)
+			.then((response) => {
+				const tags = (response.message && response.message.tags) || [];
+				tags.forEach((tag) => addOption(folder, tag, __(tag)));
+				drawChips(tags);
+				return load();
+			})
+			.catch((error) => fail(error, note));
+	}
+
+	function onQuickHome() {
+		if (!window.frappe || !frappe.get_route) return false;
+		const route = frappe.get_route() || [];
+		return route[0] === "Workspaces" && route[1] === "Quick Actions";
+	}
+
+	function visibleSection() {
+		const sections = Array.from(document.querySelectorAll(".layout-main-section"));
+		return sections.find((node) => node.offsetParent !== null) || sections[sections.length - 1] || null;
+	}
+
+	function teamLinks() {
+		const wrap = el("div", "melliflous-quick melliflous-team-links");
+		const chat = el("a", "btn btn-primary btn-save", __("Team Chat"));
+		chat.href = "/raven";
+		const files = el("a", "btn btn-primary btn-save", __("Team Files"));
+		files.href = "/desk/team-files";
+		files.addEventListener("click", (event) => {
+			if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+			event.preventDefault();
+			frappe.set_route("team-files");
+		});
+		wrap.appendChild(chat);
+		wrap.appendChild(files);
+		return wrap;
+	}
+
+	function decorateQuickHome() {
+		const home = onQuickHome();
+		document.body.classList.toggle("melliflous-quick-home", home);
+		if (!home) {
+			document.body.classList.remove("has-team-links");
+			return;
+		}
+		const section = visibleSection();
+		if (!section) return;
+		if (!section.querySelector(".melliflous-team-links")) {
+			section.prepend(teamLinks());
+		}
+		document.body.classList.add("has-team-links");
+	}
+
+	let quickHomeTimer = 0;
+	function scheduleQuickHome() {
+		window.clearTimeout(quickHomeTimer);
+		quickHomeTimer = window.setTimeout(decorateQuickHome, 40);
+	}
+
+	if (window.frappe && frappe.router && frappe.router.on) {
+		frappe.router.on("change", scheduleQuickHome);
+	}
+	document.addEventListener(
+		"click",
+		(event) => {
+			if (!onQuickHome()) return;
+			const box = event.target.closest && event.target.closest('[shortcut_name="Team Chat"]');
+			if (!box || (event.target.closest && event.target.closest(".melliflous-team-links"))) return;
+			event.preventDefault();
+			event.stopPropagation();
+			window.location.assign("/raven");
+		},
+		true
+	);
+	if (window.MutationObserver && document.body) {
+		new MutationObserver(scheduleQuickHome).observe(document.body, { childList: true, subtree: true });
+	}
+	scheduleQuickHome();
+
+	return { mountTeam, mountTasks, mountLead, mountFiles };
 })();

@@ -18,6 +18,7 @@ from melliflous_branding.quick import (
 	roles_to_assign,
 	split_name,
 )
+from melliflous_branding.raven_roles import grant_raven_role_on_user
 
 
 @frappe.whitelist()
@@ -139,6 +140,9 @@ def save_member(
 	user.last_name = last_name
 	user.mobile_no = mobile
 	_apply_roles(user, choice_roles)
+	# Raven User is not one of the job roles. Add it when the role exists so a
+	# new person can open Team Chat without waiting for the next migrate.
+	grant_raven_role_on_user(user)
 	user.flags.ignore_permissions = True
 	user.save()
 

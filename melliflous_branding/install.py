@@ -1,0 +1,19 @@
+# Copyright (c) 2026, Melliflous and contributors
+# License: MIT. See license.txt
+"""Install and migrate hooks. Both are safe to run more than once."""
+
+from __future__ import annotations
+
+
+def after_install():
+	from melliflous_branding.team_files import ensure_team_folders
+
+	ensure_team_folders()
+
+
+def after_migrate():
+	from melliflous_branding.raven_roles import grant_missing_raven_roles
+	from melliflous_branding.team_files import ensure_team_folders
+
+	ensure_team_folders()
+	grant_missing_raven_roles()

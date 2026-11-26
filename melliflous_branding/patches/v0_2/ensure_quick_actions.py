@@ -19,6 +19,7 @@ def execute():
 		"page/give_task/give_task.json",
 		"page/quick_lead/quick_lead.json",
 		"page/my_tasks/my_tasks.json",
+		"page/team_files/team_files.json",
 		"workspace/quick_actions/quick_actions.json",
 		"sidebar/melliflous_branding/melliflous_branding.json",
 	):
