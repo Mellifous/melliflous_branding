@@ -624,6 +624,8 @@
 			sales_person: "",
 			rag: "",
 			billing: "",
+			division:
+				(frappe.boot && frappe.boot.melliflous_branding && frappe.boot.melliflous_branding.division) || "",
 		};
 		const picked = new Set();
 		let misPayload = null;
@@ -695,6 +697,26 @@
 			schedule();
 		});
 		filterBar.appendChild(billing);
+		const divisionFilter = el("select", "form-control");
+		const divisionBlank = el("option", "", __("All divisions"));
+		divisionBlank.value = "";
+		divisionFilter.appendChild(divisionBlank);
+		const bootDivisions =
+			(frappe.boot && frappe.boot.melliflous_branding && frappe.boot.melliflous_branding.divisions) || [];
+		const bootCompany = (frappe.boot && frappe.boot.melliflous_branding && frappe.boot.melliflous_branding.company) || "";
+		bootDivisions
+			.filter((row) => !bootCompany || row.company === bootCompany)
+			.forEach((row) => {
+				const option = el("option", "", row.division_name || row.name);
+				option.value = row.name;
+				divisionFilter.appendChild(option);
+			});
+		divisionFilter.value = filters.division;
+		divisionFilter.addEventListener("change", () => {
+			filters.division = divisionFilter.value;
+			schedule();
+		});
+		filterBar.appendChild(divisionFilter);
 		filterBar.appendChild(
 			pill(__("Export Excel / CSV"), "quote", () => exportDistributors(misPayload))
 		);
@@ -1030,6 +1052,9 @@
 						profile.is_active ? __("Active") : __("Inactive")
 					)
 				);
+			}
+			if (data.division) {
+				band.appendChild(el("span", "block-pill", data.division));
 			}
 			if (data.billing_status === "Blocked" || data.billing_status === "Blacklisted") {
 				const pillNode = el("span", "block-pill", __(data.billing_status));
@@ -1959,6 +1984,7 @@
 						sales_person: filters.sales_person,
 						rag: filters.rag,
 						billing: filters.billing,
+						division: filters.division,
 					},
 				})
 				.then((response) => {

@@ -68,23 +68,50 @@ doc_events = {
 		"before_validate": "melliflous_branding.team_files.keep_team_file_private",
 	},
 	"Customer": {
-		"validate": "melliflous_branding.customer_records.validate_customer",
+		"validate": [
+			"melliflous_branding.customer_records.validate_customer",
+			"melliflous_branding.division_records.apply_division",
+		],
 		"on_update": "melliflous_branding.customer_records.remember_billing_change",
 	},
 	"Sales Invoice": {
-		"validate": "melliflous_branding.customer_records.block_selling",
+		"validate": [
+			"melliflous_branding.customer_records.block_selling",
+			"melliflous_branding.division_records.apply_division",
+		],
 		"before_rename": "melliflous_branding.invoice_admin_records.guard_rename",
 		"after_rename": "melliflous_branding.invoice_admin_records.log_rename",
 		"on_trash": "melliflous_branding.invoice_admin_records.guard_delete",
 	},
 	"Purchase Invoice": {
+		"validate": "melliflous_branding.division_records.apply_division",
 		"before_rename": "melliflous_branding.invoice_admin_records.guard_rename",
 		"after_rename": "melliflous_branding.invoice_admin_records.log_rename",
 		"on_trash": "melliflous_branding.invoice_admin_records.guard_delete",
 	},
-	"Sales Order": {"validate": "melliflous_branding.customer_records.block_selling"},
-	"Quotation": {"validate": "melliflous_branding.customer_records.block_selling"},
-	"Delivery Note": {"validate": "melliflous_branding.customer_records.block_selling"},
+	"Sales Order": {
+		"validate": [
+			"melliflous_branding.customer_records.block_selling",
+			"melliflous_branding.division_records.apply_division",
+		]
+	},
+	"Quotation": {
+		"validate": [
+			"melliflous_branding.customer_records.block_selling",
+			"melliflous_branding.division_records.apply_division",
+		]
+	},
+	"Delivery Note": {
+		"validate": [
+			"melliflous_branding.customer_records.block_selling",
+			"melliflous_branding.division_records.apply_division",
+		]
+	},
+	"Payment Entry": {"validate": "melliflous_branding.division_records.apply_division"},
+	"Item": {"validate": "melliflous_branding.division_records.apply_division"},
+	"Purchase Order": {"validate": "melliflous_branding.division_records.apply_division"},
+	"CRM Lead": {"validate": "melliflous_branding.division_records.apply_division"},
+	"CRM Deal": {"validate": "melliflous_branding.division_records.apply_division"},
 }
 
 doctype_js = {

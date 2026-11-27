@@ -969,6 +969,7 @@ def build_dashboard(bundle, today, growth_pct=GROWTH_DEFAULT, settings=None) -> 
 		"outstanding": outstanding,
 		"overdue_amount": overdue_amount,
 		"billing_status": billing_status,
+		"division": clean_text(bundle.get("customer_division")),
 		"block_reason": "" if billing_status == "Active" else clean_text(bundle.get("block_reason")),
 		"documents": documents,
 		"document_summary": document_summary(documents),
@@ -1622,11 +1623,12 @@ def _mis_row(profile, facts, today, month_keys, settings) -> dict:
 		"target_name": clean_text(facts.get("target_name")) or None,
 		"billing_status": billing_status,
 		"block_reason": "" if billing_status == "Active" else clean_text(facts.get("block_reason")),
+		"division": clean_text(facts.get("division")),
 		"document_summary": document_summary(documents),
 	}
 
 
-def _matches_mis_filters(row, search, territory, account_manager, sales_person, rag, billing) -> bool:
+def _matches_mis_filters(row, search, territory, account_manager, sales_person, rag, billing, division="") -> bool:
 	if search:
 		haystack = " ".join(
 			[
@@ -1651,6 +1653,8 @@ def _matches_mis_filters(row, search, territory, account_manager, sales_person, 
 		return False
 	if billing and row.get("billing_status") != billing:
 		return False
+	if division and row.get("division") != division:
+		return False
 	return True
 
 
@@ -1672,6 +1676,7 @@ def build_distributor_mis(profiles, metrics, filters, today, month_starts=None, 
 	billing = clean_text(filters.get("billing"))
 	if billing not in ("", "Active", "Blocked", "Blacklisted"):
 		billing = ""
+	division = clean_text(filters.get("division"))
 	if month_starts:
 		starts = [as_date(day) for day in month_starts]
 	else:
@@ -1686,7 +1691,7 @@ def build_distributor_mis(profiles, metrics, filters, today, month_starts=None, 
 	matched = [
 		row
 		for row in built
-		if _matches_mis_filters(row, search, territory, account_manager, sales_person, rag, billing)
+		if _matches_mis_filters(row, search, territory, account_manager, sales_person, rag, billing, division)
 	]
 	active_count = sum(1 for row in matched if row["active"])
 	inactive_count = len(matched) - active_count

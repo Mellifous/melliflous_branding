@@ -36,3 +36,15 @@ def set_default_company(company: str) -> dict:
 	# reads the value just saved. The open page updates its own boot in the browser.
 	frappe.cache.hdel("bootinfo", frappe.session.user)
 	return {"company": company, "title": display_title(company)}
+
+
+@frappe.whitelist(methods=["POST"])
+def set_desk_context(company: str, division: str | None = None) -> dict:
+	"""Store the company and a division of that company. The desk reloads afterwards."""
+	from melliflous_branding.division_records import resolve_division
+
+	saved = set_default_company(company)
+	chosen = resolve_division(saved["company"], division)
+	frappe.defaults.set_user_default("division", chosen or "")
+	frappe.cache.hdel("bootinfo", frappe.session.user)
+	return {"company": saved["company"], "division": chosen or None, "title": saved["title"]}
