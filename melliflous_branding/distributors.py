@@ -18,6 +18,7 @@ COMPLAINT_TYPES = ("Quality", "Damage", "Short Supply", "Expiry", "Pricing", "Ot
 COMPLAINT_STATUSES = ("Open", "In Progress", "Resolved", "Closed")
 OPEN_COMPLAINTS = frozenset({"Open", "In Progress"})
 EDIT_ROLES = frozenset({"System Manager", "Sales Manager"})
+TILE_ROLES = frozenset({"System Manager", "Sales Manager", "Sales User"})
 READ_PTYPES = frozenset({"read", "report", "export", "print", "email", "select"})
 WRITE_PTYPES = frozenset({"read", "write", "create", "report", "export", "print", "email", "select"})
 VISIT_IDENTITY = ("owner", "salesman")
@@ -423,6 +424,19 @@ def clean_complaint(row, credit_note=None) -> dict:
 		if other and other != distributor:
 			raise DistributorError("That credit note is for a different customer.")
 	return {"complaint_type": complaint_type, "status": status}
+
+
+def can_open_distributor_360(user, roles) -> bool:
+	"""Who sees the Distributor 360 tile on the v16 apps screen.
+
+	Administrator is included because that user is the desk owner. A guest, or a
+	desk user without a sales role, does not get the tile.
+	"""
+	if not user or user == "Guest":
+		return False
+	if user == "Administrator":
+		return True
+	return bool(set(roles or []).intersection(TILE_ROLES))
 
 
 def is_manager(viewer) -> bool:

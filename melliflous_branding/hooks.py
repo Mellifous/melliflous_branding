@@ -7,7 +7,7 @@ app_license = "MIT"
 
 required_apps = ["frappe"]
 
-# Quick Actions tile on the v16 apps screen. /app/... redirects to /desk/...
+# Tiles on the v16 apps screen. /app/... redirects to /desk/...
 add_to_apps_screen = [
 	{
 		"name": "melliflous_branding",
@@ -16,7 +16,15 @@ add_to_apps_screen = [
 		"route": "/desk/quick-actions",
 		"has_permission": "melliflous_branding.access.can_show_quick_actions",
 		"sequence_id": 12,
-	}
+	},
+	{
+		"name": "distributor_360",
+		"logo": "/assets/melliflous_branding/images/distributor_360.svg",
+		"title": "Distributor 360",
+		"route": "/desk/distributor-360",
+		"has_permission": "melliflous_branding.access.can_show_distributor_360",
+		"sequence_id": 13,
+	},
 ]
 
 # Includes in <head> of desk.html (styles in head, script at the end of body).

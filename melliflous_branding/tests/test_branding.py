@@ -93,6 +93,7 @@ class TestTileTones(unittest.TestCase):
 		self.assertEqual(tone_for("ERPNext"), "brand")
 		self.assertEqual(tone_for("Frappe HR"), "pink")
 		self.assertEqual(tone_for("Frappe CRM"), "purple")
+		self.assertEqual(tone_for("Distributor 360"), "brand")
 		self.assertEqual(tone_for("  india compliance "), "red")
 
 	def test_framework_tile_stays_neutral(self):

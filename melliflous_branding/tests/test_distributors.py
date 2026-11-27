@@ -15,6 +15,7 @@ from melliflous_branding.distributors import (
 	apply_statement_line,
 	build_dashboard,
 	can_file,
+	can_open_distributor_360,
 	can_see_profile,
 	clean_complaint,
 	clean_days,
@@ -518,12 +519,32 @@ class TestDesk(unittest.TestCase):
 		self.assertNotIn("Distributor 360", tiles)
 
 		self.assertIn("Distributor Profile", hooks.permission_query_conditions)
+		tiles = {row["name"]: row for row in hooks.add_to_apps_screen}
+		self.assertEqual(tiles["melliflous_branding"]["title"], "Quick Actions")
+		self.assertEqual(tiles["melliflous_branding"]["route"], "/desk/quick-actions")
+		tile = tiles["distributor_360"]
+		self.assertEqual(tile["title"], "Distributor 360")
+		self.assertEqual(tile["route"], "/desk/distributor-360")
+		self.assertEqual(tile["has_permission"], "melliflous_branding.access.can_show_distributor_360")
+		self.assertEqual(tile["logo"], "/assets/melliflous_branding/images/distributor_360.svg")
+		logo = PACKAGE / "public" / "images" / "distributor_360.svg"
+		self.assertTrue(logo.is_file())
+		self.assertIn("<svg", logo.read_text())
 		self.assertIn("Customer Primary Target", hooks.permission_query_conditions)
 		self.assertIn("melliflous_branding.target_records.refresh_primary_targets", hooks.scheduler_events["daily"])
 		self.assertIn("melliflous_branding.patches.v0_6.ensure_distributors", (PACKAGE / "patches.txt").read_text())
 		self.assertIn("melliflous_branding.patches.v0_5.ensure_customer_targets", (PACKAGE / "patches.txt").read_text())
 		self.assertIn("ensure_distributor_places", (PACKAGE / "install.py").read_text())
 		self.assertIn("ensure_team_folders", (PACKAGE / "install.py").read_text())
+
+	def test_apps_screen_tile_is_limited_to_sales_roles(self):
+		self.assertTrue(can_open_distributor_360("Administrator", []))
+		self.assertTrue(can_open_distributor_360("boss@example.com", ["Sales Manager"]))
+		self.assertTrue(can_open_distributor_360("boss@example.com", ["System Manager"]))
+		self.assertTrue(can_open_distributor_360("priya@example.com", ["Sales User", "Employee"]))
+		self.assertFalse(can_open_distributor_360("accounts@example.com", ["Accounts User"]))
+		self.assertFalse(can_open_distributor_360("Guest", ["Guest"]))
+		self.assertFalse(can_open_distributor_360("", ["Sales User"]))
 
 
 if __name__ == "__main__":
