@@ -102,6 +102,28 @@ def seed_admin_names(administrator_name, users_by_email, roles_by_user) -> list:
 	return names
 
 
+def gst_flags_to_clear(column_names, allow_auto=False) -> list:
+	"""Write these GST Settings checks to 0, including ones the form still shows as the default tick.
+
+	enable_e_invoice, enable_e_waybill, and credentials are not in the list.
+	"""
+	if allow_auto:
+		return []
+	columns = set(column_names or [])
+	forced = (
+		"auto_generate_e_invoice",
+		"auto_generate_e_waybill",
+		"generate_e_waybill_with_e_invoice",
+		"auto_cancel_e_invoice",
+		"auto_cancel_e_waybill",
+	)
+	ordered = []
+	for name in list(forced) + auto_fields_to_disable(columns):
+		if name in columns and name not in ordered:
+			ordered.append(name)
+	return ordered
+
+
 def auto_fields_to_disable(column_names) -> list:
 	"""GST Settings checks that generate or cancel e-invoice and e-way bill on their own.
 

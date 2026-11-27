@@ -1028,12 +1028,15 @@ def distributor_mis(
 	sales_person=None,
 	rag=None,
 	billing=None,
+	division=None,
 ):
 	"""Book of distributors the user may see. Totals come from grouped queries, not one query per row."""
 	_require_360()
 	company = clean_text(company) or frappe.defaults.get_user_default("company")
 	if not company:
 		frappe.throw(_("Pick a company."))
+	if division is None:
+		division = frappe.defaults.get_user_default("division")
 	today = getdate(frappe.utils.today())
 	profiles = _visible_profiles(company)
 	months = trailing_months(today, 6)
@@ -1050,6 +1053,7 @@ def distributor_mis(
 				"sales_person": sales_person,
 				"rag": rag,
 				"billing": billing,
+				"division": division,
 			},
 			today,
 			months,
@@ -1259,6 +1263,8 @@ def _fill_disabled(metrics, customers):
 		fields.append("custom_billing_status")
 	if "custom_block_reason" in columns:
 		fields.append("custom_block_reason")
+	if "division" in columns:
+		fields.append("division")
 	for chunk in _chunks(customers, 300):
 		for row in frappe.get_all(
 			"Customer",
@@ -1271,6 +1277,8 @@ def _fill_disabled(metrics, customers):
 			if "custom_billing_status" in columns:
 				metrics[row.name]["billing_status"] = row.custom_billing_status or "Active"
 				metrics[row.name]["block_reason"] = row.custom_block_reason or ""
+			if "division" in columns:
+				metrics[row.name]["division"] = row.division or ""
 
 
 def _fill_documents(metrics, customers):
@@ -1313,7 +1321,12 @@ def _compliance_bundle(customer) -> dict:
 			limit_page_length=100,
 			ignore_permissions=True,
 		)
-	return {"billing_status": status, "block_reason": reason, "documents": documents}
+	division = ""
+	if frappe.db.table_exists("Customer"):
+		columns = set(frappe.db.get_table_columns("Customer") or [])
+		if "division" in columns and frappe.db.exists("Customer", customer):
+			division = frappe.db.get_value("Customer", customer, "division") or ""
+	return {"billing_status": status, "block_reason": reason, "documents": documents, "customer_division": division}
 
 
 def _history_facts(customer, company, window) -> dict:

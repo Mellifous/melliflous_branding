@@ -69,11 +69,20 @@ def branding_boot() -> dict:
 		if isinstance(saved, (list, tuple)):
 			saved = next((value for value in saved if value), None)
 	chosen = choose_company(None if saved is None else str(saved), companies)
+	scope = {"divisions": [], "division": None}
+	try:
+		from melliflous_branding.division_records import divisions_for_boot
+
+		scope = divisions_for_boot(chosen)
+	except Exception:
+		frappe.logger("melliflous_branding").exception("Could not load divisions")
 	return {
 		"companies": companies,
 		"company": chosen,
+		"divisions": scope["divisions"],
+		"division": scope["division"],
 		"title": display_title(chosen),
-		"show_picker": picker_visible(companies),
+		"show_picker": picker_visible(companies) or bool(scope["divisions"]),
 		"fallback": FALLBACK_TITLE,
 		"tones": TILE_TONES,
 		"icon": SITE_ICON,
@@ -125,6 +134,8 @@ def _empty_boot() -> dict:
 	return {
 		"companies": [],
 		"company": None,
+		"divisions": [],
+		"division": None,
 		"title": FALLBACK_TITLE,
 		"show_picker": False,
 		"fallback": FALLBACK_TITLE,

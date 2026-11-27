@@ -17,10 +17,10 @@ from melliflous_branding.invoice_admin import (
 	ROLE_NAME,
 	SEED_OWNER_EMAIL,
 	audit_entry,
-	auto_fields_to_disable,
 	can_generate_einvoice,
 	can_manage_invoices,
 	delete_block,
+	gst_flags_to_clear,
 	rename_block,
 	seed_admin_names,
 )
@@ -144,20 +144,24 @@ def keep_einvoice_manual() -> None:
 	if not frappe.db.table_exists("GST Settings") or not frappe.db.exists("GST Settings", "GST Settings"):
 		return
 	columns = set(frappe.db.get_table_columns("GST Settings") or [])
-	fields = [name for name in auto_fields_to_disable(columns) if name in columns]
+	fields = gst_flags_to_clear(columns, allow_auto=False)
 	if not fields:
 		return
 	current = frappe.db.get_value("GST Settings", "GST Settings", fields, as_dict=True) or {}
-	turned = [name for name in fields if cint(current.get(name))]
-	if not turned:
-		return
-	frappe.logger("melliflous_branding").warning(
-		"Automatic e-invoice or e-way bill was on (%s). Turning it off. "
-		"Tick Allow auto e-Invoice/e-Way Bill on Melliflous Settings to keep it.",
-		", ".join(turned),
-	)
-	for name in turned:
+	# A missing tabSingles value comes back empty, and the form then shows the
+	# DocType default, which is ticked. Always write 0 so the tick cannot remain.
+	was_on = [name for name in fields if current.get(name) in (None, "") or cint(current.get(name))]
+	if was_on:
+		frappe.logger("melliflous_branding").warning(
+			"Automatic e-invoice or e-way bill was on or still at the default (%s). Turning it off. "
+			"Tick Allow auto e-Invoice/e-Way Bill on Melliflous Settings to keep it.",
+			", ".join(was_on),
+		)
+	for name in fields:
 		frappe.db.set_single_value("GST Settings", name, 0, update_modified=False)
+		if frappe.db.has_column("GST Settings", name):
+			frappe.db.set_value("GST Settings", "GST Settings", name, 0, update_modified=False)
+	frappe.clear_cache(doctype="GST Settings")
 
 
 def ensure_invoice_admin() -> None:
@@ -268,18 +272,18 @@ def _seed_users() -> None:
 			users_by_email[row.email] = row.name
 			roles_by_user[row.name] = frappe.get_roles(row.name)
 	wanted = seed_admin_names("Administrator", users_by_email, roles_by_user)
-	existing = set(listed_invoice_admins())
+	already = {" ".join(str(name or "").split()).casefold() for name in listed_invoice_admins()}
 	if not frappe.db.exists(SETTINGS, SETTINGS):
 		return
 	doc = frappe.get_doc(SETTINGS)
 	changed = False
 	for name in wanted:
-		if name in existing:
+		if name.casefold() in already:
 			continue
 		if name != "Administrator" and not frappe.db.exists("User", name):
 			continue
 		doc.append("invoice_admin_users", {"user": name})
-		existing.add(name)
+		already.add(name.casefold())
 		changed = True
 	if changed:
 		doc.flags.ignore_permissions = True
@@ -288,7 +292,7 @@ def _seed_users() -> None:
 			doc.save(ignore_permissions=True)
 		finally:
 			frappe.flags.melliflous_settings_sync = False
-	_sync_roles(existing)
+	_sync_roles(set(listed_invoice_admins()))
 
 
 def sync_invoice_admin_roles() -> None:

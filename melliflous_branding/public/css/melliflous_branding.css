@@ -46,6 +46,39 @@
 	box-sizing: border-box;
 }
 
+.melliflous-context,
+.melliflous-context-navbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+}
+
+.melliflous-context-label {
+	font-size: 0.75rem;
+	font-weight: 700;
+	letter-spacing: 0.03em;
+	text-transform: uppercase;
+	color: #57534e;
+}
+
+.melliflous-context-pill {
+	display: inline-block;
+	max-width: 14rem;
+	padding: 2px 10px;
+	border-radius: 999px;
+	color: #fff;
+	font-size: 0.8rem;
+	font-weight: 800;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.melliflous-division-switch {
+	max-width: 12rem;
+}
+
 /* Wide home: Frappe hides .desktop-navbar-title. Show the company name, or the
    switcher, in the navbar instead. :not(.has-mobile-nav) keeps the phone rule,
    which centres this same node, from being overridden. */

@@ -12,7 +12,9 @@
 
 	const FALLBACK = "Melliflous Group";
 	let chosen = null;
+	let chosenDivision = null;
 	let select = null;
+	let divisionSelect = null;
 	let saving = false;
 
 	function boot() {
@@ -149,44 +151,117 @@
 		node.value = selected || "";
 	}
 
-	function on_change() {
-		const next = select ? select.value : "";
-		if (!next || saving) {
-			return;
+	function ensure_division_select() {
+		if (divisionSelect && divisionSelect.isConnected) {
+			return divisionSelect;
 		}
-		const previous = chosen != null ? chosen : boot().company || "";
-		if (next === previous) {
+		divisionSelect = document.querySelector("select.melliflous-division-switch");
+		if (divisionSelect) {
+			return divisionSelect;
+		}
+		divisionSelect = document.createElement("select");
+		divisionSelect.className = "melliflous-company-switch melliflous-division-switch";
+		divisionSelect.setAttribute("aria-label", __("Division"));
+		divisionSelect.addEventListener("change", on_division);
+		return divisionSelect;
+	}
+
+	function divisions_for(company) {
+		return (boot().divisions || []).filter((row) => row && row.company === company);
+	}
+
+	function fill_division(node, company) {
+		const rows = divisions_for(company);
+		const selected = chosenDivision != null ? chosenDivision : boot().division || "";
+		node.dataset.filling = "1";
+		node.replaceChildren();
+		rows.forEach((row) => {
+			const option = document.createElement("option");
+			option.value = row.name;
+			option.textContent = row.division_name || row.name;
+			node.appendChild(option);
+		});
+		if (!rows.length) {
+			const blank = document.createElement("option");
+			blank.value = "";
+			blank.textContent = __("No division");
+			node.appendChild(blank);
+		}
+		node.value = rows.some((row) => row.name === selected) ? selected : (rows[0] && rows[0].name) || "";
+		node.dataset.filling = "";
+	}
+
+	function paint_pills(bar, company) {
+		let companyPill = bar.querySelector(".melliflous-company-pill");
+		let divisionPill = bar.querySelector(".melliflous-division-pill");
+		if (!companyPill) {
+			companyPill = document.createElement("span");
+			companyPill.className = "melliflous-context-pill melliflous-company-pill";
+			bar.prepend(companyPill);
+		}
+		if (!divisionPill) {
+			divisionPill = document.createElement("span");
+			divisionPill.className = "melliflous-context-pill melliflous-division-pill";
+			companyPill.after(divisionPill);
+		}
+		companyPill.textContent = company || __("Company");
+		companyPill.style.background = "#C8102E";
+		const rows = divisions_for(company);
+		const selected = divisionSelect ? divisionSelect.value : "";
+		const match = rows.find((row) => row.name === selected);
+		divisionPill.textContent = match ? match.division_name || match.name : __("Division");
+		divisionPill.style.background = (match && match.colour) || "#1F9D55";
+		divisionPill.hidden = !match;
+	}
+
+	function save_context(company, division, previousCompany, previousDivision) {
+		if (!company || saving) {
 			return;
 		}
 		saving = true;
-		select.disabled = true;
-		const request = frappe.call({
-			method: "melliflous_branding.api.set_default_company",
-			args: { company: next },
-		});
-		const finish = () => {
-			saving = false;
-			if (select) {
-				select.disabled = false;
-			}
-		};
-		request
+		if (select) select.disabled = true;
+		if (divisionSelect) divisionSelect.disabled = true;
+		frappe
+			.call({
+				method: "melliflous_branding.api.set_desk_context",
+				args: { company: company, division: division || "" },
+			})
 			.then((response) => {
 				if (!response || response.exc) {
-					throw new Error("set_default_company failed");
+					throw new Error("set_desk_context failed");
 				}
-				const company = (response.message && response.message.company) || next;
-				remember(company);
-				refresh_title();
-				notify(__("Default company set to {0}", [company]), "green");
+				window.location.reload();
 			})
 			.catch(() => {
-				if (select) {
-					select.value = previous || "";
-				}
-				notify(__("Could not set the default company"), "red");
-			})
-			.then(finish, finish);
+				if (select) select.value = previousCompany || "";
+				if (divisionSelect) divisionSelect.value = previousDivision || "";
+				notify(__("Could not set the company and division"), "red");
+				saving = false;
+				if (select) select.disabled = false;
+				if (divisionSelect) divisionSelect.disabled = false;
+			});
+	}
+
+	function on_change() {
+		const next = select ? select.value : "";
+		const previous = chosen != null ? chosen : boot().company || "";
+		if (!next || next === previous) {
+			return;
+		}
+		save_context(next, "", previous, chosenDivision != null ? chosenDivision : boot().division || "");
+	}
+
+	function on_division() {
+		if (divisionSelect && divisionSelect.dataset.filling) {
+			return;
+		}
+		const company = select ? select.value : boot().company || "";
+		const next = divisionSelect ? divisionSelect.value : "";
+		const previous = chosenDivision != null ? chosenDivision : boot().division || "";
+		if (!next || next === previous) {
+			return;
+		}
+		save_context(company, next, company, previous);
 	}
 
 	function visible_page_head() {
@@ -212,7 +287,8 @@
 
 	function mount() {
 		const data = boot();
-		if (!data.show_picker) {
+		const companyNames = data.companies || [];
+		if (!companyNames.length && !(data.divisions || []).length) {
 			if (select) {
 				select.remove();
 				select = null;
@@ -224,20 +300,23 @@
 
 		const node = ensure_select();
 		fill_select(node);
+		const divisionNode = ensure_division_select();
+		const company = node.value || data.company || "";
+		fill_division(divisionNode, company);
 
+		const bar = context_bar(node, divisionNode, company);
 		if (is_home()) {
 			const navbar = document.querySelector(".desktop-navbar");
 			if (!navbar) {
 				return;
 			}
-			node.classList.add("desktop-navbar-title");
+			bar.classList.add("melliflous-context-navbar");
 			const home = navbar.querySelector(".navbar-home");
-			// The static "Desktop" label would sit under the control on a phone.
 			navbar.querySelectorAll("p.desktop-navbar-title").forEach((title) => title.remove());
 			if (home) {
-				home.after(node);
-			} else if (node.parentElement !== navbar) {
-				navbar.prepend(node);
+				home.after(bar);
+			} else if (bar.parentElement !== navbar) {
+				navbar.prepend(bar);
 			}
 			clear_empty_slots(null);
 			refresh_title();
@@ -261,8 +340,32 @@
 				container.prepend(slot);
 			}
 		}
-		slot.appendChild(node);
+		slot.appendChild(bar);
 		clear_empty_slots(slot);
+	}
+
+	function context_bar(companyNode, divisionNode, company) {
+		let bar = companyNode.closest(".melliflous-context");
+		if (!bar) {
+			bar = document.createElement("div");
+			bar.className = "melliflous-context";
+		}
+		if (!bar.querySelector(".melliflous-context-label")) {
+			const companyLabel = document.createElement("span");
+			companyLabel.className = "melliflous-context-label";
+			companyLabel.textContent = __("Company");
+			bar.appendChild(companyLabel);
+		}
+		if (!bar.contains(companyNode)) bar.appendChild(companyNode);
+		if (!bar.querySelector(".melliflous-division-label")) {
+			const divisionLabel = document.createElement("span");
+			divisionLabel.className = "melliflous-context-label melliflous-division-label";
+			divisionLabel.textContent = __("Division");
+			bar.appendChild(divisionLabel);
+		}
+		if (!bar.contains(divisionNode)) bar.appendChild(divisionNode);
+		paint_pills(bar, company);
+		return bar;
 	}
 
 	function tone_for(label) {
