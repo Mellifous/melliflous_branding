@@ -30,6 +30,14 @@ def after_migrate():
 	ensure_invoice_admin()
 	ensure_divisions()
 	try:
+		from melliflous_branding.quick_actions_workspace import remove_quick_actions_workspace
+
+		remove_quick_actions_workspace()
+	except Exception:
+		import frappe
+
+		frappe.logger("melliflous_branding").exception("Could not remove the Quick Actions workspace")
+	try:
 		from melliflous_branding.invoice_admin_records import keep_einvoice_manual
 
 		keep_einvoice_manual()

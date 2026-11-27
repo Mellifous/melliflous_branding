@@ -14,8 +14,6 @@ from melliflous_branding.distributors import (
 	BENEFIT_IDENTITY,
 	COMPLAINT_IDENTITY,
 	DEFAULT_TARGET_AMOUNT,
-	DISTRIBUTOR_CARD,
-	DISTRIBUTOR_LINKS,
 	GROWTH_FACTOR_DEFAULT,
 	STATEMENT_IDENTITY,
 	VISIT_IDENTITY,
@@ -51,9 +49,6 @@ from melliflous_branding.distributors import (
 	statement_period,
 	statement_period_key,
 	trailing_months,
-	workspace_block,
-	workspace_link,
-	workspace_shortcut,
 )
 from melliflous_branding.target_records import (
 	company_currency,
@@ -2003,57 +1998,8 @@ def ensure_distributor_places():
 
 
 def _ensure_workspace():
-	"""Append distributor shortcuts. Shortcuts already on Quick Actions are left as they are."""
-	if not frappe.db.table_exists("Workspace") or not frappe.db.exists("Workspace", "Quick Actions"):
-		return
-	doc = frappe.get_doc("Workspace", "Quick Actions")
-	try:
-		content = json.loads(doc.content or "[]")
-	except ValueError:
-		content = None
-	labels = {row.label for row in doc.shortcuts}
-	link_labels = {row.label for row in (doc.links or [])}
-	block_names = set()
-	if isinstance(content, list):
-		for block in content:
-			if isinstance(block, dict):
-				block_names.add(clean_text((block.get("data") or {}).get("shortcut_name")))
-	changed = False
-	for link in DISTRIBUTOR_LINKS:
-		label = link["label"]
-		if label not in labels:
-			doc.append("shortcuts", workspace_shortcut(link))
-			labels.add(label)
-			changed = True
-		if isinstance(content, list) and label not in block_names:
-			content.append(workspace_block(link))
-			block_names.add(label)
-			changed = True
-		if label not in link_labels:
-			if DISTRIBUTOR_CARD not in link_labels:
-				doc.append(
-					"links",
-					{
-						"type": "Card Break",
-						"label": DISTRIBUTOR_CARD,
-						"hidden": 0,
-						"is_query_report": 0,
-						"link_count": 0,
-						"onboard": 0,
-					},
-				)
-				link_labels.add(DISTRIBUTOR_CARD)
-			doc.append("links", workspace_link(link))
-			link_labels.add(label)
-			changed = True
-	if not changed:
-		return
-	if isinstance(content, list):
-		doc.content = json.dumps(content)
-	doc.flags.ignore_permissions = True
-	doc.flags.ignore_links = True
-	doc.flags.ignore_mandatory = True
-	doc.save(ignore_permissions=True)
+	"""The Quick Actions workspace is retired. The home cards and the sidebar cover it."""
+	return
 
 
 def _ensure_sidebar():

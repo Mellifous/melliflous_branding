@@ -193,18 +193,9 @@ class TestShippedDesk(unittest.TestCase):
 		self.assertIn("melliflous_branding.patches.v0_4.show_team_files", patches)
 
 	def test_quick_actions_links_chat_and_files(self):
-		workspace = json.loads(
-			(PACKAGE / "melliflous_branding" / "workspace" / "quick_actions" / "quick_actions.json").read_text()
+		self.assertFalse(
+			(PACKAGE / "melliflous_branding" / "workspace" / "quick_actions" / "quick_actions.json").exists()
 		)
-		shortcuts = {row["label"]: row for row in workspace["shortcuts"]}
-		self.assertEqual(shortcuts["Team Chat"]["type"], "URL")
-		self.assertEqual(shortcuts["Team Chat"]["url"], "/raven")
-		self.assertEqual(shortcuts["Team Files"]["type"], "Page")
-		self.assertEqual(shortcuts["Team Files"]["link_to"], "team-files")
-		labels = [block["data"]["shortcut_name"] for block in json.loads(workspace["content"])]
-		self.assertEqual(labels[:2], ["Team Chat", "Team Files"])
-		self.assertIn("team-files", {row.get("link_to") for row in workspace["links"]})
-
 		page = json.loads(
 			(PACKAGE / "melliflous_branding" / "page" / "team_files" / "team_files.json").read_text()
 		)
