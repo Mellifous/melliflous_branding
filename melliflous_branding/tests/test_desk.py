@@ -277,6 +277,9 @@ class TestDeskFiles(unittest.TestCase):
 			self.assertIn(name, script)
 		self.assertIn("Good morning", script)
 		self.assertIn("New Quick Invoice", script)
+		self.assertIn("melliflousClamped", script)
+		self.assertIn(".awesomplete > ul", css)
+		self.assertIn("min-height: 44px", css)
 		self.assertIn("Payment Received", script)
 		self.assertIn("Stock Balance", script)
 

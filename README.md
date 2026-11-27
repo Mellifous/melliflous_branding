@@ -20,7 +20,8 @@ Other desk pages keep their own tab title (a Sales Invoice stays a Sales Invoice
 
 Users who are allowed more than one Company get a company control:
 
-- On the home screen it is the header title. On an iPhone it is the centred title, using a native `<select>` so iOS Safari opens the system picker. The font is at least 16px so focusing it does not zoom the page, and the row is at least 44px tall when it sits on an in-app page.
+- On a wide desk it is a Company select and a Division select in the header, with the division's short pill (SK, SUN) beside them.
+- On a phone, or any window up to 900px, those two selects leave the header. One chip stays in the bar: the division pill, the company name, and the division name. It is at least 44px tall. Tapping it opens a bottom sheet with a full-width Company select and a full-width Division select. The type is 16px so iOS Safari does not zoom. Done, the dimmed backdrop, or Escape closes the sheet. Choosing either value still saves and reloads, the same as the wide controls.
 - On every other desk page it is a bar at the top of the page head, above the breadcrumbs. It stays inside the sticky page head, including on a phone.
 
 Choosing a company calls `melliflous_branding.api.set_default_company`, which writes the same DefaultValue key Session Defaults writes (`frappe.defaults.set_user_default("company", ...)`). The open page updates its boot copy, so a document or report opened afterwards defaults to that company. The header title updates without a reload.
@@ -93,7 +94,11 @@ List pills, form badges, and a Status column in a report use one meaning:
 
 A status that is not in this list keeps the colour ERPNext already gave it. The words on the pill and the list filter do not change. Sales Invoice, Quotation, Sales Order, Payment Entry, Delivery Note, Purchase Invoice, Purchase Order, Customer, Lead, Opportunity, Item, and Stock Entry are the lists this applies to.
 
-`desk_theme.js` injects a `<style id="melliflous-desk-theme">` tag on load and again on every route change, using `frappe.dom.set_style` when Frappe provides it. The same rules live in `public/css/desk_theme.css`. The asset URLs carry `?v=20261127a`. No bench build is required for the colours to show. Hard-refresh `/desk` after the deploy.
+`desk_theme.js` injects a `<style id="melliflous-desk-theme">` tag on load and again on every route change, using `frappe.dom.set_style` when Frappe provides it. The same rules live in `public/css/desk_theme.css`. The asset URLs carry `?v=20261127e`. No bench build is required for the colours to show. Hard-refresh `/desk` after the deploy.
+
+On the apps home, the greeting and the six quick actions sit in a full-width block above the app tiles. A phone shows the actions as a two-column grid of coloured cards. The app tiles wrap underneath, three across, with the whole label visible. A wide desk shows the six actions in one row and the tiles in a wrapping grid. Nothing on that screen scrolls sideways.
+
+Select lists, link suggestions, the form menu, list filters, and the navbar menu stay above the page and the phone tab bar. On a narrow screen each row is at least 44px, a long list scrolls inside the menu, and a menu that would run off the screen is pulled back into view. The page head still shows the control that opens the sidebar.
 
 ## Quick Invoice
 
@@ -113,7 +118,7 @@ The Quick Invoice page is a standard Page. The first deploy that runs migrate im
 
 Melliflous Simple Mode is on unless an admin turns it off. Nothing is deleted and no core file is edited. A hidden page still opens from its address.
 
-Kept on the sidebar and the apps grid: Home, Selling, Buying, Stock, Accounting, CRM, Distributor 360, Quick Actions, India Compliance, Raven, and Drive. HR stays, and it sits lower than the selling modules, for attendance. Recruitment is not in the hide list, so it stays where HRMS put it.
+Kept on the sidebar and the apps grid: Home, Selling, Buying, Stock, Accounting, CRM, Distributor 360, India Compliance, Raven, and Drive. Quick Actions is not an app tile. The six cards on the home screen are those actions. HR stays, and it sits lower than the selling modules, for attendance. Recruitment is not in the hide list, so it stays where HRMS put it.
 
 Hidden while simple mode is on:
 
@@ -150,9 +155,9 @@ One step needs migrate. **Update Now** (or `bench migrate`) imports the Melliflo
 
 ## Quick Actions
 
-A **Quick Actions** tile on the desk home, a **Distributor 360** tile beside it, a **Quick Actions** workspace, and a sidebar named Melliflous Branding. v16 opens desk pages at `/desk/...`. The old `/app/...` address redirects there. Distributor 360 is its own apps-screen icon (`/desk/distributor-360`) for System Manager, Sales Manager, and Sales User. Everyone else who can use the desk still sees Quick Actions.
+A **Distributor 360** tile on the desk home, and a sidebar named Melliflous Branding. There is no Quick Actions app tile and no Quick Actions workspace. The six cards on the home screen (New Quick Invoice, New Quotation, Payment Received, New Sales Order, Stock Balance, Distributor 360) are those actions. v16 opens desk pages at `/desk/...`. The old `/app/...` address redirects there. Distributor 360 is its own apps-screen icon (`/desk/distributor-360`) for System Manager, Sales Manager, and Sales User. Other desk users do not get that tile, and nobody gets a Quick Actions tile.
 
-The grid on `/desk` is not one icon per `add_to_apps_screen` entry. Frappe's boot (`get_app_data`) copies **only the first** entry of each installed app into `boot.app_data`, and the desktop draws that list. Quick Actions is that first entry for this app, which is why it shows and a second hook entry does not. Distributor 360 is added to `boot.app_data` on every desk boot, including a cached one, with the same fields the grid reads: title, `/desk/distributor-360`, and a 512×512 PNG logo, the same kind of image as the Quick Actions mark. It has an empty dock, so the icon opens that page instead of the first module of this app. No Desktop Icon row is created. A site on the Apps screen never reads those rows. Migrate does not have to insert anything for this tile. After the bench is deployed, hard-refresh `/desk`.
+The grid on `/desk` is not one icon per `add_to_apps_screen` entry. Frappe's boot (`get_app_data`) copies **only the first** entry of each installed app into `boot.app_data`. That first entry is Distributor 360. The same row is added again on every desk boot, including a cached one, and a cached Quick Actions row is dropped in that pass. It has an empty dock, so the icon opens `/desk/distributor-360`. No Desktop Icon row is created. After the bench is deployed, hard-refresh `/desk`. Migrate deletes the Quick Actions workspace this app created, and the sidebar link that opened it.
 
 | Screen | Route | Who |
 | --- | --- | --- |
@@ -162,7 +167,6 @@ The grid on `/desk` is not one icon per `add_to_apps_screen` entry. Frappe's boo
 | My Tasks | `/desk/my-tasks` | The signed-in person |
 | Team Files | `/desk/team-files` | Anyone who can use the desk |
 | Team Chat | `/raven` | Anyone who can use the desk, when Raven is installed |
-| Quick Actions | `/desk/quick-actions` | The workspace of large shortcuts |
 
 **Add Team Member.** Full name, email, mobile, a tick for each company, one default company, and a job: Owner / Admin (System Manager), Accounts, HR, Sales Manager, Sales Rep / Van, Plant / Stock, or CRM Sales. Save creates or updates the user, turns welcome email off, and gives them the desk roles for that job. When the Raven User role exists, it is added as well so they can open Team Chat. A Role Profile already on the user is cleared, because on v16 a profile replaces the whole role list and would undo the choice. Unrelated roles such as Employee stay. One Company user permission is kept per ticked company, with Is Default on the chosen company. Unticked companies are removed. Administrator and Guest are left alone. The same page lists people, with Edit.
 
@@ -174,7 +178,7 @@ The grid on `/desk` is not one icon per `add_to_apps_screen` entry. Frappe's boo
 
 **Team Files.** A shared folder for the desk, used because Frappe Drive does not install on this v16 bench. It is a system page, so the address stays `/desk/team-files`. The sidebar stays on whichever module was already open (often Accounts, if that is the home module). The form itself is drawn by `page/team_files/team_files.js`, which Frappe reads when the page opens, not by the cached desk script. Folders General, Sales, Accounts, HR, Plant, and Marketing are on the page immediately. The first load asks the server to create `Home/Team Files` if it is missing. If that call fails, the message is shown on the page. Drop a file, or use Choose files. Each file is a private Frappe File (`is_private` 1) inside that folder. The list shows the name, size, who uploaded it, the date, and the folder. Search matches the name or the folder. Download and Preview only serve a file from that folder. Delete is limited to the person who uploaded it, or a System Manager.
 
-**Team Chat.** On the Quick Actions workspace (`/desk/quick-actions`, which v16 shows as `/desk/melliflous-branding/quick-actions`) two large tiles sit above the other shortcuts: Team Chat (`/raven`, same window) and Team Files. The plain shortcut rows for those two are hidden once the tiles are in place. `desk_tiles.js` does this, so an older cached `quick_actions.js` does not leave only the rows. The sidebar still lists both. On migrate, every enabled System User who does not already have **Raven User** is given that role, so they can open the chat. Administrator and Guest are skipped. If the Raven app is not installed and the role does not exist, the step does nothing.
+**Team Chat.** Team Chat (`/raven`, same window) and Team Files stay on the Melliflous Branding sidebar. The old Quick Actions workspace no longer hosts them. The plain shortcut rows for those two are hidden once the tiles are in place. `desk_tiles.js` does this, so an older cached `quick_actions.js` does not leave only the rows. The sidebar still lists both. On migrate, every enabled System User who does not already have **Raven User** is given that role, so they can open the chat. Administrator and Guest are skipped. If the Raven app is not installed and the role does not exist, the step does nothing.
 
 These records are imported on `bench migrate` from the app's page, workspace, and sidebar files. The patches `ensure_quick_actions`, `ensure_team_files`, and `show_team_files` import them once as well, so a site that already had the app picks them up on the next update. `ensure_team_files` also creates the folder and grants Raven User.
 
@@ -186,7 +190,7 @@ Status is **Achieved** at 100% or more. It is **In Progress** while the period h
 
 An item group counts that group and the groups under it. A brand counts invoice lines of that brand. Leave both blank to count the whole invoice. Two targets for the same customer, company, item group, and brand cannot cover overlapping dates.
 
-**Set one target.** Open Customer Primary Target (Quick Actions → Customer Targets). Pick the customer, the company, and a day in the month or quarter. Enter the target amount. Quantity and UOM are optional. Sales Person and Sales User say who it belongs to. Saving fills the achieved numbers from Sales Invoices in that period.
+**Set one target.** Open Customer Primary Target from the Melliflous Branding sidebar (Customer Targets). Pick the customer, the company, and a day in the month or quarter. Enter the target amount. Quantity and UOM are optional. Sales Person and Sales User say who it belongs to. Saving fills the achieved numbers from Sales Invoices in that period.
 
 **Set a month for many customers.** On the Customer Primary Target list, **Set Targets for Month**. Pick the company and any day in the month, optionally an item group, a brand, a sales person, or a customer group, then Load Customers. Type the amounts and Save Targets. A customer who already has that month is updated. A blank amount is skipped. The list stops at 500 customers; narrow it with the sales person or customer group when it does.
 
@@ -194,7 +198,7 @@ An item group counts that group and the groups under it. A brand counts invoice 
 
 Sales Manager and System Manager can create, edit, and delete every target, and they can run the report. A Sales User can run the report and read a target when they are its owner, its Sales User, or the Sales Person is linked to their Employee (`Sales Person → Employee → User ID`). A Sales User cannot create or edit targets.
 
-Quick Actions has both shortcuts, and so does the Melliflous Branding sidebar. On migrate, the same two links are added to the Selling sidebar and the CRM sidebar (the CRM module is FCRM) when those modules exist. On an older desk that still opens the workspace page, they are added to the Selling and CRM workspaces as well. That step does not pin those workspaces, so a later ERPNext update can still refresh them, and the links are put back on the next migrate.
+The Melliflous Branding sidebar has both shortcuts. On migrate, the same two links are added to the Selling sidebar and the CRM sidebar (the CRM module is FCRM) when those modules exist. On an older desk that still opens the workspace page, they are added to the Selling and CRM workspaces as well. That step does not pin those workspaces, so a later ERPNext update can still refresh them, and the links are put back on the next migrate.
 
 ## Distributors
 
@@ -212,7 +216,7 @@ A distributor is an ERPNext Customer with one Distributor Profile. The profile h
 
 Sales Manager and System Manager can create and edit every distributor record, and they can open 360 for any customer. A Sales User can read a profile, and can create and edit visits, stock statements, and complaints, only when they are that profile's account manager, salesman, or the Sales Person linked to their Employee. They keep a record they created if the profile is later moved to someone else, as long as they do not change the distributor. They cannot create or delete profiles. 360 and the follow-up report use the same rule, so a salesman does not open another account's billing.
 
-Quick Actions and the Melliflous Branding sidebar list Distributor 360, Distributor Visits, Stock Statements, Complaints, and Distributor Follow-up. Team Chat, Team Files, and the customer-target links stay where they were. On migrate, the same links are put back if they are missing. The patch `ensure_distributors` imports the DocTypes, the page, and the report once for a site that already had the app.
+The Melliflous Branding sidebar lists Distributor 360, Distributor Visits, Stock Statements, Complaints, and Distributor Follow-up. Team Chat, Team Files, and the customer-target links stay where they were. On migrate, the same links are put back if they are missing. The patch `ensure_distributors` imports the DocTypes, the page, and the report once for a site that already had the app.
 
 ## v16 details that shaped this
 
@@ -273,11 +277,11 @@ Hooks:
 
 | Hook | What it does |
 | --- | --- |
-| `add_to_apps_screen` | Quick Actions, the first entry, is the one the apps grid copies for this app. The Distributor 360 entry is declared here and is not what places that icon. |
+| `add_to_apps_screen` | Distributor 360 is the only entry. The apps grid copies that first entry. Quick Actions is not declared. |
 | `extend_bootinfo` and `boot_session` | Companies, the current default, whether to show the picker, the tone map, the Distributor 360 row, and the simple-desk filter on `boot.app_data`, the sidebar, and the dock. Simple mode stays on when Melliflous Settings does not exist yet. |
 | `app_include_css` / `app_include_js` | Switcher, title, tile colours, and `desk_theme.js`. The theme script injects `<style id="melliflous-desk-theme">` so a cached stylesheet still updates. Asset URLs carry a version query. |
 | `after_request` | Apple touch icon, manifest link, and `apple-mobile-web-app-title` on `/desk` HTML. |
-| `after_install` / `after_migrate` | Create Home/Team Files if it is missing. On migrate, grant Raven User to enabled desk users when that role exists, add the target links to Selling and CRM when those modules exist, and put the distributor links back on Quick Actions and the Melliflous Branding sidebar if they are missing. |
+| `after_install` / `after_migrate` | Create Home/Team Files if it is missing. On migrate, grant Raven User to enabled desk users when that role exists, add the target links to Selling and CRM when those modules exist, and put the distributor links back on the Melliflous Branding sidebar if they are missing. Migrate also deletes the Quick Actions workspace this app created. | |
 | `doc_events` File `before_validate` | A file saved into Team Files is forced private. |
 | `scheduler_events` daily | Refresh achieved amount, gap, percent, and status on every Customer Primary Target. |
 | `permission_query_conditions` / `has_permission` | A Sales User reads only the targets they own, and only the distributors assigned to them. Sales Manager and System Manager read all of them. |

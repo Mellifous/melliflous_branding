@@ -35,9 +35,10 @@ def boot_session(bootinfo):
 	except Exception:
 		frappe.logger("melliflous_branding").exception("Could not build the branding boot payload")
 		bootinfo.melliflous_branding = _empty_boot()
-	# The apps grid is boot.app_data, and Frappe fills that from the first
-	# add_to_apps_screen entry of each installed app. Quick Actions is that entry.
-	# Distributor 360 is added here, on every boot including a cached one.
+	# The apps grid is boot.app_data. Frappe fills it from the first
+	# add_to_apps_screen entry of each installed app. Quick Actions is not a tile.
+	# Distributor 360 is added here, on every boot including a cached one, and a
+	# cached Quick Actions row is removed in the same pass.
 	try:
 		user = getattr(frappe.session, "user", None)
 		try:

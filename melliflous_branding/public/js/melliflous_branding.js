@@ -12,14 +12,27 @@
 
 	const FALLBACK = "Melliflous Group";
 	const SWITCHER_STYLE_ID = "melliflous-context-style";
+	const NARROW_QUERY = "(max-width: 900px)";
 	// Injected from the script because app_include_css stays cached, and the
 	// desk navbar hides or clips anything that is not the home logo or the title.
+	// Phones get one chip. The selects move into a bottom sheet so they cannot
+	// push the navbar past the screen.
 	const SWITCHER_CSS = [
-		"body.desktop-page .desktop-navbar{overflow:visible;height:auto;min-height:var(--desktop-navbar-height,49px);}",
-		"body.desktop-page .melliflous-context{display:flex !important;flex-wrap:nowrap !important;align-items:center;gap:6px;position:static !important;left:auto !important;right:auto !important;width:auto !important;max-width:none !important;height:auto !important;overflow:visible !important;transform:none !important;visibility:visible !important;opacity:1 !important;}",
-		"body.desktop-page .melliflous-context .melliflous-company-switch{flex:1 1 10rem;width:12rem;min-width:8rem;max-width:16rem;}",
-		"body.desktop-page .melliflous-division-switch,body.desktop-page .melliflous-division-label,body.desktop-page .melliflous-division-pill{display:inline-flex !important;visibility:visible !important;flex:0 0 auto;opacity:1 !important;}",
-		"body.desktop-page select.melliflous-division-switch{width:12rem !important;min-width:10rem !important;max-width:14rem !important;}",
+		"body.desktop-page .desktop-navbar,body.desktop-page .navbar-container{display:flex;align-items:center;gap:8px;max-width:100%;overflow:visible;box-sizing:border-box;height:auto;min-height:var(--desktop-navbar-height,49px);padding-inline:8px;}",
+		"body.desktop-page .desktop-navbar>.navbar-home{flex:0 0 auto;}",
+		"body.desktop-page .melliflous-context{display:flex !important;flex-wrap:wrap;align-items:center;gap:8px;position:static !important;left:auto !important;right:auto !important;flex:1 1 auto;width:auto !important;min-width:0;max-width:100% !important;height:auto !important;overflow:visible !important;transform:none !important;visibility:visible !important;opacity:1 !important;}",
+		"body.desktop-page .melliflous-context:not(.is-compact) select.melliflous-company-switch,body.desktop-page .melliflous-context:not(.is-compact) select.melliflous-division-switch{flex:1 1 8rem;width:auto;min-width:0;max-width:16rem;}",
+		".melliflous-context.is-compact>.melliflous-context-pill,.melliflous-context.is-compact>.melliflous-context-label,.melliflous-context.is-compact>select{display:none !important;}",
+		".melliflous-context.is-compact>.melliflous-context-chip{display:flex !important;}",
+		".melliflous-context:not(.is-compact)>.melliflous-context-chip{display:none !important;}",
+		"@media (max-width:900px){.melliflous-context>.melliflous-context-label,.melliflous-context>.melliflous-company-switch,.melliflous-context>.melliflous-division-switch,.melliflous-context>.melliflous-context-pill{display:none !important;}.melliflous-context.is-compact>.melliflous-context-chip,.melliflous-sheet-fields .melliflous-context-label{display:flex !important;}.melliflous-sheet-fields select{display:block !important;width:100% !important;min-width:0 !important;max-width:none !important;min-height:48px;font-size:16px;}}",
+		".melliflous-context-chip{align-items:center;gap:8px;width:100%;min-width:0;min-height:44px;padding:4px 12px 4px 4px;border:1px solid #e4c56a;border-radius:999px;background:#fffaf3;color:#1c1917;text-align:left;}",
+		".melliflous-chip-copy{display:flex;flex-direction:column;min-width:0;flex:1 1 auto;}",
+		".melliflous-chip-company,.melliflous-chip-division{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}",
+		".melliflous-context-sheet{position:fixed;inset:0;z-index:1080;}",
+		".melliflous-context-sheet[hidden]{display:none !important;}",
+		".melliflous-sheet-panel{position:absolute;left:0;right:0;bottom:0;max-height:min(86vh,560px);overflow:auto;padding:12px 16px calc(16px + env(safe-area-inset-bottom));background:#fffaf3;border-radius:22px 22px 0 0;}",
+		".melliflous-sheet-done{width:100%;min-height:48px;margin-top:14px;border:0;border-radius:14px;background:#c8102e;color:#fff;font-weight:800;}",
 	].join("");
 	let chosen = null;
 	let chosenDivision = null;
@@ -269,6 +282,162 @@
 			: __("Division");
 		divisionPill.style.background = (match && match.colour) || "#1F9D55";
 		divisionPill.hidden = false;
+		paint_chip(company, match);
+	}
+
+	function is_narrow() {
+		const query = window.matchMedia && window.matchMedia(NARROW_QUERY).matches;
+		const phone = document.body && document.body.classList.contains("has-mobile-nav");
+		return Boolean(query || phone);
+	}
+
+	function ensure_chip(bar) {
+		let chip = bar.querySelector(".melliflous-context-chip");
+		if (chip) {
+			return chip;
+		}
+		chip = document.createElement("button");
+		chip.type = "button";
+		chip.className = "melliflous-context-chip";
+		chip.setAttribute("aria-haspopup", "dialog");
+		chip.setAttribute("aria-controls", "melliflous-context-sheet");
+		chip.setAttribute("aria-expanded", "false");
+		const pill = document.createElement("span");
+		pill.className = "melliflous-chip-pill";
+		const copy = document.createElement("span");
+		copy.className = "melliflous-chip-copy";
+		const companyLine = document.createElement("span");
+		companyLine.className = "melliflous-chip-company";
+		const divisionLine = document.createElement("span");
+		divisionLine.className = "melliflous-chip-division";
+		copy.append(companyLine, divisionLine);
+		const caret = document.createElement("span");
+		caret.className = "melliflous-chip-caret";
+		caret.setAttribute("aria-hidden", "true");
+		chip.append(pill, copy, caret);
+		chip.addEventListener("click", open_sheet);
+		bar.appendChild(chip);
+		return chip;
+	}
+
+	function ensure_sheet() {
+		let sheet = document.getElementById("melliflous-context-sheet");
+		if (sheet) {
+			return sheet;
+		}
+		sheet = document.createElement("div");
+		sheet.id = "melliflous-context-sheet";
+		sheet.className = "melliflous-context-sheet";
+		sheet.hidden = true;
+		const backdrop = document.createElement("button");
+		backdrop.type = "button";
+		backdrop.className = "melliflous-sheet-backdrop";
+		backdrop.setAttribute("aria-label", __("Close"));
+		backdrop.addEventListener("click", close_sheet);
+		const panel = document.createElement("div");
+		panel.className = "melliflous-sheet-panel";
+		panel.setAttribute("role", "dialog");
+		panel.setAttribute("aria-modal", "true");
+		panel.setAttribute("aria-labelledby", "melliflous-sheet-title");
+		const handle = document.createElement("div");
+		handle.className = "melliflous-sheet-handle";
+		const title = document.createElement("h2");
+		title.id = "melliflous-sheet-title";
+		title.className = "melliflous-sheet-title";
+		title.textContent = __("Company and division");
+		const fields = document.createElement("div");
+		fields.className = "melliflous-sheet-fields";
+		const done = document.createElement("button");
+		done.type = "button";
+		done.className = "melliflous-sheet-done";
+		done.textContent = __("Done");
+		done.addEventListener("click", close_sheet);
+		panel.append(handle, title, fields, done);
+		sheet.append(backdrop, panel);
+		document.body.appendChild(sheet);
+		return sheet;
+	}
+
+	function open_sheet() {
+		if (!is_narrow()) {
+			return;
+		}
+		const sheet = ensure_sheet();
+		sheet.hidden = false;
+		const chip = document.querySelector(".melliflous-context-chip");
+		if (chip) {
+			chip.setAttribute("aria-expanded", "true");
+		}
+		const first = sheet.querySelector("select");
+		if (first) {
+			first.focus();
+		}
+	}
+
+	function close_sheet() {
+		const sheet = document.getElementById("melliflous-context-sheet");
+		if (sheet) {
+			sheet.hidden = true;
+		}
+		const chip = document.querySelector(".melliflous-context-chip");
+		if (chip) {
+			chip.setAttribute("aria-expanded", "false");
+		}
+	}
+
+	function paint_chip(company, match) {
+		const chip = document.querySelector(".melliflous-context-chip");
+		if (!chip) {
+			return;
+		}
+		const pill = chip.querySelector(".melliflous-chip-pill");
+		const companyLine = chip.querySelector(".melliflous-chip-company");
+		const divisionLine = chip.querySelector(".melliflous-chip-division");
+		const abbreviation = match ? match.abbreviation || match.division_name || "DV" : "DV";
+		pill.textContent = abbreviation;
+		pill.style.background = (match && match.colour) || "#C8102E";
+		companyLine.textContent = company || __("Company");
+		divisionLine.textContent = match ? match.division_name || match.name : __("Division");
+		chip.setAttribute(
+			"aria-label",
+			__("Company and division") + ": " + companyLine.textContent + ", " + divisionLine.textContent
+		);
+	}
+
+	function layout_switcher(bar) {
+		if (!bar) {
+			return;
+		}
+		const narrow = is_narrow();
+		document.body.classList.toggle("melliflous-narrow", narrow);
+		const chip = ensure_chip(bar);
+		const sheet = ensure_sheet();
+		const fields = sheet.querySelector(".melliflous-sheet-fields");
+		const companyLabel = document.querySelector(".melliflous-company-label");
+		const divisionLabel = document.querySelector(".melliflous-division-label");
+		bar.classList.toggle("is-compact", narrow);
+		const nodes = [companyLabel, select, divisionLabel, divisionSelect];
+		if (narrow) {
+			chip.hidden = false;
+			nodes.forEach((node) => {
+				if (node && fields && node.parentElement !== fields) {
+					fields.appendChild(node);
+				}
+			});
+		} else {
+			chip.hidden = true;
+			close_sheet();
+			nodes.forEach((node) => {
+				if (node && node.parentElement !== bar) {
+					bar.appendChild(node);
+				}
+			});
+		}
+		const company = select ? select.value : boot().company || "";
+		const rows = divisions_for(company);
+		const selected = divisionSelect ? divisionSelect.value : "";
+		const match = rows.find((row) => row.name === selected);
+		paint_chip(company, match);
 	}
 
 	function save_context(company, division, previousCompany, previousDivision) {
@@ -386,6 +555,7 @@
 			}
 			clear_empty_slots(null);
 			refresh_title();
+			layout_switcher(bar);
 			return;
 		}
 
@@ -408,28 +578,33 @@
 		}
 		slot.appendChild(bar);
 		clear_empty_slots(slot);
+		layout_switcher(bar);
 	}
 
 	function context_bar(companyNode, divisionNode, company) {
-		let bar = companyNode.closest(".melliflous-context");
+		let bar = companyNode.closest(".melliflous-context") || document.querySelector(".melliflous-context");
 		if (!bar) {
 			bar = document.createElement("div");
 			bar.className = "melliflous-context";
 		}
-		if (!bar.querySelector(".melliflous-context-label")) {
-			const companyLabel = document.createElement("span");
-			companyLabel.className = "melliflous-context-label";
+		let companyLabel = document.querySelector(".melliflous-company-label");
+		if (!companyLabel) {
+			companyLabel = document.createElement("span");
+			companyLabel.className = "melliflous-context-label melliflous-company-label";
 			companyLabel.textContent = __("Company");
 			bar.appendChild(companyLabel);
+		} else {
+			companyLabel.classList.add("melliflous-company-label");
 		}
-		if (!bar.contains(companyNode)) bar.appendChild(companyNode);
-		if (!bar.querySelector(".melliflous-division-label")) {
-			const divisionLabel = document.createElement("span");
+		if (!bar.contains(companyNode) && !is_narrow()) bar.appendChild(companyNode);
+		let divisionLabel = document.querySelector(".melliflous-division-label");
+		if (!divisionLabel) {
+			divisionLabel = document.createElement("span");
 			divisionLabel.className = "melliflous-context-label melliflous-division-label";
 			divisionLabel.textContent = __("Division");
 			bar.appendChild(divisionLabel);
 		}
-		if (!bar.contains(divisionNode)) bar.appendChild(divisionNode);
+		if (!bar.contains(divisionNode) && !is_narrow()) bar.appendChild(divisionNode);
 		paint_pills(bar, company);
 		return bar;
 	}
@@ -534,6 +709,22 @@
 		schedule();
 		$(document).on("desktop_screen.melliflous", schedule);
 		$(document).on("page-change.melliflous", schedule);
+		if (window.matchMedia) {
+			const query = window.matchMedia(NARROW_QUERY);
+			const on_width = function () {
+				schedule();
+			};
+			if (query.addEventListener) {
+				query.addEventListener("change", on_width);
+			} else if (query.addListener) {
+				query.addListener(on_width);
+			}
+		}
+		document.addEventListener("keydown", function (event) {
+			if (event.key === "Escape") {
+				close_sheet();
+			}
+		});
 		if (frappe.router && frappe.router.on) {
 			frappe.router.on("change", schedule);
 		}

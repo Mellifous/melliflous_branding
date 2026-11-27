@@ -8,17 +8,10 @@ app_license = "MIT"
 required_apps = ["frappe"]
 
 # Tiles declared for the v16 apps screen. Boot copies only the first entry of an
-# installed app into the grid (that is Quick Actions). Distributor 360 is placed
-# on the same grid from boot_session, because a second entry here is ignored.
+# installed app into the grid. Quick Actions is not a tile: the six cards on the
+# home screen are that desk. Distributor 360 is still placed from boot_session,
+# because this entry is the one the grid copies and a second entry would be ignored.
 add_to_apps_screen = [
-	{
-		"name": "melliflous_branding",
-		"logo": "/assets/melliflous_branding/images/melliflous_icon_512.png",
-		"title": "Quick Actions",
-		"route": "/desk/quick-actions",
-		"has_permission": "melliflous_branding.access.can_show_quick_actions",
-		"sequence_id": 12,
-	},
 	{
 		"name": "distributor_360",
 		"logo": "/assets/melliflous_branding/images/distributor_360.png",
@@ -34,7 +27,7 @@ add_to_apps_screen = [
 # The query is bumped when the desk theme changes. The theme is also injected
 # from desk_theme.js, because a cached app_include_css file has shipped stale
 # rules after a deploy. No bench build is required.
-DESK_ASSET_VERSION = "20261127c"
+DESK_ASSET_VERSION = "20261127e"
 app_include_css = [
 	f"/assets/melliflous_branding/css/melliflous_branding.css?v={DESK_ASSET_VERSION}",
 	f"/assets/melliflous_branding/css/desk_theme.css?v={DESK_ASSET_VERSION}",
