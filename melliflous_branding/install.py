@@ -15,6 +15,7 @@ def after_migrate():
 	from melliflous_branding.customer_records import ensure_customer_fields
 	from melliflous_branding.distributor_records import ensure_distributor_places
 	from melliflous_branding.division_records import ensure_divisions
+	from melliflous_branding.hsn_records import ensure_hsn_catalog
 	from melliflous_branding.invoice_admin_records import ensure_invoice_admin
 	from melliflous_branding.raven_roles import grant_missing_raven_roles
 	from melliflous_branding.simple_records import ensure_simple_desk
@@ -29,6 +30,7 @@ def after_migrate():
 	ensure_customer_fields()
 	ensure_invoice_admin()
 	ensure_divisions()
+	ensure_hsn_catalog()
 	try:
 		from melliflous_branding.invoice_admin_records import keep_einvoice_manual
 

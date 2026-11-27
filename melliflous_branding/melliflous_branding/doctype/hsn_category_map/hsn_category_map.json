@@ -1,0 +1,195 @@
+{
+ "actions": [],
+ "autoname": "field:category_name",
+ "creation": "2026-11-27 18:00:00.000000",
+ "description": "Researched HSN and GST rate for a product this group sells. Seed rows are refreshed from the app on migrate. Add a new row to cover a product the seed list does not name. Migrate does not change Item.",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "category_name",
+  "product_family",
+  "hsn_code",
+  "gst_rate",
+  "column_break_main",
+  "ambiguous",
+  "effective_from",
+  "sort_order",
+  "allowed_rates",
+  "section_match",
+  "phrases",
+  "column_break_match",
+  "alternate_hsn",
+  "accept_prefix",
+  "reject_hsn",
+  "section_notes",
+  "ambiguity_note",
+  "source"
+ ],
+ "fields": [
+  {
+   "fieldname": "category_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Category",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "product_family",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Product Family",
+   "options": "Whole Spice\nGround Spice\nMasala\nSeasoning\nPasta\nVermicelli\nSoya\nStaple\nWellness",
+   "reqd": 1
+  },
+  {
+   "fieldname": "hsn_code",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "HSN",
+   "reqd": 1,
+   "description": "6 or 8 digits. B2B invoices need at least 6 when turnover is above Rs 5 crore."
+  },
+  {
+   "fieldname": "gst_rate",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "GST Rate",
+   "precision": "2",
+   "description": "The rate to suggest. Pre-packaged flour can also be nil; see Allowed Rates."
+  },
+  {
+   "fieldname": "column_break_main",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "ambiguous",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Ambiguous"
+  },
+  {
+   "default": "2025-09-22",
+   "fieldname": "effective_from",
+   "fieldtype": "Date",
+   "label": "Effective From"
+  },
+  {
+   "fieldname": "sort_order",
+   "fieldtype": "Int",
+   "label": "Sort Order"
+  },
+  {
+   "fieldname": "allowed_rates",
+   "fieldtype": "Data",
+   "label": "Allowed Rates",
+   "description": "Comma separated. 5, 0 means 5% if pre-packaged and labelled, nil if sold loose."
+  },
+  {
+   "fieldname": "section_match",
+   "fieldtype": "Section Break",
+   "label": "How an item matches"
+  },
+  {
+   "description": "One phrase per line, in lower case. The longest phrase that appears in the item name wins.",
+   "fieldname": "phrases",
+   "fieldtype": "Small Text",
+   "label": "Phrases"
+  },
+  {
+   "fieldname": "column_break_match",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "alternate_hsn",
+   "fieldtype": "Data",
+   "label": "Alternate HSN"
+  },
+  {
+   "fieldname": "accept_prefix",
+   "fieldtype": "Data",
+   "label": "Accept Prefix"
+  },
+  {
+   "fieldname": "reject_hsn",
+   "fieldtype": "Data",
+   "label": "Reject HSN",
+   "description": "Codes that must not be treated as a match. 09041110 is long pepper, not black pepper. 11061010 is guar meal, not besan."
+  },
+  {
+   "fieldname": "section_notes",
+   "fieldtype": "Section Break",
+   "label": "Source"
+  },
+  {
+   "fieldname": "ambiguity_note",
+   "fieldtype": "Text",
+   "label": "Note"
+  },
+  {
+   "fieldname": "source",
+   "fieldtype": "Text",
+   "label": "Source",
+   "reqd": 1
+  }
+ ],
+ "links": [],
+ "modified": "2026-11-27 18:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Melliflous Branding",
+ "name": "HSN Category Map",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Accounts Manager"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Accounts User"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Sales Manager"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Sales User"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Stock Manager"
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Stock User"
+  }
+ ],
+ "search_fields": "hsn_code,product_family",
+ "sort_field": "sort_order",
+ "sort_order": "ASC",
+ "states": [],
+ "title_field": "category_name",
+ "track_changes": 1
+}
