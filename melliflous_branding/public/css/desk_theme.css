@@ -1,0 +1,491 @@
+/* Melliflous desk theme. Injected again from desk_theme.js because a cached
+   app_include_css file has shipped stale rules. Scoped to the desk. */
+
+:root {
+	--melliflous-red: #c8102e;
+	--melliflous-maroon: #7a0019;
+	--melliflous-red-hover: #9b0c24;
+	--melliflous-ink: #1c1917;
+	--melliflous-card: #ffffff;
+	--melliflous-line: #eadfd8;
+	--melliflous-shadow: 0 1px 2px rgba(28, 25, 23, 0.06), 0 10px 28px rgba(122, 0, 25, 0.06);
+	--melliflous-selling: #1f9d55;
+	--melliflous-buying: #2f6fdb;
+	--melliflous-stock: #0e8f8a;
+	--melliflous-accounts: #7a45c4;
+	--melliflous-hr: #e07a1f;
+	--melliflous-crm: #d4538c;
+	--melliflous-manufacturing: #d4a017;
+}
+
+[data-theme="dark"] {
+	--melliflous-ink: #f5f5f4;
+	--melliflous-card: #1c1917;
+	--melliflous-line: #44403c;
+	--melliflous-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px rgba(0, 0, 0, 0.35);
+}
+
+/* Status pills. v16 draws .es-badge; older rows still use .indicator-pill.
+   Text sits on a light tint so it stays readable in both themes. */
+body .es-badge[data-theme="gray"],
+body .es-badge[data-theme="grey"],
+body .indicator-pill.gray,
+body .indicator-pill.grey,
+body .indicator-pill.darkgrey,
+body .indicator.gray,
+body .indicator.grey {
+	--c-fill: #e7e5e4;
+	--c-fg: #44403c;
+	--c-line: #d6d3d1;
+	background: #e7e5e4;
+	color: #44403c;
+}
+
+body .es-badge[data-theme="blue"],
+body .es-badge[data-theme="light-blue"],
+body .indicator-pill.blue,
+body .indicator-pill.light-blue,
+body .indicator.blue {
+	--c-fill: #dbeafe;
+	--c-fg: #1e3a8a;
+	--c-line: #bfdbfe;
+	background: #dbeafe;
+	color: #1e3a8a;
+}
+
+body .es-badge[data-theme="amber"],
+body .es-badge[data-theme="orange"],
+body .es-badge[data-theme="yellow"],
+body .indicator-pill.orange,
+body .indicator-pill.yellow,
+body .indicator-pill.amber,
+body .indicator.orange,
+body .indicator.yellow {
+	--c-fill: #fef3c7;
+	--c-fg: #92400e;
+	--c-line: #fde68a;
+	background: #fef3c7;
+	color: #92400e;
+}
+
+body .es-badge[data-theme="red"],
+body .indicator-pill.red,
+body .indicator.red {
+	--c-fill: #fee2e2;
+	--c-fg: #991b1b;
+	--c-line: #fecaca;
+	background: #fee2e2;
+	color: #991b1b;
+}
+
+body .es-badge[data-theme="green"],
+body .indicator-pill.green,
+body .indicator.green {
+	--c-fill: #dcfce7;
+	--c-fg: #14532d;
+	--c-line: #bbf7d0;
+	background: #dcfce7;
+	color: #14532d;
+}
+
+body .es-badge[data-theme="purple"],
+body .es-badge[data-theme="violet"],
+body .indicator-pill.purple,
+body .indicator-pill.violet,
+body .indicator.purple {
+	--c-fill: #ede9fe;
+	--c-fg: #5b21b6;
+	--c-line: #ddd6fe;
+	background: #ede9fe;
+	color: #5b21b6;
+}
+
+[data-theme="dark"] body .es-badge[data-theme="gray"],
+[data-theme="dark"] body .es-badge[data-theme="grey"],
+[data-theme="dark"] body .indicator-pill.gray,
+[data-theme="dark"] body .indicator-pill.grey,
+[data-theme="dark"] body .indicator-pill.darkgrey {
+	--c-fill: #44403c;
+	--c-fg: #f5f5f4;
+	background: #44403c;
+	color: #f5f5f4;
+}
+
+[data-theme="dark"] body .es-badge[data-theme="blue"],
+[data-theme="dark"] body .indicator-pill.blue {
+	--c-fill: #1e3a8a;
+	--c-fg: #dbeafe;
+	background: #1e3a8a;
+	color: #dbeafe;
+}
+
+[data-theme="dark"] body .es-badge[data-theme="amber"],
+[data-theme="dark"] body .es-badge[data-theme="orange"],
+[data-theme="dark"] body .indicator-pill.orange,
+[data-theme="dark"] body .indicator-pill.yellow {
+	--c-fill: #78350f;
+	--c-fg: #fde68a;
+	background: #78350f;
+	color: #fde68a;
+}
+
+[data-theme="dark"] body .es-badge[data-theme="red"],
+[data-theme="dark"] body .indicator-pill.red {
+	--c-fill: #7f1d1d;
+	--c-fg: #fecaca;
+	background: #7f1d1d;
+	color: #fecaca;
+}
+
+[data-theme="dark"] body .es-badge[data-theme="green"],
+[data-theme="dark"] body .indicator-pill.green {
+	--c-fill: #14532d;
+	--c-fg: #bbf7d0;
+	background: #14532d;
+	color: #bbf7d0;
+}
+
+[data-theme="dark"] body .es-badge[data-theme="purple"],
+[data-theme="dark"] body .es-badge[data-theme="violet"],
+[data-theme="dark"] body .indicator-pill.purple {
+	--c-fill: #4c1d95;
+	--c-fg: #ddd6fe;
+	background: #4c1d95;
+	color: #ddd6fe;
+}
+
+/* Primary actions in the brand red. White on these reds clears WCAG AA. */
+body .btn-primary,
+body .btn-primary:focus,
+body .btn-primary-dark {
+	background-color: var(--melliflous-red);
+	border-color: var(--melliflous-red-hover);
+	color: #fff;
+	border-radius: 10px;
+}
+
+body .btn-primary:hover,
+body .btn-primary-dark:hover {
+	background-color: var(--melliflous-maroon);
+	border-color: var(--melliflous-maroon);
+	color: #fff;
+}
+
+body .btn-primary,
+body .shortcut-widget-box,
+body .number-widget-box,
+body .melliflous-shortcut {
+	transition: transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+body .btn-primary:hover,
+body .shortcut-widget-box:hover,
+body .number-widget-box:hover,
+body .melliflous-shortcut:hover {
+	transform: translateY(-1px);
+}
+
+body .widget,
+body .shortcut-widget-box,
+body .number-widget-box,
+body .widget.shortcut,
+body .widget.number {
+	border-radius: 14px;
+	box-shadow: var(--melliflous-shadow);
+}
+
+body .layout-main-section,
+body .form-layout,
+body .frappe-card {
+	border-radius: 16px;
+}
+
+/* Navbar accent and a warm sidebar. */
+body .navbar,
+body .desktop-navbar {
+	position: relative;
+	box-shadow: inset 0 -3px 0 var(--melliflous-red);
+}
+
+body .body-sidebar,
+body .standard-sidebar,
+body .layout-side-section {
+	background: #fff7f6;
+}
+
+[data-theme="dark"] body .body-sidebar,
+[data-theme="dark"] body .standard-sidebar,
+[data-theme="dark"] body .layout-side-section {
+	background: #2a1216;
+}
+
+body .standard-sidebar-item.selected,
+body .standard-sidebar-item.active,
+body .sidebar-item.selected,
+body .sidebar-item.active,
+body .desk-sidebar-item.selected {
+	background: rgba(200, 16, 46, 0.12);
+	color: var(--melliflous-maroon);
+	box-shadow: inset 3px 0 0 var(--melliflous-red);
+	border-radius: 8px;
+}
+
+[data-theme="dark"] body .standard-sidebar-item.selected,
+[data-theme="dark"] body .standard-sidebar-item.active,
+[data-theme="dark"] body .sidebar-item.selected {
+	background: rgba(200, 16, 46, 0.28);
+	color: #fecdd3;
+}
+
+/* Readable type on the lists and forms people use all day. */
+body .frappe-list .list-row,
+body .frappe-list .list-row-head,
+body .list-row-col,
+body .form-layout .control-label,
+body .form-layout .form-control,
+body .form-layout .like-disabled-input {
+	font-size: 15px;
+}
+
+body .form-layout .form-control,
+body .form-layout .like-disabled-input {
+	border-radius: 8px;
+}
+
+body .no-result,
+body .empty-state,
+body .list-empty-state,
+body .msg-box.no-result {
+	border: 1px dashed var(--melliflous-line);
+	border-radius: 16px;
+	background: #fff7f6;
+	color: var(--melliflous-ink);
+	padding: 28px 18px;
+}
+
+[data-theme="dark"] body .no-result,
+[data-theme="dark"] body .empty-state,
+[data-theme="dark"] body .msg-box.no-result {
+	background: #2a1216;
+	color: #f5f5f4;
+}
+
+.melliflous-empty-note {
+	margin: 8px 0 0;
+	color: #57534e;
+}
+
+[data-theme="dark"] .melliflous-empty-note {
+	color: #d6d3d1;
+}
+
+.melliflous-greeting {
+	margin: 8px 16px 4px;
+	padding: 14px 16px;
+	border-radius: 16px;
+	background: linear-gradient(120deg, var(--melliflous-red) 0%, var(--melliflous-maroon) 100%);
+	color: #fff;
+	box-shadow: var(--melliflous-shadow);
+}
+
+.melliflous-greeting-hello {
+	margin: 0;
+	font-size: 1.35rem;
+	font-weight: 700;
+	line-height: 1.25;
+}
+
+.melliflous-greeting-date {
+	margin: 4px 0 0;
+	font-size: 0.95rem;
+	opacity: 0.92;
+}
+
+.melliflous-shortcuts {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+	gap: 10px;
+	margin: 8px 16px 16px;
+}
+
+.melliflous-shortcut {
+	display: flex;
+	align-items: center;
+	justify-content: flex-start;
+	min-height: 64px;
+	padding: 12px 14px;
+	border: 0;
+	border-radius: 14px;
+	border-left: 5px solid transparent;
+	background: var(--melliflous-card);
+	color: var(--melliflous-ink);
+	font-size: 1rem;
+	font-weight: 700;
+	line-height: 1.25;
+	text-align: left;
+	text-decoration: none;
+	box-shadow: var(--melliflous-shadow);
+	cursor: pointer;
+}
+
+.melliflous-shortcut.tone-brand { border-left-color: var(--melliflous-red); }
+.melliflous-shortcut.tone-blue { border-left-color: var(--melliflous-buying); }
+.melliflous-shortcut.tone-green { border-left-color: var(--melliflous-selling); }
+.melliflous-shortcut.tone-teal { border-left-color: var(--melliflous-stock); }
+.melliflous-shortcut.tone-amber { border-left-color: var(--melliflous-manufacturing); }
+.melliflous-shortcut.tone-maroon { border-left-color: var(--melliflous-maroon); }
+
+.melliflous-shortcut:hover {
+	text-decoration: none;
+	color: var(--melliflous-ink);
+}
+
+.melliflous-simple-toggle {
+	margin-left: 8px;
+	border-radius: 999px;
+	border: 1px solid var(--melliflous-red);
+	background: transparent;
+	color: var(--melliflous-maroon);
+	font-weight: 700;
+	min-height: 32px;
+	padding: 0 12px;
+}
+
+[data-theme="dark"] .melliflous-simple-toggle {
+	color: #fecdd3;
+}
+
+.melliflous-simple-hidden {
+	display: none !important;
+}
+
+body[data-melliflous-module="selling"] .shortcut-widget-box,
+body[data-melliflous-module="selling"] .number-widget-box,
+body[data-melliflous-module="selling"] .widget.shortcut,
+body[data-melliflous-module="selling"] .widget.number {
+	border-left: 4px solid var(--melliflous-selling);
+}
+
+body[data-melliflous-module="buying"] .shortcut-widget-box,
+body[data-melliflous-module="buying"] .number-widget-box,
+body[data-melliflous-module="buying"] .widget.shortcut,
+body[data-melliflous-module="buying"] .widget.number {
+	border-left: 4px solid var(--melliflous-buying);
+}
+
+body[data-melliflous-module="stock"] .shortcut-widget-box,
+body[data-melliflous-module="stock"] .number-widget-box,
+body[data-melliflous-module="stock"] .widget.shortcut,
+body[data-melliflous-module="stock"] .widget.number {
+	border-left: 4px solid var(--melliflous-stock);
+}
+
+body[data-melliflous-module="accounting"] .shortcut-widget-box,
+body[data-melliflous-module="accounting"] .number-widget-box,
+body[data-melliflous-module="accounting"] .widget.shortcut,
+body[data-melliflous-module="accounting"] .widget.number,
+body[data-melliflous-module="accounts"] .shortcut-widget-box,
+body[data-melliflous-module="accounts"] .number-widget-box,
+body[data-melliflous-module="accounts"] .widget.shortcut,
+body[data-melliflous-module="accounts"] .widget.number {
+	border-left: 4px solid var(--melliflous-accounts);
+}
+
+body[data-melliflous-module="hr"] .shortcut-widget-box,
+body[data-melliflous-module="hr"] .number-widget-box,
+body[data-melliflous-module="hr"] .widget.shortcut,
+body[data-melliflous-module="hr"] .widget.number {
+	border-left: 4px solid var(--melliflous-hr);
+}
+
+body[data-melliflous-module="crm"] .shortcut-widget-box,
+body[data-melliflous-module="crm"] .number-widget-box,
+body[data-melliflous-module="crm"] .widget.shortcut,
+body[data-melliflous-module="crm"] .widget.number {
+	border-left: 4px solid var(--melliflous-crm);
+}
+
+body[data-melliflous-module="manufacturing"] .shortcut-widget-box,
+body[data-melliflous-module="manufacturing"] .number-widget-box,
+body[data-melliflous-module="manufacturing"] .widget.shortcut,
+body[data-melliflous-module="manufacturing"] .widget.number {
+	border-left: 4px solid var(--melliflous-manufacturing);
+}
+
+.melliflous-quick.melliflous-invoice .row-card {
+	margin-top: 12px;
+	padding: 12px;
+	border: 1px solid var(--melliflous-line);
+	border-radius: 14px;
+	background: var(--melliflous-card);
+}
+
+.melliflous-invoice .totals {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: 8px;
+	margin-top: 16px;
+}
+
+.melliflous-invoice .total {
+	padding: 12px;
+	border-radius: 12px;
+	background: #fff7f6;
+	border-top: 4px solid var(--melliflous-red);
+}
+
+.melliflous-invoice .total .label {
+	font-size: 0.85rem;
+	color: #57534e;
+}
+
+.melliflous-invoice .total .value {
+	margin-top: 4px;
+	font-size: 1.15rem;
+	font-weight: 800;
+}
+
+.melliflous-invoice .btn-row .btn {
+	min-height: 52px;
+	font-size: 1.05rem;
+}
+
+.melliflous-invoice .note {
+	margin-top: 8px;
+	color: #57534e;
+}
+
+.melliflous-greeting svg,
+.melliflous-shortcuts svg,
+.melliflous-simple-toggle svg,
+.melliflous-invoice svg {
+	width: 18px;
+	height: 18px;
+	max-width: 18px;
+	max-height: 18px;
+}
+
+@media (max-width: 720px) {
+	.melliflous-invoice .totals {
+		grid-template-columns: 1fr 1fr;
+	}
+	.melliflous-greeting-hello {
+		font-size: 1.2rem;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	body .btn-primary,
+	body .shortcut-widget-box,
+	body .number-widget-box,
+	body .melliflous-shortcut {
+		transition: none;
+	}
+
+	body .btn-primary:hover,
+	body .shortcut-widget-box:hover,
+	body .number-widget-box:hover,
+	body .melliflous-shortcut:hover {
+		transform: none;
+	}
+}

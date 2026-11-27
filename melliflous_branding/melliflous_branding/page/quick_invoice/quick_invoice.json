@@ -1,0 +1,27 @@
+{
+ "doctype": "Page",
+ "icon": "file-text",
+ "module": "Melliflous Branding",
+ "name": "quick-invoice",
+ "page_name": "quick-invoice",
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Sales Manager"
+  },
+  {
+   "role": "Sales User"
+  },
+  {
+   "role": "Accounts Manager"
+  },
+  {
+   "role": "Accounts User"
+  }
+ ],
+ "standard": "Yes",
+ "system_page": 0,
+ "title": "Quick Invoice"
+}

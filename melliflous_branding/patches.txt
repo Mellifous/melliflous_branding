@@ -9,3 +9,4 @@ melliflous_branding.patches.v0_3.ensure_team_files
 melliflous_branding.patches.v0_4.show_team_files
 melliflous_branding.patches.v0_5.ensure_customer_targets
 melliflous_branding.patches.v0_6.ensure_distributors
+melliflous_branding.patches.v0_7.ensure_simple_desk
