@@ -1,3 +1,9 @@
+/* SK Gourmet Spices. Distributor 360's header reads the same two colours. */
+:root {
+	--melliflous-red: #C8102E;
+	--melliflous-maroon: #7A0019;
+}
+
 /* Company title and switcher, plus colour rings on desk-home tiles.
    Scoped so it does not restyle website pages. body.desktop-page stays on for
    the whole desk session in v16, so rules that must only affect the home
@@ -409,7 +415,7 @@ body.desktop-page .module-folder-app[data-melliflous-tone="brand"] .module-folde
 	margin-top: 16px;
 	padding: 20px 22px;
 	border-radius: 18px;
-	background: linear-gradient(120deg, #c0392b 0%, #6b1d2a 100%);
+	background: linear-gradient(120deg, var(--melliflous-red, #C8102E) 0%, var(--melliflous-maroon, #7A0019) 100%);
 	color: #fff;
 }
 .melliflous-360 .band-title {

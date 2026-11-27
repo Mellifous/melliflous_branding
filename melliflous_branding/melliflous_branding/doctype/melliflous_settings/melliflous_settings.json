@@ -1,0 +1,56 @@
+{
+ "actions": [],
+ "creation": "2026-11-27 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "simple_mode",
+  "simple_help",
+  "workspace_restore"
+ ],
+ "fields": [
+  {
+   "default": "1",
+   "description": "Shows Home, Selling, Buying, Stock, Accounting, CRM, Distributor 360, and HR (kept lower, for attendance). Hides Manufacturing, Projects, Assets, Quality, Support, Website, Tools, Build, Integrations, ERPNext Settings, Subcontracting, and Loan or Payroll extras. Untick this to put the full desk back for everyone. Nothing is deleted.",
+   "fieldname": "simple_mode",
+   "fieldtype": "Check",
+   "label": "Melliflous Simple Mode"
+  },
+  {
+   "fieldname": "simple_help",
+   "fieldtype": "HTML",
+   "options": "<p>System Manager and Administrator can also press <b>Full desk</b> on the navbar. That shows every module for them only, and leaves this switch on for the rest of the team. A hidden page can still be opened from its address.</p>"
+  },
+  {
+   "fieldname": "workspace_restore",
+   "fieldtype": "Long Text",
+   "hidden": 1,
+   "label": "Workspace restore",
+   "read_only": 1
+  }
+ ],
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-11-27 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Melliflous Branding",
+ "name": "Melliflous Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

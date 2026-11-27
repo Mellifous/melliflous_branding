@@ -18,6 +18,56 @@ PWA_MARKER = "data-melliflous-pwa"
 # English tile labels as v16 renders them. Department colours apply when that
 # label is actually on screen (Desktop Icons grid, or a module folder on newer
 # builds). App-screen tiles are mapped separately: ERPNext is one tile.
+# SK Gourmet Spices. Distributor 360's header uses the same two colours.
+BRAND_RED = "#C8102E"
+BRAND_MAROON = "#7A0019"
+
+# List and form status pills. The label and the list filter stay as ERPNext
+# set them; only the colour class changes. Unknown statuses are left alone.
+STATUS_COLOURS: dict[str, str] = {
+	"Draft": "grey",
+	"Submitted": "blue",
+	"To Deliver": "blue",
+	"To Receive": "blue",
+	"Open": "blue",
+	"Replied": "blue",
+	"Lead": "blue",
+	"Opportunity": "blue",
+	"Unpaid": "orange",
+	"Pending": "orange",
+	"To Bill": "orange",
+	"To Deliver and Bill": "orange",
+	"To Receive and Bill": "orange",
+	"Partly Paid": "orange",
+	"Partly Paid and Discounted": "orange",
+	"Unpaid and Discounted": "orange",
+	"On Hold": "orange",
+	"Partially Ordered": "orange",
+	"Interested": "orange",
+	"Quotation": "orange",
+	"Overdue": "red",
+	"Overdue and Discounted": "red",
+	"Cancelled": "red",
+	"Lost": "red",
+	"Lost Quotation": "red",
+	"Expired": "red",
+	"Rejected": "red",
+	"Do Not Contact": "red",
+	"Paid": "green",
+	"Completed": "green",
+	"Ordered": "green",
+	"Delivered": "green",
+	"Active": "green",
+	"Enabled": "green",
+	"Converted": "green",
+	"Closed": "green",
+	"Disabled": "grey",
+	"Return": "purple",
+	"Credit Note Issued": "purple",
+	"Debit Note Issued": "purple",
+	"Return Issued": "purple",
+}
+
 TILE_TONES: dict[str, str] = {
 	"Accounts": "green",
 	"Selling": "orange",
@@ -81,6 +131,28 @@ def companies_for_user(permission_names: list[str], readable_companies: list[str
 			permitted = [name for name in permitted if name in known]
 		return sorted(permitted, key=str.casefold)
 	return sorted(_unique(readable_companies), key=str.casefold)
+
+
+def status_colour(status: str | None, colours: dict[str, str] | None = None) -> str | None:
+	"""Colour class for a document status, or None when the status stays as it was.
+
+	Matching is case-insensitive and ignores extra spaces. A status that is not
+	in the key is not recoloured, so an ERPNext indicator we do not know keeps
+	its label, its filter, and its original colour.
+	"""
+	if status is None:
+		return None
+	text = " ".join(str(status).split())
+	if not text:
+		return None
+	table = colours or STATUS_COLOURS
+	if text in table:
+		return table[text]
+	folded = text.casefold()
+	for key, colour in table.items():
+		if key.casefold() == folded:
+			return colour
+	return None
 
 
 def tone_for(label: str | None, tones: dict[str, str] | None = None) -> str | None:

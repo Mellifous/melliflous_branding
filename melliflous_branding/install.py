@@ -14,6 +14,7 @@ def after_install():
 def after_migrate():
 	from melliflous_branding.distributor_records import ensure_distributor_places
 	from melliflous_branding.raven_roles import grant_missing_raven_roles
+	from melliflous_branding.simple_records import ensure_simple_desk
 	from melliflous_branding.target_records import ensure_target_places
 	from melliflous_branding.team_files import ensure_team_folders
 
@@ -21,3 +22,4 @@ def after_migrate():
 	grant_missing_raven_roles()
 	ensure_target_places()
 	ensure_distributor_places()
+	ensure_simple_desk()
