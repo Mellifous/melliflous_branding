@@ -3,7 +3,7 @@
 
 import json
 import unittest
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 from melliflous_branding import hooks
@@ -16,6 +16,7 @@ from melliflous_branding.distributors import (
 	apply_statement_line,
 	billing_tone,
 	build_dashboard,
+	build_distributor_mis,
 	can_file,
 	can_open_distributor_360,
 	can_see_profile,
@@ -25,18 +26,22 @@ from melliflous_branding.distributors import (
 	clean_visit,
 	cover_tone,
 	days_of_cover,
+	distributor_activity,
 	find_duplicate_statement,
 	follow_up_rows,
 	merge_distributor_workspace,
+	mis_rag,
 	missing_sidebar_links,
 	next_visit_due,
 	normalize_lines,
 	place_distributor_360_app,
+	plan_target_save,
 	prefill_rows,
 	prepare_profile_values,
 	product_pace,
 	quote_tone,
 	received_by_item,
+	recommended_monthly_target,
 	statement_period,
 	summarize_quotations,
 	target_suggestion,
@@ -595,7 +600,7 @@ class TestDesk(unittest.TestCase):
 		script = (PACKAGE / "melliflous_branding" / "page" / "distributor_360" / "distributor_360.js").read_text()
 		self.assertIn('frappe.pages["distributor-360"].on_page_load', script)
 		self.assertIn("The distributor could not be loaded.", script)
-		self.assertIn("Create Target", script)
+		self.assertIn("Set Target", script)
 		self.assertIn("is-error", script)
 		self.assertIn("₹0 — no submitted invoices yet", script)
 		self.assertIn("New Quotation", script)
@@ -685,6 +690,216 @@ class TestDesk(unittest.TestCase):
 		hidden = place_distributor_360_app(placed, "accounts@example.com", ["Accounts User"])
 		self.assertEqual([row["app_title"] for row in hidden], ["Quick Actions"])
 		self.assertIn("place_distributor_360_app", (PACKAGE / "boot.py").read_text())
+
+
+class TestDistributorBook(unittest.TestCase):
+	def test_activity_uses_the_profile_then_the_customer_then_ninety_days(self):
+		self.assertEqual(distributor_activity(1, 1, None, TODAY), {"active": 1, "rule": "Distributor profile is active."})
+		self.assertEqual(distributor_activity(0, 0, TODAY, TODAY)["active"], 0)
+		self.assertIn("inactive", distributor_activity(0, 0, TODAY, TODAY)["rule"])
+		disabled = distributor_activity(None, 1, TODAY, TODAY)
+		self.assertEqual(disabled["active"], 0)
+		self.assertEqual(disabled["rule"], "Customer is disabled.")
+		enabled = distributor_activity(None, 0, None, TODAY)
+		self.assertEqual(enabled["active"], 1)
+		self.assertEqual(enabled["rule"], "Customer is not disabled.")
+		quiet = distributor_activity(None, None, date(2026, 8, 1), TODAY)
+		self.assertEqual(quiet["active"], 0)
+		self.assertEqual(quiet["rule"], "No submitted invoice in 90 days.")
+		self.assertEqual(distributor_activity(None, None, date(2026, 11, 1), TODAY)["active"], 1)
+		self.assertEqual(distributor_activity(None, None, TODAY - timedelta(days=90), TODAY)["active"], 1)
+		self.assertEqual(distributor_activity(None, None, TODAY - timedelta(days=91), TODAY)["active"], 0)
+
+	def test_book_rag_is_separate_from_the_single_distributor_page(self):
+		self.assertEqual(mis_rag(90), "green")
+		self.assertEqual(mis_rag(89.99), "amber")
+		self.assertEqual(mis_rag(60), "amber")
+		self.assertEqual(mis_rag(59.99), "red")
+		self.assertEqual(mis_rag(None), "neutral")
+		self.assertEqual(achievement_tone(90), "amber")
+		self.assertEqual(achievement_tone(100), "green")
+
+	def test_recommendation_uses_the_higher_average_and_a_default(self):
+		built = recommended_monthly_target([0, 0, 10000, 20000, 30000, 60000], 1.1, 5000)
+		self.assertEqual(built["avg_3"], 36666.67)
+		self.assertEqual(built["avg_6"], 20000.0)
+		self.assertEqual(built["amount"], 40333.34)
+		self.assertFalse(built["used_default"])
+		self.assertIn("Draft invoices are not included.", built["basis"])
+		self.assertIn("1.1", built["basis"])
+		fresh = recommended_monthly_target([0, 0, 0, 0, 0, 0], None, 25000)
+		self.assertTrue(fresh["used_default"])
+		self.assertEqual(fresh["amount"], 25000)
+		self.assertEqual(fresh["growth_factor"], 1.1)
+		self.assertIn("No submitted invoice in the last 6 months", fresh["basis"])
+		with self.assertRaises(DistributorError):
+			recommended_monthly_target([1000], 0, 0)
+		manual = plan_target_save("Manual", 15000, 40333.34, "agreed on the visit")
+		self.assertEqual(manual["target_amount"], 15000)
+		self.assertEqual(manual["source"], "Manual")
+		self.assertEqual(manual["note"], "agreed on the visit")
+		recommended = plan_target_save("Recommended", 1, 40333.34, None)
+		self.assertEqual(recommended["target_amount"], 40333.34)
+		self.assertIsNone(recommended["note"])
+		with self.assertRaises(DistributorError):
+			plan_target_save("Recommended", 1, 0, None)
+
+	def test_the_book_totals_follow_the_filters_and_the_active_toggle(self):
+		north = profile(customer="AJ Traders", customer_name="AJ Traders", territory="North", is_active=1)
+		south = profile(
+			customer="South Shop",
+			customer_name="South Shop",
+			territory="South",
+			area="Colaba",
+			is_active=0,
+			account_manager="boss@example.com",
+			salesman="boss@example.com",
+			sales_person="Asha",
+		)
+		unmarked = profile(customer="Quiet Mart", customer_name="Quiet Mart", territory="North")
+		unmarked.pop("is_active")
+		months = {
+			(2026, 6): 0,
+			(2026, 7): 0,
+			(2026, 8): 0,
+			(2026, 9): 0,
+			(2026, 10): 0,
+			(2026, 11): 9000,
+		}
+		metrics = {
+			"AJ Traders": {
+				"primary_mtd": 9000,
+				"target_amount": 10000,
+				"target_source": "Recommended",
+				"outstanding": 1000,
+				"overdue": 0,
+				"last_billing": date(2026, 11, 20),
+				"open_quotations": 500,
+				"collections_mtd": 400,
+				"visits_mtd": 2,
+				"months": months,
+				"disabled": 0,
+			},
+			"South Shop": {
+				"primary_mtd": 1000,
+				"target_amount": 10000,
+				"target_source": "Manual",
+				"outstanding": 200,
+				"overdue": 50,
+				"last_billing": date(2026, 11, 2),
+				"open_quotations": 0,
+				"collections_mtd": 0,
+				"visits_mtd": 0,
+				"months": {(2026, 11): 1000},
+				"disabled": 0,
+			},
+			"Quiet Mart": {
+				"primary_mtd": 0,
+				"target_amount": None,
+				"outstanding": 0,
+				"overdue": 0,
+				"last_billing": date(2026, 8, 1),
+				"open_quotations": 0,
+				"collections_mtd": 0,
+				"visits_mtd": 1,
+				"months": {},
+				"disabled": None,
+			},
+		}
+		built = build_distributor_mis([north, south, unmarked], metrics, {}, TODAY, settings={"default_amount": 8000})
+		by_name = {row["distributor"]: row for row in built["rows"]}
+		self.assertEqual(by_name["AJ Traders"]["rag"], "green")
+		self.assertEqual(by_name["AJ Traders"]["achievement_pct"], 90)
+		self.assertEqual(by_name["AJ Traders"]["rule"], "Distributor profile is active.")
+		self.assertFalse(by_name["AJ Traders"]["billing_stale"])
+		self.assertEqual(by_name["South Shop"]["rag"], "red")
+		self.assertEqual(by_name["South Shop"]["status"], "Inactive")
+		self.assertEqual(by_name["Quiet Mart"]["status"], "Inactive")
+		self.assertEqual(by_name["Quiet Mart"]["rule"], "No submitted invoice in 90 days.")
+		self.assertEqual(by_name["Quiet Mart"]["rag"], "neutral")
+		self.assertTrue(by_name["Quiet Mart"]["billing_stale"])
+		self.assertEqual(by_name["Quiet Mart"]["recommended"], 8000)
+		self.assertEqual(built["summary"]["active"], 1)
+		self.assertEqual(built["summary"]["inactive"], 2)
+		self.assertEqual(built["summary"]["primary_mtd"], 10000)
+		self.assertEqual(built["summary"]["target"], 20000)
+		self.assertEqual(built["summary"]["achievement_pct"], 50)
+		self.assertEqual(built["summary"]["achievement_tone"], "red")
+		self.assertEqual(built["summary"]["not_billed_30"], 1)
+		self.assertEqual(built["summary"]["visits_mtd"], 3)
+		self.assertEqual(built["summary"]["collections_mtd"], 400)
+		self.assertEqual(built["summary"]["open_quotations"], 500)
+		self.assertEqual(len(by_name["AJ Traders"]["sparkline"]), 6)
+		self.assertEqual(by_name["AJ Traders"]["sparkline"][-1], 9000)
+		active = build_distributor_mis(
+			[north, south, unmarked], metrics, {"activity": "Active"}, TODAY, settings={"default_amount": 8000}
+		)
+		self.assertEqual([row["distributor"] for row in active["rows"]], ["AJ Traders"])
+		self.assertEqual(active["summary"]["active"], 1)
+		self.assertEqual(active["summary"]["inactive"], 2)
+		self.assertEqual(active["summary"]["primary_mtd"], 9000)
+		self.assertEqual(active["summary"]["not_billed_30"], 0)
+		territory = build_distributor_mis([north, south], metrics, {"territory": "South"}, TODAY)
+		self.assertEqual([row["distributor"] for row in territory["rows"]], ["South Shop"])
+		owner = build_distributor_mis([north, south], metrics, {"account_manager": "boss@example.com"}, TODAY)
+		self.assertEqual([row["distributor"] for row in owner["rows"]], ["South Shop"])
+		reds = build_distributor_mis([north, south, unmarked], metrics, {"rag": "red"}, TODAY)
+		self.assertEqual([row["distributor"] for row in reds["rows"]], ["South Shop"])
+		found = build_distributor_mis([north, south], metrics, {"search": "andheri"}, TODAY)
+		self.assertEqual([row["distributor"] for row in found["rows"]], ["AJ Traders"])
+
+	def test_a_quiet_distributor_uses_the_settings_default_on_the_page(self):
+		quiet = build_dashboard(
+			{"customer": "New", "company": "Foods", "invoices": [], "lines": []},
+			TODAY,
+			settings={"growth_factor": 1.1, "default_amount": 8000},
+		)
+		self.assertTrue(quiet["recommendation"]["used_default"])
+		self.assertEqual(quiet["signals"]["recommended_amount"], 8000)
+		self.assertIn("default of 8000.00", quiet["recommendation"]["basis"])
+		with_source = build_dashboard(
+			{
+				"customer": "AJ Traders",
+				"company": "Foods",
+				"current_target": {"name": "CPT-1", "target_amount": 20000, "target_source": "Manual"},
+				"invoices": [{"name": "SI-1", "posting_date": "2026-11-10", "amount": 10000, "is_return": 0, "company": "Foods"}],
+			},
+			TODAY,
+		)
+		self.assertEqual(with_source["signals"]["target_source"], "Manual")
+		self.assertEqual(with_source["signals"]["target_source_tone"], "blue")
+		self.assertEqual(with_source["signals"]["primary_tone"], "red")
+
+	def test_the_page_opens_the_book_and_can_export_it(self):
+		script = (PACKAGE / "melliflous_branding" / "page" / "distributor_360" / "distributor_360.js").read_text()
+		self.assertIn("distributor_mis", script)
+		self.assertIn('get("view") === "all"', script)
+		self.assertIn("Use recommended", script)
+		self.assertIn("Enter manually", script)
+		self.assertIn("Apply recommended to selected", script)
+		self.assertIn("distributors.csv", script)
+		self.assertIn("set_distributor_target", script)
+		self.assertIn(".mis-filters", script)
+		self.assertIn(".mini-spark", script)
+		self.assertIn('width="18" height="18"', script)
+		stylesheet = (PACKAGE / "public" / "css" / "melliflous_branding.css").read_text()
+		self.assertIn(".mis-filters", stylesheet)
+		self.assertIn(".mini-spark", stylesheet)
+		records = (PACKAGE / "distributor_records.py").read_text()
+		self.assertIn("def distributor_mis", records)
+		self.assertIn("docstatus = 1", records)
+		self.assertIn("def apply_recommended_targets", records)
+		target = json.loads(
+			(PACKAGE / "melliflous_branding" / "doctype" / "customer_primary_target" / "customer_primary_target.json").read_text()
+		)
+		fields = {row["fieldname"] for row in target["fields"]}
+		self.assertTrue({"target_source", "recommended_amount", "set_by", "set_on", "recommendation_basis"} <= fields)
+		settings = json.loads(
+			(PACKAGE / "melliflous_branding" / "doctype" / "distributor_settings" / "distributor_settings.json").read_text()
+		)
+		self.assertEqual(settings["issingle"], 1)
+		self.assertEqual(settings["fields"][0]["fieldname"], "growth_factor")
+		self.assertIn("melliflous_branding.patches.v0_7.ensure_target_source", (PACKAGE / "patches.txt").read_text())
 
 
 if __name__ == "__main__":

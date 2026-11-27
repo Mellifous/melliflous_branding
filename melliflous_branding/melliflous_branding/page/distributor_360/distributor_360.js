@@ -374,6 +374,74 @@
 	color: inherit;
 	text-decoration: none;
 }
+.melliflous-360 .pill.is-on {
+	box-shadow: inset 0 0 0 2px #fff, 0 0 0 2px #1c1917;
+}
+.melliflous-360 .pill.ghost {
+	background: #fff;
+	color: #1c1917;
+	border: 1px solid #eadfd8;
+}
+.melliflous-360 .pill.ghost.is-on {
+	background: #6b1d2a;
+	color: #fff;
+}
+.melliflous-360 .mis-filters {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	align-items: flex-end;
+	margin-top: 12px;
+}
+.melliflous-360 .mis-filters .filter-slot {
+	min-width: 10rem;
+}
+.melliflous-360 .search-input {
+	min-height: 32px;
+	min-width: 12rem;
+}
+.melliflous-360 .status-chip {
+	display: inline-block;
+	padding: 2px 8px;
+	border-radius: 999px;
+	font-weight: 700;
+	font-size: 0.8rem;
+}
+.melliflous-360 .status-chip.is-on { background: #e7f6ee; color: #135c36; }
+.melliflous-360 .status-chip.is-off { background: #fde8e8; color: #8d1d1d; }
+.melliflous-360 .cell-red { color: #c0392b; font-weight: 700; }
+.melliflous-360 .rag {
+	display: inline-block;
+	min-width: 3.2rem;
+	padding: 2px 8px;
+	border-radius: 999px;
+	font-weight: 700;
+	text-align: center;
+}
+.melliflous-360 .rag.tone-green { background: #e7f6ee; color: #135c36; }
+.melliflous-360 .rag.tone-amber { background: #fff4e5; color: #9a4d00; }
+.melliflous-360 .rag.tone-red { background: #fde8e8; color: #8d1d1d; }
+.melliflous-360 .rag.tone-neutral { background: #e7e5e4; color: #44403c; }
+.melliflous-360 tr.mis-row { cursor: pointer; }
+.melliflous-360 tr.mis-row:hover { background: #faf7f5; }
+.melliflous-360 th.sortable { cursor: pointer; }
+.melliflous-360 .mini-spark {
+	display: flex;
+	align-items: flex-end;
+	gap: 2px;
+	height: 28px;
+	width: 52px;
+}
+.melliflous-360 .mini-spark span {
+	display: block;
+	width: 6px;
+	height: 4px;
+	border-radius: 2px 2px 0 0;
+	background: #c0392b;
+}
+@media (max-width: 720px) {
+	.melliflous-360 .mis-filters { flex-direction: column; align-items: stretch; }
+}
 `;
 
 	function installStyles() {
@@ -524,6 +592,84 @@
 		toolbar.appendChild(companySlot);
 		root.appendChild(toolbar);
 
+		const modeRow = el("div", "btn-row");
+		const allButton = pill(__("All distributors"), "stock", () => showAll());
+		const oneButton = pill(__("This distributor"), "visit", () => showOne());
+		modeRow.appendChild(allButton);
+		modeRow.appendChild(oneButton);
+		root.appendChild(modeRow);
+
+		const filters = {
+			activity: "All",
+			search: "",
+			territory: "",
+			account_manager: "",
+			sales_person: "",
+			rag: "",
+		};
+		const picked = new Set();
+		let misPayload = null;
+		let sortKey = "name";
+		let sortDir = 1;
+		let viewMode = "all";
+
+		const filterBar = el("div", "mis-filters");
+		filterBar.hidden = true;
+		const activityRow = el("div", "btn-row");
+		const activityButtons = {};
+		["All", "Active", "Inactive"].forEach((label) => {
+			const button = pill(__(label), "ghost", () => {
+				filters.activity = label;
+				paintActivity();
+				schedule();
+			});
+			activityButtons[label] = button;
+			activityRow.appendChild(button);
+		});
+		filterBar.appendChild(activityRow);
+		const search = el("input", "form-control search-input");
+		search.type = "search";
+		search.placeholder = __("Search distributors");
+		search.addEventListener("input", () => {
+			filters.search = search.value;
+			schedule();
+		});
+		filterBar.appendChild(search);
+		const territorySlot = el("div", "filter-slot");
+		const managerSlot = el("div", "filter-slot");
+		const personSlot = el("div", "filter-slot");
+		filterBar.appendChild(territorySlot);
+		filterBar.appendChild(managerSlot);
+		filterBar.appendChild(personSlot);
+		const rag = el("select", "form-control");
+		[
+			["", __("Any achievement")],
+			["green", __("Green, 90% or more")],
+			["amber", __("Amber, 60–89%")],
+			["red", __("Red, under 60%")],
+		].forEach((option) => {
+			const node = el("option", "", option[1]);
+			node.value = option[0];
+			rag.appendChild(node);
+		});
+		rag.addEventListener("change", () => {
+			filters.rag = rag.value;
+			schedule();
+		});
+		filterBar.appendChild(rag);
+		filterBar.appendChild(
+			pill(__("Export Excel / CSV"), "quote", () => exportDistributors(misPayload))
+		);
+		const bulkButton = pill(__("Apply recommended to selected"), "target", () => applyRecommended());
+		filterBar.appendChild(bulkButton);
+		root.appendChild(filterBar);
+		function paintActivity() {
+			Object.keys(activityButtons).forEach((label) => {
+				activityButtons[label].classList.toggle("is-on", filters.activity === label);
+			});
+		}
+		paintActivity();
+
 		let distributorControl;
 		let companyControl;
 		try {
@@ -555,6 +701,51 @@
 			});
 			distributorControl.refresh();
 			companyControl.refresh();
+			const territoryControl = frappe.ui.form.make_control({
+				parent: territorySlot,
+				df: {
+					fieldtype: "Link",
+					options: "Territory",
+					fieldname: "territory",
+					label: __("Territory"),
+					change() {
+						filters.territory = territoryControl.get_value() || "";
+						schedule();
+					},
+				},
+				render_input: true,
+			});
+			const managerControl = frappe.ui.form.make_control({
+				parent: managerSlot,
+				df: {
+					fieldtype: "Link",
+					options: "User",
+					fieldname: "account_manager",
+					label: __("Salesman / account manager"),
+					change() {
+						filters.account_manager = managerControl.get_value() || "";
+						schedule();
+					},
+				},
+				render_input: true,
+			});
+			const personControl = frappe.ui.form.make_control({
+				parent: personSlot,
+				df: {
+					fieldtype: "Link",
+					options: "Sales Person",
+					fieldname: "sales_person",
+					label: __("Sales Person"),
+					change() {
+						filters.sales_person = personControl.get_value() || "";
+						schedule();
+					},
+				},
+				render_input: true,
+			});
+			territoryControl.refresh();
+			managerControl.refresh();
+			personControl.refresh();
 		} catch (error) {
 			show(errorText(error), true);
 			root.appendChild(el("p", "", __("The distributor page could not be built.")));
@@ -574,7 +765,7 @@
 				openNew("Distributor Complaint", { complaint_date: frappe.datetime.get_today() })
 			)
 		);
-		actions.appendChild(pill(__("Create Target"), "target", () => createTarget(state)));
+		actions.appendChild(pill(__("Set Target"), "target", () => openSetTarget(state)));
 		root.appendChild(actions);
 
 		const growthRow = el("div", "growth-row");
@@ -587,6 +778,7 @@
 		growth.value = "10";
 		growthRow.appendChild(growthLabel);
 		growthRow.appendChild(growth);
+		growthRow.hidden = true;
 		root.appendChild(growthRow);
 
 		const body = el("div");
@@ -612,20 +804,71 @@
 		}
 
 		function sameView(customer) {
+			if (viewMode !== "one") return false;
 			if (!state || state.customer !== customer) return false;
-			if ((state.company || "") !== selectedCompany()) return false;
-			const shown = Number(state.suggestion && state.suggestion.growth_pct);
-			const asked = Number(growth.value);
-			return Number.isFinite(shown) && Number.isFinite(asked) && shown === asked;
+			return (state.company || "") === selectedCompany();
+		}
+
+		function paintChrome() {
+			const all = viewMode === "all";
+			filterBar.hidden = !all;
+			actions.hidden = all;
+			allButton.classList.toggle("is-on", all);
+			oneButton.classList.toggle("is-on", !all);
+			bulkButton.hidden = !canSetTargets();
+		}
+
+		function showAll() {
+			viewMode = "all";
+			rememberView("all");
+			silence = true;
+			if (distributorControl.set_value) distributorControl.set_value("");
+			window.setTimeout(() => {
+				silence = false;
+				loadAll();
+			}, 0);
+		}
+
+		function showOne() {
+			viewMode = "one";
+			rememberView("");
+			if (!selectedDistributor()) {
+				paintChrome();
+				body.replaceChildren();
+				body.appendChild(el("p", "hint", __("Pick a distributor.")));
+				return;
+			}
+			load();
+		}
+
+		function pageQuery() {
+			const search = new URLSearchParams(window.location.search || "");
+			if (search.get("view")) return search;
+			const hash = window.location.hash || "";
+			const query = hash.includes("?") ? hash.slice(hash.indexOf("?")) : "";
+			return new URLSearchParams(query);
+		}
+
+		function rememberView(view) {
+			try {
+				const url = new URL(window.location.href);
+				if (view) url.searchParams.set("view", view);
+				else url.searchParams.delete("view");
+				window.history.replaceState(null, "", `${url.pathname}${url.search}`);
+			} catch (ignored) {
+				/* the page still switches without rewriting the address */
+			}
 		}
 
 		function load() {
 			const customer = selectedDistributor();
-			body.replaceChildren();
 			if (!customer) {
-				body.appendChild(el("p", "hint", __("Pick a distributor.")));
+				loadAll();
 				return;
 			}
+			viewMode = "one";
+			paintChrome();
+			body.replaceChildren();
 			if (sameView(customer)) {
 				draw(state);
 				return;
@@ -928,47 +1171,39 @@
 		function targetCard(data, signals, currency) {
 			const card = el("section", "panel");
 			card.appendChild(el("h2", "", __("Target and recent primary")));
-			const suggestion = data.suggestion || {};
 			const quiet = signals.no_submitted_invoices;
 			if (quiet) {
 				card.appendChild(el("p", "", __(EMPTY_BILLING)));
 			}
 			if (signals.target_amount) {
-				card.appendChild(
-					el(
-						"p",
-						"",
-						__("{0} of {1} this month ({2}%).", [
-							moneyText(data.primary_mtd, currency),
-							moneyText(signals.target_amount, currency),
-							String(signals.achievement_pct),
-						])
-					)
+				const targetLine = el(
+					"p",
+					"",
+					__("{0} of {1} this month ({2}%).", [
+						moneyText(data.primary_mtd, currency),
+						moneyText(signals.target_amount, currency),
+						String(signals.achievement_pct),
+					])
 				);
+				card.appendChild(targetLine);
+				if (signals.target_source) {
+					const tone = signals.target_source === "Manual" ? "blue" : "green";
+					card.appendChild(el("span", `qpill tone-${tone}`, signals.target_source));
+				}
 				card.appendChild(progress(signals.achievement_pct, signals.primary_tone));
 			} else if (!quiet) {
 				card.appendChild(el("p", "hint", __("No target is set for this month.")));
 			}
-			card.appendChild(sparkline((data.chart || []).slice(-6)));
-			const monthBits = (suggestion.months || [])
-				.filter((row) => row.label)
-				.map((row) => `${row.label} ${moneyText(row.primary, currency)}`);
-			card.appendChild(
-				el(
-					"p",
-					"",
-					__("{0}: average primary {1} at {2}% growth is {3}.", [
-						suggestion.period_label || __("Next month"),
-						moneyText(suggestion.average, currency),
-						String(suggestion.growth_pct ?? growth.value),
-						quiet ? __(EMPTY_BILLING) : moneyText(suggestion.amount, currency),
-					])
-				)
+			const recommendation = data.recommendation || {};
+			const recommended = el(
+				"p",
+				"",
+				__("Recommended {0}", [moneyText(signals.recommended_amount ?? recommendation.amount, currency)])
 			);
-			if (monthBits.length) card.appendChild(el("p", "hint", monthBits.join(" · ")));
-			if (!(Number(suggestion.amount) > 0)) {
-				card.appendChild(el("p", "hint", __("There is no primary billing in the last three months to base a target on.")));
-			}
+			recommended.title = recommendation.basis || signals.recommendation_basis || "";
+			card.appendChild(recommended);
+			if (recommended.title) card.appendChild(el("p", "hint", recommended.title));
+			card.appendChild(sparkline((data.chart || []).slice(-6)));
 			return card;
 		}
 
@@ -1243,49 +1478,491 @@
 			return box;
 		}
 
-		function createTarget(data) {
-			if (!data || !data.customer) {
+		function canSetTargets() {
+			try {
+				if (frappe.model && frappe.model.can_create) {
+					return !!frappe.model.can_create("Customer Primary Target");
+				}
+			} catch (ignored) {
+				/* the server still refuses a Sales User */
+			}
+			return true;
+		}
+
+		function loadAll() {
+			viewMode = "all";
+			paintChrome();
+			const current = ++requestId;
+			body.replaceChildren();
+			body.appendChild(el("p", "", __("Loading…")));
+			note.hidden = true;
+			frappe
+				.call({
+					method: `${API}.distributor_mis`,
+					args: {
+						company: selectedCompany(),
+						activity: filters.activity,
+						search: filters.search,
+						territory: filters.territory,
+						account_manager: filters.account_manager,
+						sales_person: filters.sales_person,
+						rag: filters.rag,
+					},
+				})
+				.then((response) => {
+					if (current !== requestId) return;
+					misPayload = response.message || {};
+					drawMis(misPayload);
+				})
+				.catch((error) => {
+					if (current !== requestId) return;
+					body.replaceChildren();
+					show(errorText(error), true);
+					body.appendChild(el("p", "", __("The distributor book could not be loaded.")));
+				});
+		}
+
+		function drawMis(data) {
+			paintChrome();
+			body.replaceChildren();
+			const summary = data.summary || {};
+			const currency = data.currency;
+			const grid = el("div", "kpi-grid");
+			grid.appendChild(
+				kpiCard(
+					"counters",
+					__("Distributors"),
+					String(summary.distributors || 0),
+					"neutral",
+					__("{0} active · {1} inactive", [String(summary.active || 0), String(summary.inactive || 0)])
+				)
+			);
+			const primary = kpiCard(
+				"primary",
+				__("Primary MTD"),
+				`${moneyText(summary.primary_mtd, currency)} / ${moneyText(summary.target, currency)}`,
+				summary.achievement_tone || "neutral",
+				summary.achievement_pct == null ? __("No targets set") : `${summary.achievement_pct}%`
+			);
+			if (summary.target) primary.appendChild(progress(summary.achievement_pct, summary.achievement_tone));
+			grid.appendChild(primary);
+			grid.appendChild(
+				kpiCard("money", __("Outstanding"), moneyText(summary.outstanding, currency), Number(summary.overdue) > 0 ? "red" : "green")
+			);
+			grid.appendChild(
+				kpiCard(
+					"money",
+					__("Overdue"),
+					moneyText(summary.overdue, currency),
+					Number(summary.overdue) > 0 ? "red" : "green"
+				)
+			);
+			grid.appendChild(
+				kpiCard(
+					"billing",
+					__("Not billed in 30+ days"),
+					String(summary.not_billed_30 || 0),
+					Number(summary.not_billed_30) > 0 ? "red" : "green"
+				)
+			);
+			grid.appendChild(
+				kpiCard("visit", __("Visits this month"), String(summary.visits_mtd || 0), summary.visits_mtd ? "green" : "neutral")
+			);
+			grid.appendChild(
+				kpiCard("quote", __("Open quotations"), moneyText(summary.open_quotations, currency), "amber")
+			);
+			grid.appendChild(
+				kpiCard("primary", __("Collections MTD"), moneyText(summary.collections_mtd, currency), "green")
+			);
+			body.appendChild(grid);
+			body.appendChild(
+				el(
+					"p",
+					"hint",
+					__(
+						"Primary and collections count submitted documents only. Draft invoices are excluded. Achievement is green from 90%, amber from 60%, and red below that. A last bill older than 30 days is red."
+					)
+				)
+			);
+			body.appendChild(misTable(sortedRows(data.rows || []), currency));
+		}
+
+		function sortedRows(rows) {
+			const copy = rows.slice();
+			copy.sort((left, right) => compareMis(left, right, sortKey) * sortDir);
+			return copy;
+		}
+
+		function compareMis(left, right, key) {
+			const a = misSortValue(left, key);
+			const b = misSortValue(right, key);
+			if (a == null && b == null) return 0;
+			if (a == null) return 1;
+			if (b == null) return -1;
+			if (typeof a === "number" && typeof b === "number") return a - b;
+			return String(a).localeCompare(String(b));
+		}
+
+		function misSortValue(row, key) {
+			if (key === "target" || key === "achievement_pct" || key === "days_since_billing") {
+				return row[key] == null || row[key] === "" ? null : Number(row[key]);
+			}
+			if (key === "primary_mtd" || key === "outstanding" || key === "overdue" || key === "open_quotations" || key === "recommended") {
+				return Number(row[key]) || 0;
+			}
+			return row[key] || "";
+		}
+
+		function misTable(rows, currency) {
+			const wrap = el("div", "table-wrap");
+			if (!rows.length) {
+				wrap.appendChild(el("p", "hint", __("No distributors match these filters.")));
+				return wrap;
+			}
+			const table = el("table", "mis-table");
+			const head = el("tr");
+			const selectAll = el("input");
+			selectAll.type = "checkbox";
+			selectAll.addEventListener("click", (event) => event.stopPropagation());
+			selectAll.checked = rows.length > 0 && rows.every((row) => picked.has(row.distributor));
+			selectAll.addEventListener("change", () => {
+				rows.forEach((row) => {
+					if (selectAll.checked) picked.add(row.distributor);
+					else picked.delete(row.distributor);
+				});
+				drawMis(misPayload);
+			});
+			const selectCell = el("th");
+			selectCell.appendChild(selectAll);
+			head.appendChild(selectCell);
+			const columns = [
+				["name", __("Distributor")],
+				["status", __("Status")],
+				["primary_mtd", __("MTD primary")],
+				["target", __("Target")],
+				["recommended", __("Recommended")],
+				["source", __("Source")],
+				["achievement_pct", __("Achievement")],
+				["days_since_billing", __("Last billing")],
+				["outstanding", __("Outstanding")],
+				["overdue", __("Overdue")],
+				["last_visit", __("Last visit")],
+				["next_visit_due", __("Next visit due")],
+				["open_quotations", __("Open quotations")],
+				["spark", __("6 months")],
+			];
+			columns.forEach((column) => {
+				const cell = el("th", column[0] === "spark" || column[0] === "source" ? "" : "sortable", headerLabel(column));
+				if (column[0] !== "spark" && column[0] !== "source") {
+					cell.addEventListener("click", () => {
+						if (sortKey === column[0]) sortDir = -sortDir;
+						else {
+							sortKey = column[0];
+							sortDir = 1;
+						}
+						drawMis(misPayload);
+					});
+				}
+				head.appendChild(cell);
+			});
+			if (canSetTargets()) head.appendChild(el("th", "", __("Target")));
+			table.appendChild(head);
+			rows.forEach((row) => table.appendChild(misRow(row, currency)));
+			wrap.appendChild(table);
+			return wrap;
+		}
+
+		function headerLabel(column) {
+			if (sortKey !== column[0]) return column[1];
+			return `${column[1]} ${sortDir > 0 ? "↑" : "↓"}`;
+		}
+
+		function misRow(row, currency) {
+			const tr = el("tr", "mis-row");
+			tr.addEventListener("click", () => openDistributor(row));
+			const checkCell = el("td");
+			const box = el("input");
+			box.type = "checkbox";
+			box.checked = picked.has(row.distributor);
+			box.addEventListener("click", (event) => event.stopPropagation());
+			box.addEventListener("change", () => {
+				if (box.checked) picked.add(row.distributor);
+				else picked.delete(row.distributor);
+			});
+			checkCell.appendChild(box);
+			tr.appendChild(checkCell);
+			tr.appendChild(el("td", "", row.name || row.distributor));
+			const status = el("span", row.active ? "status-chip is-on" : "status-chip is-off", row.status || "");
+			status.title = row.rule || "";
+			const statusCell = el("td");
+			statusCell.appendChild(status);
+			tr.appendChild(statusCell);
+			tr.appendChild(el("td", "", moneyText(row.primary_mtd, currency)));
+			tr.appendChild(el("td", "", row.target == null ? "—" : moneyText(row.target, currency)));
+			const recommendedCell = el("td", "", moneyText(row.recommended, currency));
+			recommendedCell.title = row.recommendation_basis || "";
+			tr.appendChild(recommendedCell);
+			tr.appendChild(sourceCell(row.target_source));
+			const ragCell = el("td");
+			const ragText = row.achievement_pct == null ? "—" : `${row.achievement_pct}%`;
+			ragCell.appendChild(el("span", `rag tone-${row.rag || "neutral"}`, ragText));
+			tr.appendChild(ragCell);
+			tr.appendChild(billingCell(row));
+			tr.appendChild(el("td", "", moneyText(row.outstanding, currency)));
+			const overdueCell = el("td", Number(row.overdue) > 0 ? "cell-red" : "", moneyText(row.overdue, currency));
+			tr.appendChild(overdueCell);
+			tr.appendChild(el("td", "", row.last_visit ? prettyDate(row.last_visit) : "—"));
+			tr.appendChild(el("td", "", row.next_visit_due ? prettyDate(row.next_visit_due) : "—"));
+			tr.appendChild(el("td", "", moneyText(row.open_quotations, currency)));
+			const sparkCell = el("td");
+			sparkCell.appendChild(miniSpark(row.sparkline || []));
+			tr.appendChild(sparkCell);
+			if (canSetTargets()) {
+				const action = el("td");
+				const button = pill(__("Set Target"), "target", (event) => {
+					event.stopPropagation();
+					openSetTarget(row);
+				});
+				action.appendChild(button);
+				tr.appendChild(action);
+			}
+			return tr;
+		}
+
+		function sourceCell(source) {
+			const cell = el("td");
+			if (!source) {
+				cell.textContent = "—";
+				return cell;
+			}
+			const tone = source === "Manual" ? "blue" : "green";
+			cell.appendChild(el("span", `qpill tone-${tone}`, source));
+			return cell;
+		}
+
+		function billingCell(row) {
+			let text = __("Never");
+			if (row.last_billing) {
+				text = `${prettyDate(row.last_billing)} · ${row.days_since_billing}d`;
+			}
+			return el("td", row.billing_stale ? "cell-red" : "", text);
+		}
+
+		function miniSpark(values) {
+			const wrap = el("div", "mini-spark");
+			const max = Math.max(1, ...values.map((value) => Math.abs(Number(value) || 0)));
+			values.forEach((value) => {
+				const bar = el("span");
+				const height = Math.max(4, (Math.abs(Number(value) || 0) / max) * 28);
+				bar.style.height = `${height}px`;
+				wrap.appendChild(bar);
+			});
+			return wrap;
+		}
+
+		function openDistributor(row) {
+			viewMode = "one";
+			rememberView("");
+			silence = true;
+			if (distributorControl.set_value) distributorControl.set_value(row.distributor);
+			window.setTimeout(() => {
+				silence = false;
+				load();
+			}, 0);
+		}
+
+		function openSetTarget(row) {
+			const customer = row && (row.distributor || row.customer);
+			if (!customer) {
 				show(__("Pick a distributor first."), true);
 				return;
 			}
-			const suggestion = data.suggestion || {};
-			if (!(Number(suggestion.amount) > 0)) {
-				show(__("There is no primary billing in the last three months to base a target on."), true);
+			if (!window.frappe || !frappe.ui || !frappe.ui.Dialog) {
+				show(__("The target dialog is not available on this desk."), true);
 				return;
 			}
-			const who = data.customer_name || data.customer;
-			const question = __("Set the {0} primary target for {1} to {2}?", [
-				suggestion.period_label || __("next month"),
-				who,
-				moneyText(suggestion.amount, data.currency),
-			]);
-			if (!window.confirm(question)) return;
+			const basis =
+				row.recommendation_basis ||
+				(row.recommendation && row.recommendation.basis) ||
+				(row.signals && row.signals.recommendation_basis) ||
+				"";
+			const dialog = new frappe.ui.Dialog({
+				title: __("Set Target"),
+				fields: [
+					{
+						fieldname: "mode",
+						fieldtype: "Select",
+						label: __("Choice"),
+						options: "Use recommended\nEnter manually",
+						default: row.target_source === "Manual" ? "Enter manually" : "Use recommended",
+						reqd: 1,
+					},
+					{
+						fieldname: "basis",
+						fieldtype: "Small Text",
+						label: __("Why this recommendation"),
+						read_only: 1,
+						default: basis,
+					},
+					{
+						fieldname: "amount",
+						fieldtype: "Currency",
+						label: __("Amount"),
+						depends_on: "eval:doc.mode=='Enter manually'",
+						default: row.target || (row.signals && row.signals.target_amount) || "",
+					},
+					{
+						fieldname: "target_month",
+						fieldtype: "Date",
+						label: __("Month"),
+						reqd: 1,
+						default: frappe.datetime.month_start(),
+					},
+					{
+						fieldname: "note",
+						fieldtype: "Small Text",
+						label: __("Note"),
+						description: __(
+							"Optional. Saving updates this month's target and keeps earlier months. Each change stays on the target."
+						),
+					},
+				],
+				primary_action_label: __("Set Target"),
+				primary_action(values) {
+					dialog.disable_primary_action();
+					frappe
+						.call({
+							method: `${API}.set_distributor_target`,
+							args: {
+								customer: customer,
+								company: row.company || selectedCompany(),
+								source: values.mode === "Enter manually" ? "Manual" : "Recommended",
+								amount: values.amount,
+								target_month: values.target_month,
+								note: values.note || "",
+							},
+						})
+						.then((response) => {
+							dialog.hide();
+							const saved = response.message || {};
+							show(
+								__("Target {0} set to {1}.", [
+									saved.name || "",
+									moneyText(saved.target_amount, saved.currency || (row && row.currency)),
+								])
+							);
+							load();
+						})
+						.catch((error) => {
+							dialog.enable_primary_action();
+							show(errorText(error), true);
+						});
+				},
+			});
+			dialog.show();
+		}
+
+		function applyRecommended() {
+			const names = Array.from(picked);
+			if (!names.length) {
+				show(__("Select at least one distributor."), true);
+				return;
+			}
+			if (!window.confirm(__("Apply the recommended target to {0} distributors for this month?", [String(names.length)]))) {
+				return;
+			}
 			frappe
 				.call({
-					method: `${API}.create_next_target`,
-					args: { customer: data.customer, company: data.company, growth_pct: growth.value },
+					method: `${API}.apply_recommended_targets`,
+					args: {
+						customers: JSON.stringify(names),
+						company: selectedCompany(),
+						target_month: frappe.datetime.month_start(),
+					},
 				})
 				.then((response) => {
 					const saved = response.message || {};
-					show(__("Target {0} set to {1}.", [saved.name || "", moneyText(saved.target_amount, data.currency)]));
+					const applied = (saved.applied || []).length;
+					const skipped = (saved.skipped || []).length;
+					show(__("Applied the recommended target to {0}. Skipped {1}.", [String(applied), String(skipped)]));
+					picked.clear();
+					loadAll();
 				})
 				.catch((error) => show(errorText(error), true));
 		}
 
-		growth.addEventListener("change", load);
+		function exportDistributors(data) {
+			const rows = sortedRows((data && data.rows) || []);
+			const header = [
+				"Distributor",
+				"Status",
+				"Rule",
+				"MTD primary",
+				"Target",
+				"Recommended",
+				"Source",
+				"Achievement %",
+				"Last billing",
+				"Days since billing",
+				"Outstanding",
+				"Overdue",
+				"Last visit",
+				"Next visit due",
+				"Open quotations",
+				"Basis",
+			];
+			const lines = [header.map(csvEscape).join(",")];
+			rows.forEach((row) => {
+				lines.push(
+					[
+						row.name,
+						row.status,
+						row.rule,
+						row.primary_mtd,
+						row.target,
+						row.recommended,
+						row.target_source,
+						row.achievement_pct,
+						row.last_billing,
+						row.days_since_billing,
+						row.outstanding,
+						row.overdue,
+						row.last_visit,
+						row.next_visit_due,
+						row.open_quotations,
+						row.recommendation_basis,
+					]
+						.map(csvEscape)
+						.join(",")
+				);
+			});
+			const blob = new Blob([`\uFEFF${lines.join("\n")}`], { type: "text/csv;charset=utf-8" });
+			const link = el("a");
+			link.href = URL.createObjectURL(blob);
+			link.download = "distributors.csv";
+			link.click();
+		}
+
+		function csvEscape(value) {
+			const text = value == null ? "" : String(value);
+			if (/[",\n]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
+			return text;
+		}
 
 		const options = frappe.route_options || {};
+		const openedAll = pageQuery().get("view") === "all" || options.view === "all";
 		if (options.company) companyControl.set_value(options.company);
 		else {
 			const presetCompany = frappe.defaults.get_user_default("company");
 			if (presetCompany) companyControl.set_value(presetCompany);
 		}
-		if (options.distributor) distributorControl.set_value(options.distributor);
+		if (!openedAll && options.distributor) distributorControl.set_value(options.distributor);
 		if (frappe.route_options) {
 			delete frappe.route_options.distributor;
 			delete frappe.route_options.company;
+			delete frappe.route_options.view;
 		}
-		if (!selectedDistributor()) body.appendChild(el("p", "hint", __("Pick a distributor.")));
+		if (!selectedDistributor()) loadAll();
 	}
 
 	frappe.pages["distributor-360"].on_page_load = function (wrapper) {

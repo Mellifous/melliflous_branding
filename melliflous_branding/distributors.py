@@ -29,7 +29,11 @@ VISIT_IDENTITY = ("owner", "salesman")
 STATEMENT_IDENTITY = ("owner",)
 COMPLAINT_IDENTITY = ("owner", "assigned_to")
 GROWTH_DEFAULT = 10.0
+GROWTH_FACTOR_DEFAULT = 1.10
+DEFAULT_TARGET_AMOUNT = 0.0
 DEFAULT_SILENCE_DAYS = 30
+MIS_STALE_DAYS = 30
+INACTIVE_GAP_DAYS = 90
 ACHIEVEMENT_FLOOR = 70.0
 RECENT_LIMIT = 12
 TOP_PRODUCTS = 8
@@ -715,7 +719,7 @@ def month_target_progress(primary_mtd, target) -> dict:
 	return {"name": name, "target_amount": amount, "achievement_pct": pct, "tone": achievement_tone(pct)}
 
 
-def build_dashboard(bundle, today, growth_pct=GROWTH_DEFAULT) -> dict:
+def build_dashboard(bundle, today, growth_pct=GROWTH_DEFAULT, settings=None) -> dict:
 	"""KPIs, the 12-month chart, the buying pattern, and the lists for Distributor 360."""
 	bundle = bundle or {}
 	today = as_date(today)
@@ -894,6 +898,13 @@ def build_dashboard(bundle, today, growth_pct=GROWTH_DEFAULT) -> dict:
 		)
 	primary_mtd = chart[-1]["primary"] if chart else 0.0
 	target_progress = month_target_progress(primary_mtd, bundle.get("current_target"))
+	settings = settings or {}
+	recommendation = recommended_monthly_target(
+		[row["primary"] for row in chart[-6:]],
+		settings.get("growth_factor"),
+		settings.get("default_amount"),
+	)
+	target_source = clean_text((bundle.get("current_target") or {}).get("target_source")) or None
 	no_submitted = last_sale is None and money(sum(row["primary"] for row in chart)) == 0
 	signals = {
 		"primary_mtd": primary_mtd,
@@ -901,6 +912,10 @@ def build_dashboard(bundle, today, growth_pct=GROWTH_DEFAULT) -> dict:
 		"target_amount": target_progress["target_amount"],
 		"target_name": target_progress["name"],
 		"achievement_pct": target_progress["achievement_pct"],
+		"recommended_amount": recommendation["amount"],
+		"recommendation_basis": recommendation["basis"],
+		"target_source": target_source,
+		"target_source_tone": "blue" if target_source == "Manual" else "green" if target_source == "Recommended" else "neutral",
 		"secondary_mtd": None if not chart else chart[-1]["secondary"],
 		"cover_days": cover,
 		"cover_tone": cover_tone(cover),
@@ -942,6 +957,7 @@ def build_dashboard(bundle, today, growth_pct=GROWTH_DEFAULT) -> dict:
 		"overdue_amount": overdue_amount,
 		"chart": chart,
 		"suggestion": target_suggestion(chart, today, growth_pct),
+		"recommendation": recommendation,
 		"products": product_rows,
 		"mix": {
 			"months": [{"label": MONTHS[start.month - 1], "year": start.year} for start in months],
@@ -1397,3 +1413,285 @@ def sidebar_item(link) -> dict:
 def missing_sidebar_links(existing) -> list:
 	have = {(link_type, link_to) for link_type, link_to in existing or []}
 	return [sidebar_item(link) for link in DISTRIBUTOR_LINKS if (link["link_type"], link["link_to"]) not in have]
+
+
+def clean_growth_factor(value, default=GROWTH_FACTOR_DEFAULT) -> float:
+	"""Settings factor. 1.10 means the recommended target is 10% above the higher average."""
+	if value is None or value == "":
+		return float(default)
+	try:
+		number = float(value)
+	except (TypeError, ValueError):
+		raise DistributorError("Growth factor has to be a number.")
+	if number <= 0 or number > 5:
+		raise DistributorError("Growth factor has to be greater than 0 and at most 5.")
+	return round(number, 4)
+
+
+def mis_rag(pct) -> str:
+	"""All-distributors achievement. Green from 90, amber from 60, red below. No target stays neutral.
+
+	The single-distributor page keeps achievement_tone (100 / 70). This scale is only for the book.
+	"""
+	if pct is None or pct == "":
+		return "neutral"
+	shown = float(pct)
+	if shown >= 90:
+		return "green"
+	if shown >= 60:
+		return "amber"
+	return "red"
+
+
+def distributor_activity(profile_active, customer_disabled, last_invoice, today) -> dict:
+	"""Active or inactive, and the rule that decided it.
+
+	A distributor profile status wins when that field is set. Otherwise a disabled
+	customer is inactive. With neither, no submitted invoice in 90 days is inactive.
+	"""
+	if profile_active not in (None, ""):
+		active = 1 if as_flag(profile_active) else 0
+		state = "active" if active else "inactive"
+		return {"active": active, "rule": f"Distributor profile is {state}."}
+	if customer_disabled not in (None, ""):
+		if as_flag(customer_disabled):
+			return {"active": 0, "rule": "Customer is disabled."}
+		return {"active": 1, "rule": "Customer is not disabled."}
+	last = as_date(last_invoice)
+	today_day = as_date(today)
+	if not last or not today_day or (today_day - last).days > INACTIVE_GAP_DAYS:
+		return {"active": 0, "rule": "No submitted invoice in 90 days."}
+	return {"active": 1, "rule": "A submitted invoice is within 90 days."}
+
+
+def recommended_monthly_target(month_amounts, growth_factor=None, default_amount=None) -> dict:
+	"""Monthly primary target from submitted invoice net totals.
+
+	The basis is the higher of the last-three-month average and the last-six-month
+	average, times the growth factor. A month with no submitted invoice counts as
+	zero. Drafts never arrive here. No billing in those six months uses the default.
+	"""
+	factor = clean_growth_factor(growth_factor)
+	fallback = money(0 if default_amount in (None, "") else default_amount)
+	last6 = [money(value) for value in list(month_amounts or [])[-6:]]
+	while len(last6) < 6:
+		last6.insert(0, 0.0)
+	last3 = last6[-3:]
+	avg3 = money(sum(last3) / 3)
+	avg6 = money(sum(last6) / 6)
+	if not any(last6):
+		return {
+			"avg_3": avg3,
+			"avg_6": avg6,
+			"growth_factor": factor,
+			"default_amount": fallback,
+			"amount": fallback,
+			"used_default": True,
+			"basis": (
+				"No submitted invoice in the last 6 months. "
+				f"The recommended target is the default of {fallback:.2f}."
+			),
+			"months": last6,
+		}
+	peak = avg3 if avg3 >= avg6 else avg6
+	amount = money(peak * factor)
+	return {
+		"avg_3": avg3,
+		"avg_6": avg6,
+		"growth_factor": factor,
+		"default_amount": fallback,
+		"amount": amount,
+		"used_default": False,
+		"basis": (
+			f"Last 3-month average is {avg3:.2f}. Last 6-month average is {avg6:.2f}. "
+			f"The higher average times growth {factor:g} is {amount:.2f}. "
+			"Draft invoices are not included."
+		),
+		"months": last6,
+	}
+
+
+def plan_target_save(source, amount, recommended_amount, note=None) -> dict:
+	"""Use the recommended figure, or the amount typed in. The note is optional."""
+	chosen_source = clean_text(source)
+	if chosen_source not in ("Manual", "Recommended"):
+		raise DistributorError("Choose Use recommended or Enter manually.")
+	recommended = money(recommended_amount or 0)
+	if chosen_source == "Recommended":
+		if recommended <= 0:
+			raise DistributorError("There is no recommended target to apply.")
+		target_amount = recommended
+	else:
+		target_amount = money(amount)
+		if target_amount <= 0:
+			raise DistributorError("Enter a target amount greater than zero.")
+	return {
+		"source": chosen_source,
+		"target_amount": target_amount,
+		"recommended_amount": recommended,
+		"note": None if note is None else clean_text(note),
+	}
+
+
+def _profile_flag(profile, name):
+	if isinstance(profile, dict):
+		if name not in profile:
+			return None
+		return profile.get(name)
+	return _field(profile, name)
+
+
+def _mis_row(profile, facts, today, month_keys, settings) -> dict:
+	customer = clean_text(_field(profile, "customer") or _field(profile, "name"))
+	facts = facts or {}
+	months_map = facts.get("months") or {}
+	spark = [money(months_map.get(key, 0)) for key in month_keys]
+	recommendation = recommended_monthly_target(
+		spark,
+		settings.get("growth_factor"),
+		settings.get("default_amount"),
+	)
+	activity = distributor_activity(
+		_profile_flag(profile, "is_active"),
+		facts.get("disabled", None) if "disabled" in facts else None,
+		facts.get("last_billing"),
+		today,
+	)
+	primary_mtd = money(facts.get("primary_mtd"))
+	raw_target = facts.get("target_amount")
+	if raw_target in (None, "") or float(raw_target or 0) <= 0:
+		target_amount = None
+		pct = None
+	else:
+		target_amount = money(raw_target)
+		pct = round(primary_mtd / target_amount * 100, 2) if target_amount else None
+	last_billing = as_date(facts.get("last_billing"))
+	days_since = None if not last_billing else (today - last_billing).days
+	return {
+		"distributor": customer,
+		"name": clean_text(_field(profile, "customer_name")) or customer,
+		"company": clean_text(_field(profile, "company")),
+		"active": activity["active"],
+		"status": "Active" if activity["active"] else "Inactive",
+		"rule": activity["rule"],
+		"primary_mtd": primary_mtd,
+		"target": target_amount,
+		"achievement_pct": pct,
+		"rag": mis_rag(pct),
+		"last_billing": last_billing,
+		"days_since_billing": days_since,
+		"billing_stale": days_since is None or days_since > MIS_STALE_DAYS,
+		"outstanding": money(facts.get("outstanding")),
+		"overdue": money(facts.get("overdue")),
+		"last_visit": as_date(_field(profile, "last_visit_date")),
+		"next_visit_due": as_date(_field(profile, "next_visit_due")),
+		"open_quotations": money(facts.get("open_quotations")),
+		"collections_mtd": money(facts.get("collections_mtd")),
+		"visits_mtd": int(facts.get("visits_mtd") or 0),
+		"sparkline": spark,
+		"territory": clean_text(_field(profile, "territory")),
+		"area": clean_text(_field(profile, "area")),
+		"sales_person": clean_text(_field(profile, "sales_person")),
+		"salesman": clean_text(_field(profile, "salesman")),
+		"account_manager": clean_text(_field(profile, "account_manager")),
+		"recommended": recommendation["amount"],
+		"recommendation_basis": recommendation["basis"],
+		"target_source": clean_text(facts.get("target_source")) or None,
+		"target_name": clean_text(facts.get("target_name")) or None,
+	}
+
+
+def _matches_mis_filters(row, search, territory, account_manager, sales_person, rag) -> bool:
+	if search:
+		haystack = " ".join(
+			[
+				row["name"],
+				row["distributor"],
+				row["territory"],
+				row["area"],
+				row["salesman"],
+				row["sales_person"],
+				row["account_manager"],
+			]
+		).casefold()
+		if search not in haystack:
+			return False
+	if territory and row["territory"] != territory:
+		return False
+	if account_manager and account_manager not in (row["account_manager"], row["salesman"]):
+		return False
+	if sales_person and sales_person not in (row["sales_person"], row["salesman"]):
+		return False
+	if rag and row["rag"] != rag:
+		return False
+	return True
+
+
+def build_distributor_mis(profiles, metrics, filters, today, month_starts=None, settings=None) -> dict:
+	"""One row per distributor plus the book totals. Metrics are already grouped by customer."""
+	today = as_date(today)
+	settings = settings or {}
+	filters = filters or {}
+	activity = clean_text(filters.get("activity")) or "All"
+	if activity not in ("All", "Active", "Inactive"):
+		activity = "All"
+	search = clean_text(filters.get("search")).casefold()
+	territory = clean_text(filters.get("territory"))
+	account_manager = clean_text(filters.get("account_manager"))
+	sales_person = clean_text(filters.get("sales_person"))
+	rag = clean_text(filters.get("rag")).casefold()
+	if rag not in ("", "green", "amber", "red"):
+		rag = ""
+	if month_starts:
+		starts = [as_date(day) for day in month_starts]
+	else:
+		starts = trailing_months(today, 6)
+	keys = [(day.year, day.month) for day in starts if day]
+	built = []
+	for profile in profiles or []:
+		customer = clean_text(_field(profile, "customer") or _field(profile, "name"))
+		if not customer:
+			continue
+		built.append(_mis_row(profile, (metrics or {}).get(customer), today, keys, settings))
+	matched = [
+		row
+		for row in built
+		if _matches_mis_filters(row, search, territory, account_manager, sales_person, rag)
+	]
+	active_count = sum(1 for row in matched if row["active"])
+	inactive_count = len(matched) - active_count
+	if activity == "Active":
+		shown = [row for row in matched if row["active"]]
+	elif activity == "Inactive":
+		shown = [row for row in matched if not row["active"]]
+	else:
+		shown = list(matched)
+	shown.sort(key=lambda row: (row["name"].casefold(), row["distributor"]))
+	primary_total = money(sum(row["primary_mtd"] for row in shown))
+	target_total = money(sum(float(row["target"] or 0) for row in shown))
+	achievement = round(primary_total / target_total * 100, 2) if target_total else None
+	summary = {
+		"distributors": active_count + inactive_count,
+		"shown": len(shown),
+		"active": active_count,
+		"inactive": inactive_count,
+		"primary_mtd": primary_total,
+		"target": target_total,
+		"achievement_pct": achievement,
+		"achievement_tone": mis_rag(achievement) if target_total else "neutral",
+		"outstanding": money(sum(row["outstanding"] for row in shown)),
+		"overdue": money(sum(row["overdue"] for row in shown)),
+		"not_billed_30": sum(1 for row in shown if row["billing_stale"]),
+		"visits_mtd": sum(int(row["visits_mtd"]) for row in shown),
+		"open_quotations": money(sum(row["open_quotations"] for row in shown)),
+		"collections_mtd": money(sum(row["collections_mtd"] for row in shown)),
+	}
+	return {
+		"summary": summary,
+		"rows": shown,
+		"months": [{"label": MONTHS[day.month - 1], "year": day.year} for day in starts if day],
+		"settings": {
+			"growth_factor": clean_growth_factor(settings.get("growth_factor")),
+			"default_amount": money(0 if settings.get("default_amount") in (None, "") else settings.get("default_amount")),
+		},
+	}
