@@ -12,6 +12,7 @@ from frappe import _
 from frappe.utils import flt, today
 
 from melliflous_branding.access import require_desk_user
+from melliflous_branding.customer_records import customer_billing
 from melliflous_branding.invoices import (
 	ITEM_TAX_5,
 	MIMT_COMPANY,
@@ -39,11 +40,14 @@ def form_options(customer: str | None = None) -> dict:
 	existing = []
 	if frappe.db.exists("DocType", "Price List"):
 		existing = frappe.get_all("Price List", filters={"selling": 1, "enabled": 1}, pluck="name")
+	billing = customer_billing(customer) if customer else {"status": "Active", "reason": "", "message": None}
 	return {
 		"company": MIMT_COMPANY,
 		"price_lists": price_list_choices(default),
 		"price_list": choose_price_list(default, existing),
 		"item_tax_template": ITEM_TAX_5,
+		"billing_status": billing["status"],
+		"block_message": billing["message"],
 	}
 
 
@@ -105,6 +109,9 @@ def save_draft(payload) -> dict:
 	price_list = " ".join(str(payload.get("price_list") or "").split())
 	if not frappe.db.exists("Customer", customer):
 		frappe.throw(_("That customer is not on this site. Search again and pick one from the list."))
+	billing = customer_billing(customer)
+	if billing["message"]:
+		frappe.throw(_(billing["message"]))
 	if not frappe.db.exists("Price List", price_list):
 		frappe.throw(
 			_("The price list {0} is not on this site yet. Pick another, or ask an admin to add it.").format(

@@ -11,6 +11,7 @@ from frappe import _
 from frappe.utils import getdate
 
 from melliflous_branding.distributors import (
+	BENEFIT_IDENTITY,
 	COMPLAINT_IDENTITY,
 	DEFAULT_TARGET_AMOUNT,
 	DISTRIBUTOR_CARD,
@@ -23,10 +24,12 @@ from melliflous_branding.distributors import (
 	add_months,
 	build_dashboard,
 	build_distributor_mis,
+	build_history,
 	can_file,
 	can_open_distributor_360,
 	can_read_activity,
 	can_see_profile,
+	clean_benefit,
 	clean_complaint,
 	clean_follow_up_filters,
 	clean_growth_factor,
@@ -34,6 +37,7 @@ from melliflous_branding.distributors import (
 	find_duplicate_statement,
 	follow_up_columns,
 	follow_up_rows,
+	history_window,
 	is_manager,
 	missing_sidebar_links,
 	month_label,
@@ -51,7 +55,12 @@ from melliflous_branding.distributors import (
 	workspace_link,
 	workspace_shortcut,
 )
-from melliflous_branding.target_records import company_currency, require_editor, sales_persons_for_user
+from melliflous_branding.target_records import (
+	company_currency,
+	fiscal_start_month,
+	require_editor,
+	sales_persons_for_user,
+)
 from melliflous_branding.targets import TargetError, as_flag, clean_text
 
 PROFILE_FIELDS = (
@@ -155,6 +164,10 @@ def complaint_permission_query(user=None):
 	return _activity_permission_query(user, "`tabDistributor Complaint`", ("assigned_to", "owner"), False)
 
 
+def benefit_permission_query(user=None):
+	return _activity_permission_query(user, "`tabDistributor Benefit`", ("owner",), False)
+
+
 def _has_activity(doc, ptype, user, identity):
 	if not doc or isinstance(doc, str):
 		return True
@@ -207,6 +220,10 @@ def has_statement_permission(doc, ptype="read", user=None):
 
 def has_complaint_permission(doc, ptype="read", user=None):
 	return _has_activity(doc, ptype, user, COMPLAINT_IDENTITY)
+
+
+def has_benefit_permission(doc, ptype="read", user=None):
+	return _has_activity(doc, ptype, user, BENEFIT_IDENTITY)
 
 
 def _profile_row(customer):
@@ -399,6 +416,23 @@ def prepare_complaint(doc):
 		_throw(exc)
 	doc.complaint_type = cleaned["complaint_type"]
 	doc.status = cleaned["status"]
+
+
+def prepare_benefit(doc):
+	if not doc.benefit_date:
+		doc.benefit_date = frappe.utils.today()
+	if not doc.status:
+		doc.status = "Planned"
+	profile = _assert_can_file(doc)
+	_apply_profile_defaults(doc, profile)
+	try:
+		cleaned = clean_benefit(doc.as_dict())
+	except DistributorError as exc:
+		_throw(exc)
+	doc.benefit_type = cleaned["benefit_type"]
+	doc.status = cleaned["status"]
+	doc.value = cleaned["value"]
+	doc.qty = cleaned["qty"]
 
 
 def _apply_profile_defaults(doc, profile):
@@ -791,6 +825,7 @@ def fetch_bundle(customer, company, profile):
 		"outstanding": outstanding,
 		"overdue_amount": overdue,
 		"open_complaints": _open_complaint_count(customer, company),
+		**_compliance_bundle(customer),
 	}
 
 
@@ -817,7 +852,7 @@ def profile_defaults(customer):
 
 
 @frappe.whitelist()
-def dashboard(customer, company=None, growth_pct=None):
+def dashboard(customer, company=None, growth_pct=None, history_preset=None):
 	require_signed_in()
 	customer = clean_text(customer)
 	if not customer:
@@ -832,7 +867,11 @@ def dashboard(customer, company=None, growth_pct=None):
 	try:
 		bundle = fetch_bundle(customer, company, profile)
 		bundle["current_target"] = _current_month_target(customer, company)
-		return build_dashboard(bundle, getdate(frappe.utils.today()), growth_pct, _target_settings())
+		today = getdate(frappe.utils.today())
+		built = build_dashboard(bundle, today, growth_pct, _target_settings())
+		window = history_window(history_preset, today, fiscal_start_month())
+		built["history"] = build_history(_history_facts(customer, company, window), today, window["preset"], fiscal_start_month())
+		return built
 	except DistributorError as exc:
 		_throw(exc)
 
@@ -980,7 +1019,16 @@ def _visible_profiles(company):
 
 
 @frappe.whitelist()
-def distributor_mis(company=None, activity=None, search=None, territory=None, account_manager=None, sales_person=None, rag=None):
+def distributor_mis(
+	company=None,
+	activity=None,
+	search=None,
+	territory=None,
+	account_manager=None,
+	sales_person=None,
+	rag=None,
+	billing=None,
+):
 	"""Book of distributors the user may see. Totals come from grouped queries, not one query per row."""
 	_require_360()
 	company = clean_text(company) or frappe.defaults.get_user_default("company")
@@ -1001,6 +1049,7 @@ def distributor_mis(company=None, activity=None, search=None, territory=None, ac
 				"account_manager": account_manager,
 				"sales_person": sales_person,
 				"rag": rag,
+				"billing": billing,
 			},
 			today,
 			months,
@@ -1190,6 +1239,7 @@ def _mis_metrics(profiles, company, today, months) -> dict:
 	end = statement_period(months[-1])[1]
 	month_start = statement_period(today)[0]
 	_fill_disabled(metrics, customers)
+	_fill_documents(metrics, customers)
 	_fill_invoice_metrics(metrics, customers, company, today, start, end, month_start)
 	_fill_target_metrics(metrics, customers, company, month_start)
 	_fill_quotation_metrics(metrics, customers, company)
@@ -1204,15 +1254,372 @@ def _fill_disabled(metrics, customers):
 	columns = set(frappe.db.get_table_columns("Customer") or [])
 	if "disabled" not in columns:
 		return
+	fields = ["name", "disabled"]
+	if "custom_billing_status" in columns:
+		fields.append("custom_billing_status")
+	if "custom_block_reason" in columns:
+		fields.append("custom_block_reason")
 	for chunk in _chunks(customers, 300):
 		for row in frappe.get_all(
 			"Customer",
 			filters={"name": ["in", chunk]},
-			fields=["name", "disabled"],
+			fields=fields,
 			limit_page_length=500,
 			ignore_permissions=True,
 		):
 			metrics[row.name]["disabled"] = row.disabled
+			if "custom_billing_status" in columns:
+				metrics[row.name]["billing_status"] = row.custom_billing_status or "Active"
+				metrics[row.name]["block_reason"] = row.custom_block_reason or ""
+
+
+def _fill_documents(metrics, customers):
+	"""Every document for the book, in chunks. Expiry colour is applied later, not per row in SQL."""
+	if not frappe.db.table_exists("Customer Document"):
+		return
+	for chunk in _chunks(customers, 300):
+		for row in frappe.get_all(
+			"Customer Document",
+			filters={"parent": ["in", chunk], "parenttype": "Customer"},
+			fields=["parent", "document_type", "attach", "document_no", "valid_till", "notes"],
+			limit_page_length=5000,
+			ignore_permissions=True,
+		):
+			if row.parent in metrics:
+				metrics[row.parent].setdefault("documents", []).append(row)
+
+
+def _compliance_bundle(customer) -> dict:
+	status = "Active"
+	reason = ""
+	documents = []
+	if frappe.db.table_exists("Customer"):
+		columns = set(frappe.db.get_table_columns("Customer") or [])
+		if "custom_billing_status" in columns and frappe.db.exists("Customer", customer):
+			row = frappe.db.get_value(
+				"Customer",
+				customer,
+				["custom_billing_status", "custom_block_reason"],
+				as_dict=True,
+			)
+			if row:
+				status = row.custom_billing_status or "Active"
+				reason = row.custom_block_reason or ""
+	if frappe.db.table_exists("Customer Document"):
+		documents = frappe.get_all(
+			"Customer Document",
+			filters={"parent": customer, "parenttype": "Customer"},
+			fields=["document_type", "attach", "document_no", "valid_till", "notes"],
+			limit_page_length=100,
+			ignore_permissions=True,
+		)
+	return {"billing_status": status, "block_reason": reason, "documents": documents}
+
+
+def _history_facts(customer, company, window) -> dict:
+	"""One query per history section for this distributor. Rows stay inside the window."""
+	start = window.get("start")
+	end = window.get("end")
+	item_months = _history_item_months(customer, company, start, end)
+	return {
+		"invoices": _history_invoices(customer, company, start, end),
+		"month_totals": _history_month_totals(customer, company, start, end),
+		"complaints": _history_complaints(customer, company, start, end),
+		"quotations": _history_quotations(customer, company, start, end),
+		"benefits": _history_benefits(customer, company, start, end),
+		"item_months": item_months,
+		"rate_months": _history_rate_months(customer, company, start, end),
+		"last_rates": _history_last_rates(customer, company, start, end),
+		"price_rows": _history_price_lists([row.item for row in item_months if row.get("item")]),
+	}
+
+
+def _history_bounds(start, end):
+	clause = "and posting_date <= %s"
+	params = [end]
+	if start:
+		clause += " and posting_date >= %s"
+		params.append(start)
+	return clause, params
+
+
+def _history_invoices(customer, company, start, end):
+	if not frappe.db.table_exists("Sales Invoice"):
+		return []
+	columns = set(frappe.db.get_table_columns("Sales Invoice") or [])
+	if "customer" not in columns or "posting_date" not in columns:
+		return []
+	net = _column(columns, "base_net_total", "net_total", fallback=None)
+	grand = _column(columns, "base_grand_total", "grand_total", fallback=None)
+	if not net or not grand:
+		return []
+	tax = _column(columns, "base_total_taxes_and_charges", "total_taxes_and_charges", fallback="0")
+	outstanding = _column(columns, "outstanding_amount", fallback="0")
+	is_return = _column(columns, "is_return", fallback="0")
+	company_sql = "and company = %s" if "company" in columns else ""
+	bounds, bound_params = _history_bounds(start, end)
+	params = [customer, *bound_params]
+	if company_sql:
+		params.append(company)
+	return frappe.db.sql(
+		f"""
+		select name, posting_date, docstatus, {is_return} as is_return,
+			{net} as net, {tax} as tax, {grand} as grand, {outstanding} as outstanding
+		from `tabSales Invoice`
+		where docstatus < 2 and customer = %s {bounds} {company_sql}
+		order by posting_date desc, name desc
+		limit 500
+		""",
+		tuple(params),
+		as_dict=True,
+	)
+
+
+def _history_month_totals(customer, company, start, end):
+	"""Submitted non-return invoices, grouped by month, so the chart is not cut off by the list limit."""
+	if not frappe.db.table_exists("Sales Invoice"):
+		return []
+	columns = set(frappe.db.get_table_columns("Sales Invoice") or [])
+	if "customer" not in columns or "posting_date" not in columns:
+		return []
+	net = _column(columns, "base_net_total", "net_total", fallback=None)
+	grand = _column(columns, "base_grand_total", "grand_total", fallback=None)
+	if not net or not grand:
+		return []
+	tax = _column(columns, "base_total_taxes_and_charges", "total_taxes_and_charges", fallback="0")
+	outstanding = _column(columns, "outstanding_amount", fallback="0")
+	returns = "and ifnull(is_return, 0) = 0" if "is_return" in columns else ""
+	company_sql = "and company = %s" if "company" in columns else ""
+	bounds, bound_params = _history_bounds(start, end)
+	params = [customer, *bound_params]
+	if company_sql:
+		params.append(company)
+	return frappe.db.sql(
+		f"""
+		select year(posting_date) as year, month(posting_date) as month,
+			coalesce(sum({net}), 0) as net, coalesce(sum({tax}), 0) as tax,
+			coalesce(sum({grand}), 0) as grand, coalesce(sum({outstanding}), 0) as outstanding,
+			count(name) as count
+		from `tabSales Invoice`
+		where docstatus = 1 {returns} and customer = %s {bounds} {company_sql}
+		group by year(posting_date), month(posting_date)
+		""",
+		tuple(params),
+		as_dict=True,
+	)
+
+
+def _history_complaints(customer, company, start, end):
+	if not frappe.db.table_exists("Distributor Complaint"):
+		return []
+	rows = frappe.get_all(
+		"Distributor Complaint",
+		filters={"distributor": customer},
+		fields=["name", "complaint_date", "complaint_type", "status", "company"],
+		order_by="complaint_date desc",
+		limit_page_length=300,
+		ignore_permissions=True,
+	)
+	return [row for row in rows if _inside(row.complaint_date, start, end)]
+
+
+def _history_quotations(customer, company, start, end):
+	if not frappe.db.table_exists("Quotation"):
+		return []
+	columns = set(frappe.db.get_table_columns("Quotation") or [])
+	date_field = "transaction_date" if "transaction_date" in columns else None
+	if not date_field:
+		return []
+	if "party_name" in columns:
+		party_sql = "party_name = %s" + (" and quotation_to = 'Customer'" if "quotation_to" in columns else "")
+	elif "customer" in columns:
+		party_sql = "customer = %s"
+	else:
+		return []
+	amount = _column(columns, "base_net_total", "net_total", "base_grand_total", fallback=None)
+	if not amount:
+		return []
+	status = _column(columns, "status", fallback="''")
+	company_sql = "and company = %s" if "company" in columns else ""
+	clause = f"and `{date_field}` <= %s"
+	params = [customer, end]
+	if start:
+		clause += f" and `{date_field}` >= %s"
+		params.append(start)
+	if company_sql:
+		params.append(company)
+	return frappe.db.sql(
+		f"""
+		select name, `{date_field}` as transaction_date, {status} as status, docstatus, {amount} as amount
+		from `tabQuotation`
+		where docstatus < 2 and {party_sql} {clause} {company_sql}
+		order by `{date_field}` desc, name desc
+		limit 300
+		""",
+		tuple(params),
+		as_dict=True,
+	)
+
+
+def _history_benefits(customer, company, start, end):
+	if not frappe.db.table_exists("Distributor Benefit"):
+		return []
+	filters = {"distributor": customer}
+	rows = frappe.get_all(
+		"Distributor Benefit",
+		filters=filters,
+		fields=["name", "benefit_date", "benefit_type", "status", "description", "item", "qty", "value", "company"],
+		order_by="benefit_date desc",
+		limit_page_length=300,
+		ignore_permissions=True,
+	)
+	kept = []
+	for row in rows:
+		if company and row.company and row.company != company:
+			continue
+		if _inside(row.benefit_date, start, end):
+			kept.append(row)
+	return kept
+
+
+def _history_item_months(customer, company, start, end):
+	amount = _child_amount_sql()
+	if not amount:
+		return []
+	return _history_item_sql(customer, company, start, end, f"sum(sii.qty) as qty, sum({amount}) as amount")
+
+
+def _history_rate_months(customer, company, start, end):
+	return _history_item_sql(
+		customer,
+		company,
+		start,
+		end,
+		"min(sii.rate) as `min`, max(sii.rate) as `max`, avg(sii.rate) as avg, count(sii.name) as count",
+	)
+
+
+def _history_last_rates(customer, company, start, end):
+	if not _invoice_item_ready():
+		return []
+	outer, inner, params = _item_filter(customer, "si", "si2", company, start, end)
+	rows = frappe.db.sql(
+		f"""
+		select sii.item_code as item, si.name as name, sii.rate as rate
+		from `tabSales Invoice Item` sii
+		inner join `tabSales Invoice` si on si.name = sii.parent
+		inner join (
+			select sii2.item_code as item_code, max(si2.posting_date) as last_date
+			from `tabSales Invoice Item` sii2
+			inner join `tabSales Invoice` si2 on si2.name = sii2.parent
+			where {inner}
+			group by sii2.item_code
+		) last_bill on last_bill.item_code = sii.item_code and last_bill.last_date = si.posting_date
+		where {outer}
+		""",
+		tuple(params + params),
+		as_dict=True,
+	)
+	chosen = {}
+	for row in rows:
+		current = chosen.get(row.item)
+		if current is None or (row.name or "") >= (current.get("name") or ""):
+			chosen[row.item] = row
+	return list(chosen.values())
+
+
+def _history_price_lists(items):
+	items = list(dict.fromkeys(item for item in items if item))
+	if not items or not frappe.db.table_exists("Item Price"):
+		return []
+	columns = set(frappe.db.get_table_columns("Item Price") or [])
+	if "item_code" not in columns or "price_list" not in columns:
+		return []
+	rate = _column(columns, "price_list_rate", "rate", fallback=None)
+	if not rate:
+		return []
+	found = []
+	for chunk in _chunks(items, 300):
+		found.extend(
+			frappe.db.sql(
+				f"""
+				select item_code as item, price_list, {rate} as rate
+				from `tabItem Price`
+				where item_code in %s
+					and price_list in ('Classic Distributor', 'Classic Retailer', 'Classic MRP', 'Standard Selling')
+				""",
+				(chunk,),
+				as_dict=True,
+			)
+		)
+	return found
+
+
+def _history_item_sql(customer, company, start, end, measures):
+	if not _invoice_item_ready():
+		return []
+	where, _inner, params = _item_filter(customer, "si", "si", company, start, end)
+	return frappe.db.sql(
+		f"""
+		select sii.item_code as item, max(sii.item_name) as item_name,
+			year(si.posting_date) as year, month(si.posting_date) as month,
+			{measures}
+		from `tabSales Invoice Item` sii
+		inner join `tabSales Invoice` si on si.name = sii.parent
+		where {where}
+		group by sii.item_code, year(si.posting_date), month(si.posting_date)
+		""",
+		tuple(params),
+		as_dict=True,
+	)
+
+
+def _child_amount_sql():
+	if not frappe.db.table_exists("Sales Invoice Item"):
+		return None
+	columns = set(frappe.db.get_table_columns("Sales Invoice Item") or [])
+	name = _column(columns, "base_net_amount", "net_amount", "base_amount", "amount", fallback=None)
+	if not name or name == "null":
+		return None
+	return f"sii.{name}" if not name.startswith("sii.") else name
+
+
+def _invoice_item_ready() -> bool:
+	if not frappe.db.table_exists("Sales Invoice") or not frappe.db.table_exists("Sales Invoice Item"):
+		return False
+	parent = set(frappe.db.get_table_columns("Sales Invoice") or [])
+	child = set(frappe.db.get_table_columns("Sales Invoice Item") or [])
+	return "customer" in parent and "posting_date" in parent and "item_code" in child and "rate" in child and "qty" in child
+
+
+def _item_filter(customer, alias, inner_alias, company, start, end):
+	"""Submitted non-return invoices for one customer. Parameters start with the customer."""
+	parent = set(frappe.db.get_table_columns("Sales Invoice") or [])
+	returns = f"and ifnull({alias}.is_return, 0) = 0" if "is_return" in parent else ""
+	inner_returns = f"and ifnull({inner_alias}.is_return, 0) = 0" if "is_return" in parent else ""
+	where = f"{alias}.docstatus = 1 {returns} and {alias}.customer = %s and {alias}.posting_date <= %s"
+	inner = f"{inner_alias}.docstatus = 1 {inner_returns} and {inner_alias}.customer = %s and {inner_alias}.posting_date <= %s"
+	params = [customer, end]
+	if start:
+		where += f" and {alias}.posting_date >= %s"
+		inner += f" and {inner_alias}.posting_date >= %s"
+		params.append(start)
+	if company and "company" in parent:
+		where += f" and {alias}.company = %s"
+		inner += f" and {inner_alias}.company = %s"
+		params.append(company)
+	return where, inner, params
+
+
+def _inside(day, start, end) -> bool:
+	if not day or not end:
+		return False
+	posted = getdate(day)
+	if posted > getdate(end):
+		return False
+	if start and posted < getdate(start):
+		return False
+	return True
 
 
 def _fill_invoice_metrics(metrics, customers, company, today, start, end, month_start):

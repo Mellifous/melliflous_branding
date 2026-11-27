@@ -1,0 +1,72 @@
+[
+ {
+  "doctype": "Custom Field",
+  "dt": "Customer",
+  "fieldname": "custom_billing_status",
+  "fieldtype": "Select",
+  "label": "Billing Status",
+  "options": "Active\nBlocked\nBlacklisted",
+  "default": "Active",
+  "insert_after": "disabled",
+  "in_standard_filter": 1,
+  "description": "Separate from Disabled. Blocked and Blacklisted customers cannot be billed until this is set back to Active.",
+  "module": "Melliflous Branding",
+  "name": "Customer-custom_billing_status"
+ },
+ {
+  "doctype": "Custom Field",
+  "dt": "Customer",
+  "fieldname": "custom_block_reason",
+  "fieldtype": "Small Text",
+  "label": "Block Reason",
+  "insert_after": "custom_billing_status",
+  "depends_on": "eval:doc.custom_billing_status=='Blocked' || doc.custom_billing_status=='Blacklisted'",
+  "mandatory_depends_on": "eval:doc.custom_billing_status=='Blocked' || doc.custom_billing_status=='Blacklisted'",
+  "module": "Melliflous Branding",
+  "name": "Customer-custom_block_reason"
+ },
+ {
+  "doctype": "Custom Field",
+  "dt": "Customer",
+  "fieldname": "custom_blocked_by",
+  "fieldtype": "Link",
+  "label": "Blocked By",
+  "options": "User",
+  "insert_after": "custom_block_reason",
+  "read_only": 1,
+  "module": "Melliflous Branding",
+  "name": "Customer-custom_blocked_by"
+ },
+ {
+  "doctype": "Custom Field",
+  "dt": "Customer",
+  "fieldname": "custom_blocked_on",
+  "fieldtype": "Datetime",
+  "label": "Blocked On",
+  "insert_after": "custom_blocked_by",
+  "read_only": 1,
+  "module": "Melliflous Branding",
+  "name": "Customer-custom_blocked_on"
+ },
+ {
+  "doctype": "Custom Field",
+  "dt": "Customer",
+  "fieldname": "custom_documents_tab",
+  "fieldtype": "Tab Break",
+  "label": "Documents",
+  "insert_after": "custom_blocked_on",
+  "module": "Melliflous Branding",
+  "name": "Customer-custom_documents_tab"
+ },
+ {
+  "doctype": "Custom Field",
+  "dt": "Customer",
+  "fieldname": "custom_customer_documents",
+  "fieldtype": "Table",
+  "label": "Documents",
+  "options": "Customer Document",
+  "insert_after": "custom_documents_tab",
+  "module": "Melliflous Branding",
+  "name": "Customer-custom_customer_documents"
+ }
+]

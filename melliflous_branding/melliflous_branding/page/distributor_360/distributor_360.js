@@ -442,6 +442,23 @@
 @media (max-width: 720px) {
 	.melliflous-360 .mis-filters { flex-direction: column; align-items: stretch; }
 }
+.melliflous-360 .block-pill {
+	display: inline-block;
+	margin-left: 8px;
+	padding: 2px 10px;
+	border-radius: 999px;
+	background: #fff;
+	color: #C8102E;
+	font-weight: 800;
+}
+.melliflous-360 .doc-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	align-items: center;
+	padding: 8px 0;
+	border-bottom: 1px solid #eadfd8;
+}
 `;
 
 	function installStyles() {
@@ -606,12 +623,17 @@
 			account_manager: "",
 			sales_person: "",
 			rag: "",
+			billing: "",
 		};
 		const picked = new Set();
 		let misPayload = null;
 		let sortKey = "name";
 		let sortDir = 1;
+		let itemSortKey = "amount";
+		let itemSortDir = -1;
 		let viewMode = "all";
+		let historyPreset = "12M";
+		let historyTab = "billing";
 
 		const filterBar = el("div", "mis-filters");
 		filterBar.hidden = true;
@@ -657,6 +679,22 @@
 			schedule();
 		});
 		filterBar.appendChild(rag);
+		const billing = el("select", "form-control");
+		[
+			["", __("Any billing status")],
+			["Active", __("Billing active")],
+			["Blocked", __("Blocked")],
+			["Blacklisted", __("Blacklisted")],
+		].forEach((option) => {
+			const node = el("option", "", option[1]);
+			node.value = option[0];
+			billing.appendChild(node);
+		});
+		billing.addEventListener("change", () => {
+			filters.billing = billing.value;
+			schedule();
+		});
+		filterBar.appendChild(billing);
 		filterBar.appendChild(
 			pill(__("Export Excel / CSV"), "quote", () => exportDistributors(misPayload))
 		);
@@ -766,6 +804,11 @@
 			)
 		);
 		actions.appendChild(pill(__("Set Target"), "target", () => openSetTarget(state)));
+		actions.appendChild(
+			pill(__("New Gift/Incentive"), "quote", () =>
+				openNew("Distributor Benefit", { benefit_date: frappe.datetime.get_today() })
+			)
+		);
 		root.appendChild(actions);
 
 		const growthRow = el("div", "growth-row");
@@ -806,7 +849,8 @@
 		function sameView(customer) {
 			if (viewMode !== "one") return false;
 			if (!state || state.customer !== customer) return false;
-			return (state.company || "") === selectedCompany();
+			const shown = state.history && state.history.preset;
+			return (state.company || "") === selectedCompany() && shown === historyPreset;
 		}
 
 		function paintChrome() {
@@ -879,7 +923,12 @@
 			frappe
 				.call({
 					method: `${API}.dashboard`,
-					args: { customer: customer, company: selectedCompany(), growth_pct: growth.value },
+					args: {
+						customer: customer,
+						company: selectedCompany(),
+						growth_pct: growth.value,
+						history_preset: historyPreset,
+					},
 				})
 				.then((response) => {
 					if (current !== requestId) return;
@@ -941,6 +990,8 @@
 			const signals = data.signals || {};
 			const profile = data.profile;
 			body.appendChild(headerBand(data, profile));
+			body.appendChild(documentsPanel(data));
+			body.appendChild(historyPanel(data.history || {}, currency));
 			body.appendChild(kpiRow(data, signals, currency));
 			body.appendChild(quotationPanel(data, currency));
 			body.appendChild(draftPanel((data.tabs || {}).draft_invoices || [], currency));
@@ -980,6 +1031,11 @@
 					)
 				);
 			}
+			if (data.billing_status === "Blocked" || data.billing_status === "Blacklisted") {
+				const pillNode = el("span", "block-pill", __(data.billing_status));
+				pillNode.title = data.block_reason || "";
+				band.appendChild(pillNode);
+			}
 			if (!profile) {
 				band.appendChild(el("p", "band-note", __("No distributor profile yet.")));
 				if (frappe.model && frappe.model.can_create && frappe.model.can_create("Distributor Profile")) {
@@ -991,6 +1047,401 @@
 				}
 			}
 			return band;
+		}
+
+		function documentsPanel(data) {
+			const panel = el("section", "panel");
+			const head = el("div", "btn-row");
+			head.appendChild(el("h2", "", __("Documents")));
+			if (canWriteCustomer()) {
+				head.appendChild(pill(__("Upload"), "stock", () => uploadDocument(data)));
+			}
+			panel.appendChild(head);
+			const rows = data.documents || [];
+			if (!rows.length) {
+				panel.appendChild(el("p", "hint", __("No documents on this customer yet.")));
+				return panel;
+			}
+			rows.forEach((row) => {
+				const line = el("div", "doc-row");
+				line.appendChild(el("strong", "", row.document_type || ""));
+				if (row.document_no) line.appendChild(el("span", "", row.document_no));
+				const when = row.valid_till ? prettyDate(row.valid_till) : __("No expiry");
+				line.appendChild(el("span", `rag tone-${row.tone || "neutral"}`, when));
+				if (row.days_left != null && row.days_left < 0) {
+					line.appendChild(el("span", "cell-red", __("Expired")));
+				} else if (row.tone === "amber") {
+					line.appendChild(el("span", "", __("{0} days left", [String(row.days_left)])));
+				}
+				if (row.attach) {
+					const file = el("a", "who", __("Open file"));
+					file.href = row.attach;
+					file.target = "_blank";
+					file.rel = "noopener";
+					line.appendChild(file);
+				}
+				if (row.notes) line.appendChild(el("span", "hint", row.notes));
+				panel.appendChild(line);
+			});
+			return panel;
+		}
+
+		function canWriteCustomer() {
+			try {
+				return !!(frappe.model && frappe.model.can_write && frappe.model.can_write("Customer"));
+			} catch (ignored) {
+				return false;
+			}
+		}
+
+		function uploadDocument(data) {
+			if (!data || !data.customer || !frappe.ui || !frappe.ui.Dialog) return;
+			const dialog = new frappe.ui.Dialog({
+				title: __("Upload document"),
+				fields: [
+					{
+						fieldname: "document_type",
+						fieldtype: "Select",
+						label: __("Document Type"),
+						options:
+							"GST Certificate\nPAN\nAadhaar\nAgreement\nCancelled Cheque\nShop Photo\nFSSAI Licence\nTrade Licence\nOther",
+						reqd: 1,
+					},
+					{ fieldname: "attach", fieldtype: "Attach", label: __("Attach"), reqd: 1 },
+					{
+						fieldname: "document_no",
+						fieldtype: "Data",
+						label: __("Document No"),
+						depends_on: "eval:doc.document_type!='Aadhaar'",
+						description: __("Leave blank for Aadhaar. Do not type the Aadhaar number."),
+					},
+					{ fieldname: "valid_till", fieldtype: "Date", label: __("Valid Till") },
+					{ fieldname: "notes", fieldtype: "Small Text", label: __("Notes") },
+				],
+				primary_action_label: __("Upload"),
+				primary_action(values) {
+					dialog.disable_primary_action();
+					frappe
+						.call({
+							method: "melliflous_branding.customer_records.add_customer_document",
+							args: Object.assign({ customer: data.customer }, values),
+						})
+						.then(() => {
+							dialog.hide();
+							load();
+						})
+						.catch((error) => {
+							dialog.enable_primary_action();
+							show(errorText(error), true);
+						});
+				},
+			});
+			dialog.show();
+		}
+
+		const HISTORY_TABS = [
+			["billing", __("Historic billing")],
+			["credits", __("Credit notes")],
+			["complaints", __("Complaints")],
+			["quotations", __("Quotations")],
+			["benefits", __("Gifts & incentives")],
+			["bought", __("Most bought")],
+			["items", __("Item-wise sales")],
+			["prices", __("Historic price")],
+		];
+
+		function historyPanel(history, currency) {
+			const panel = el("section", "panel");
+			panel.appendChild(el("h2", "", __("History")));
+			const presets = el("div", "btn-row");
+			["This month", "3M", "6M", "12M", "FY", "All"].forEach((name) => {
+				const button = pill(__(name), "ghost", () => {
+					historyPreset = name;
+					load();
+				});
+				if (history.preset === name || (!history.preset && name === historyPreset)) button.classList.add("is-on");
+				presets.appendChild(button);
+			});
+			panel.appendChild(presets);
+			const tabs = el("div", "btn-row");
+			HISTORY_TABS.forEach((tab) => {
+				const button = pill(tab[1], historyTab === tab[0] ? "visit" : "ghost", () => {
+					historyTab = tab[0];
+					draw(state);
+				});
+				tabs.appendChild(button);
+			});
+			panel.appendChild(tabs);
+			panel.appendChild(historyBody(history, currency));
+			return panel;
+		}
+
+		function historyBody(history, currency) {
+			const box = el("div");
+			if (historyTab === "credits") return creditHistory(history.credit_notes || {}, currency);
+			if (historyTab === "complaints") return complaintHistory(history.complaints || {});
+			if (historyTab === "quotations") return quoteHistory(history.quotations || {}, currency);
+			if (historyTab === "benefits") return benefitHistory(history.benefits || {}, currency);
+			if (historyTab === "bought") return boughtHistory(history.most_bought || {}, currency);
+			if (historyTab === "items") return itemHistory(history.items || {}, currency);
+			if (historyTab === "prices") return priceHistory(history.prices || [], currency);
+			return billingHistory(history.billing || {}, currency);
+		}
+
+		function billingHistory(billing, currency) {
+			const box = el("div");
+			box.appendChild(
+				el(
+					"p",
+					"",
+					__("{0} net · {1} GST · {2} grand · {3} outstanding", [
+						moneyText(billing.net, currency),
+						moneyText(billing.tax, currency),
+						moneyText(billing.grand, currency),
+						moneyText(billing.outstanding, currency),
+					])
+				)
+			);
+			box.appendChild(sparkline((billing.months || []).map((row) => ({ label: row.label, primary: row.net }))));
+			box.appendChild(moneyTable(billing.invoices || [], currency));
+			const drafts = billing.drafts || [];
+			box.appendChild(el("h3", "", __("Draft invoices — not counted")));
+			if (!drafts.length) box.appendChild(el("p", "hint", __("No draft invoices in this range.")));
+			else {
+				drafts.forEach((row) => {
+					const line = el("p", "hint", `${row.name} · ${prettyDate(row.date)} · ${moneyText(row.grand, currency)}`);
+					box.appendChild(line);
+				});
+			}
+			return box;
+		}
+
+		function moneyTable(rows, currency) {
+			const wrap = el("div", "table-wrap");
+			if (!rows.length) {
+				wrap.appendChild(el("p", "hint", __("No submitted invoices in this range.")));
+				return wrap;
+			}
+			const table = el("table");
+			const head = el("tr");
+			[__("Invoice"), __("Date"), __("Net"), __("GST"), __("Grand"), __("Outstanding")].forEach((label) => {
+				head.appendChild(el("th", "", label));
+			});
+			table.appendChild(head);
+			rows.forEach((row) => {
+				const line = el("tr");
+				line.appendChild(el("td", "", row.name || ""));
+				line.appendChild(el("td", "", prettyDate(row.date)));
+				line.appendChild(el("td", "", moneyText(row.net, currency)));
+				line.appendChild(el("td", "", moneyText(row.tax, currency)));
+				line.appendChild(el("td", "", moneyText(row.grand, currency)));
+				line.appendChild(el("td", "", moneyText(row.outstanding, currency)));
+				table.appendChild(line);
+			});
+			wrap.appendChild(table);
+			return wrap;
+		}
+
+		function creditHistory(section, currency) {
+			const box = el("div");
+			box.appendChild(
+				el(
+					"p",
+					"",
+					__("{0} credit notes · {1} net · {2} grand", [
+						String(section.count || 0),
+						moneyText(section.net, currency),
+						moneyText(section.grand, currency),
+					])
+				)
+			);
+			(section.rows || []).forEach((row) => {
+				const line = el("p", "");
+				line.appendChild(el("span", "qpill", row.name || ""));
+				line.appendChild(document.createTextNode(` ${prettyDate(row.date)} · ${moneyText(row.grand, currency)}`));
+				line.style.color = "#7A45C4";
+				box.appendChild(line);
+			});
+			if (!(section.rows || []).length) box.appendChild(el("p", "hint", __("No credit notes in this range.")));
+			return box;
+		}
+
+		function complaintHistory(section) {
+			const box = el("div");
+			box.appendChild(el("p", "", __("{0} open", [String(section.open || 0)])));
+			(section.rows || []).forEach((row) => {
+				const line = el("p", "doc-row");
+				line.appendChild(el("span", "", row.name || ""));
+				line.appendChild(el("span", `rag tone-${row.tone || "neutral"}`, row.status || ""));
+				line.appendChild(el("span", "", `${row.type || ""} · ${prettyDate(row.date)}`));
+				box.appendChild(line);
+			});
+			if (!(section.rows || []).length) box.appendChild(el("p", "hint", __("No complaints in this range.")));
+			return box;
+		}
+
+		function quoteHistory(section, currency) {
+			const box = el("div");
+			const conversion = section.conversion == null ? __("No quotations") : `${section.conversion}%`;
+			box.appendChild(
+				el("p", "", __("{0} ordered of {1} · conversion {2}", [String(section.ordered || 0), String(section.count || 0), conversion]))
+			);
+			(section.rows || []).forEach((row) => {
+				const line = el("p", "doc-row");
+				line.appendChild(el("span", "", row.name || ""));
+				line.appendChild(el("span", `qpill tone-${row.tone || "grey"}`, row.status || ""));
+				line.appendChild(el("span", "", `${prettyDate(row.date)} · ${moneyText(row.amount, currency)}`));
+				box.appendChild(line);
+			});
+			return box;
+		}
+
+		function benefitHistory(section, currency) {
+			const box = el("div");
+			const roi = section.roi == null ? __("No primary billing in this range") : `${section.roi}%`;
+			box.appendChild(
+				el("p", "", __("Given {0} · ROI {1} of primary {2}", [moneyText(section.given, currency), roi, moneyText(section.primary, currency)]))
+			);
+			(section.by_type || []).forEach((row) => {
+				box.appendChild(el("p", "", `${row.type}: ${row.count} · ${moneyText(row.value, currency)}`));
+			});
+			(section.rows || []).forEach((row) => {
+				const line = el("p", "doc-row");
+				line.appendChild(el("span", `rag tone-${row.status === "Given" ? "green" : "amber"}`, row.status || ""));
+				line.appendChild(el("span", "", `${row.benefit_type} · ${prettyDate(row.date)} · ${moneyText(row.value, currency)}`));
+				if (row.description) line.appendChild(el("span", "hint", row.description));
+				box.appendChild(line);
+			});
+			if (!(section.rows || []).length) box.appendChild(el("p", "hint", __("No gifts or incentives in this range.")));
+			return box;
+		}
+
+		function boughtHistory(section, currency) {
+			const box = el("div");
+			box.appendChild(el("h3", "", __("Top 10 by quantity")));
+			box.appendChild(rankTable(section.by_qty || [], currency, "qty"));
+			box.appendChild(el("h3", "", __("Top 10 by value")));
+			box.appendChild(rankTable(section.by_value || [], currency, "amount"));
+			return box;
+		}
+
+		function rankTable(rows, currency, field) {
+			const wrap = el("div", "table-wrap");
+			if (!rows.length) {
+				wrap.appendChild(el("p", "hint", __("No item sales in this range.")));
+				return wrap;
+			}
+			const table = el("table");
+			const head = el("tr");
+			[__("Item"), field === "qty" ? __("Qty") : __("Value"), __("Share")].forEach((label) => head.appendChild(el("th", "", label)));
+			table.appendChild(head);
+			rows.forEach((row) => {
+				const line = el("tr");
+				line.appendChild(el("td", "", row.item_name || row.item || ""));
+				line.appendChild(el("td", "", field === "qty" ? String(row.qty) : moneyText(row.amount, currency)));
+				line.appendChild(el("td", "", `${row.share || 0}%`));
+				table.appendChild(line);
+			});
+			wrap.appendChild(table);
+			return wrap;
+		}
+
+		function itemHistory(section, currency) {
+			const box = el("div");
+			const button = pill(__("Export CSV"), "quote", () => exportItems(section));
+			box.appendChild(button);
+			const rows = (section.rows || []).slice().sort((a, b) => itemSort(a, b));
+			const wrap = el("div", "table-wrap");
+			if (!rows.length) {
+				wrap.appendChild(el("p", "hint", __("No item sales in this range.")));
+				box.appendChild(wrap);
+				return box;
+			}
+			const table = el("table");
+			const head = el("tr");
+			const nameHead = el("th", "sortable", __("Item"));
+			nameHead.addEventListener("click", () => {
+				itemSortKey = "item";
+				itemSortDir = -itemSortDir;
+				draw(state);
+			});
+			head.appendChild(nameHead);
+			(section.months || []).forEach((month) => head.appendChild(el("th", "", `${month.label} ${month.year}`)));
+			const totalHead = el("th", "sortable", __("Total"));
+			totalHead.addEventListener("click", () => {
+				itemSortKey = "amount";
+				itemSortDir = -itemSortDir;
+				draw(state);
+			});
+			head.appendChild(totalHead);
+			head.appendChild(el("th", "", __("Trend")));
+			table.appendChild(head);
+			rows.forEach((row) => {
+				const line = el("tr");
+				line.appendChild(el("td", "", row.item_name || row.item || ""));
+				(row.cells || []).forEach((cell) => {
+					line.appendChild(el("td", "", `${cell.qty} · ${moneyText(cell.amount, currency)}`));
+				});
+				line.appendChild(el("td", "", moneyText(row.amount, currency)));
+				const trend = el("td");
+				trend.appendChild(miniSpark(row.spark || []));
+				line.appendChild(trend);
+				table.appendChild(line);
+			});
+			wrap.appendChild(table);
+			box.appendChild(wrap);
+			return box;
+		}
+
+		function priceHistory(rows, currency) {
+			const box = el("div");
+			if (!rows.length) {
+				box.appendChild(el("p", "hint", __("No submitted item rates in this range.")));
+				return box;
+			}
+			rows.forEach((row) => {
+				const line = el("div", "doc-row");
+				if (row.below_distributor) line.classList.add("cell-red");
+				line.appendChild(el("strong", "", row.item_name || row.item || ""));
+				line.appendChild(
+					el(
+						"span",
+						"",
+						__("min {0} · max {1} · avg {2} · last {3}", [
+							moneyText(row.min, currency),
+							moneyText(row.max, currency),
+							moneyText(row.avg, currency),
+							moneyText(row.last, currency),
+						])
+					)
+				);
+				const lists = row.lists || {};
+				["Classic Distributor", "Classic Retailer", "Classic MRP", "Standard Selling"].forEach((name) => {
+					if (lists[name] != null) line.appendChild(el("span", "hint", `${name} ${moneyText(lists[name], currency)}`));
+				});
+				const trend = el("span");
+				trend.appendChild(miniSpark((row.series || []).map((point) => point.rate)));
+				line.appendChild(trend);
+				if (row.below_distributor) line.appendChild(el("span", "cell-red", __("Below Classic Distributor")));
+				box.appendChild(line);
+			});
+			return box;
+		}
+
+		function exportItems(section) {
+			const months = section.months || [];
+			const header = ["Item"].concat(months.map((month) => `${month.label} ${month.year} qty`), months.map((month) => `${month.label} ${month.year} value`), "Total value");
+			const lines = [header.map(csvEscape).join(",")];
+			(section.rows || []).forEach((row) => {
+				const qtyCells = (row.cells || []).map((cell) => cell.qty);
+				const valueCells = (row.cells || []).map((cell) => cell.amount);
+				lines.push([row.item_name || row.item].concat(qtyCells, valueCells, [row.amount]).map(csvEscape).join(","));
+			});
+			const blob = new Blob([`\uFEFF${lines.join("\n")}`], { type: "text/csv;charset=utf-8" });
+			const link = el("a");
+			link.href = URL.createObjectURL(blob);
+			link.download = "item-sales.csv";
+			link.click();
 		}
 
 		function person(label, value) {
@@ -1507,6 +1958,7 @@
 						account_manager: filters.account_manager,
 						sales_person: filters.sales_person,
 						rag: filters.rag,
+						billing: filters.billing,
 					},
 				})
 				.then((response) => {
@@ -1638,6 +2090,7 @@
 			const columns = [
 				["name", __("Distributor")],
 				["status", __("Status")],
+				["billing_status", __("Billing")],
 				["primary_mtd", __("MTD primary")],
 				["target", __("Target")],
 				["recommended", __("Recommended")],
@@ -1697,6 +2150,7 @@
 			const statusCell = el("td");
 			statusCell.appendChild(status);
 			tr.appendChild(statusCell);
+			tr.appendChild(billingStatusCell(row));
 			tr.appendChild(el("td", "", moneyText(row.primary_mtd, currency)));
 			tr.appendChild(el("td", "", row.target == null ? "—" : moneyText(row.target, currency)));
 			const recommendedCell = el("td", "", moneyText(row.recommended, currency));
@@ -1707,7 +2161,7 @@
 			const ragText = row.achievement_pct == null ? "—" : `${row.achievement_pct}%`;
 			ragCell.appendChild(el("span", `rag tone-${row.rag || "neutral"}`, ragText));
 			tr.appendChild(ragCell);
-			tr.appendChild(billingCell(row));
+			tr.appendChild(lastBillingCell(row));
 			tr.appendChild(el("td", "", moneyText(row.outstanding, currency)));
 			const overdueCell = el("td", Number(row.overdue) > 0 ? "cell-red" : "", moneyText(row.overdue, currency));
 			tr.appendChild(overdueCell);
@@ -1729,6 +2183,26 @@
 			return tr;
 		}
 
+		function billingStatusCell(row) {
+			const cell = el("td");
+			const status = row.billing_status || "Active";
+			if (status === "Blocked" || status === "Blacklisted") {
+				const pillNode = el("span", "qpill tone-red", status);
+				pillNode.title = row.block_reason || "";
+				cell.appendChild(pillNode);
+			} else {
+				cell.textContent = __("Active");
+			}
+			return cell;
+		}
+
+		function itemSort(left, right) {
+			const a = itemSortKey === "item" ? left.item_name || left.item || "" : Number(left.amount) || 0;
+			const b = itemSortKey === "item" ? right.item_name || right.item || "" : Number(right.amount) || 0;
+			if (typeof a === "number" && typeof b === "number") return (a - b) * itemSortDir;
+			return String(a).localeCompare(String(b)) * itemSortDir;
+		}
+
 		function sourceCell(source) {
 			const cell = el("td");
 			if (!source) {
@@ -1740,7 +2214,7 @@
 			return cell;
 		}
 
-		function billingCell(row) {
+		function lastBillingCell(row) {
 			let text = __("Never");
 			if (row.last_billing) {
 				text = `${prettyDate(row.last_billing)} · ${row.days_since_billing}d`;
