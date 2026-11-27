@@ -8,8 +8,10 @@ from pathlib import Path
 
 from melliflous_branding.invoice_number import (
 	INVOICE_NO_FIELD,
+	conflicting_property_setters,
 	duplicate_message,
 	format_problem,
+	invoice_number_field_visibility,
 	plan_invoice,
 	series_prefix,
 	validate_series_settings,
@@ -170,7 +172,8 @@ class TestInvoiceNumber(unittest.TestCase):
 		self.assertIn("Sales Invoice-custom_invoice_no", hooks)
 		self.assertIn("melliflous_branding.patches.v0_12.ensure_invoice_numbers", (PACKAGE / "patches.txt").read_text())
 		self.assertIn("ensure_invoice_numbers", (PACKAGE / "install.py").read_text())
-		self.assertEqual((PACKAGE / "__init__.py").read_text().strip(), '__version__ = "0.8.0"')
+		self.assertEqual((PACKAGE / "__init__.py").read_text().strip(), '__version__ = "0.8.1"')
+		self.assertIn("melliflous_branding.patches.v0_13.show_invoice_number", (PACKAGE / "patches.txt").read_text())
 		records = (PACKAGE / "invoice_number_records.py").read_text()
 		self.assertIn("for update", records)
 		self.assertIn("tabSales Invoice", records)
@@ -193,6 +196,67 @@ class TestInvoiceNumber(unittest.TestCase):
 		)
 		self.assertEqual({row["fieldname"] for row in series["fields"]}, {"company", "prefix", "starting_number"})
 		self.assertIn("151", series["fields"][2]["description"])
+
+	def test_invoice_no_stays_visible_when_no_prefix_is_configured(self):
+		shown = invoice_number_field_visibility()
+		self.assertEqual(shown["hidden"], 0)
+		self.assertEqual(shown["read_only"], 0)
+		self.assertEqual(shown["depends_on"], "")
+		self.assertEqual(shown["insert_after"], "customer_section")
+		self.assertEqual(INVOICE_NO_FIELD["hidden"], 0)
+		fixture = json.loads((PACKAGE / "fixtures" / "custom_field.json").read_text())
+		saved = next(row for row in fixture if row["name"] == "Sales Invoice-custom_invoice_no")
+		self.assertEqual(saved["hidden"], 0)
+		removed = conflicting_property_setters(
+			[
+				{
+					"name": "Sales Invoice-custom_invoice_no-hidden",
+					"doc_type": "Sales Invoice",
+					"field_name": "custom_invoice_no",
+					"property": "hidden",
+					"value": "1",
+				},
+				{
+					"name": "Sales Invoice-custom_invoice_no-depends_on",
+					"doc_type": "Sales Invoice",
+					"field_name": "custom_invoice_no",
+					"property": "depends_on",
+					"value": "eval:doc.company",
+				},
+				{
+					"name": "Sales Invoice-customer-hidden",
+					"doc_type": "Sales Invoice",
+					"field_name": "customer",
+					"property": "hidden",
+					"value": "1",
+				},
+				{
+					"name": "Customer-custom_invoice_no-hidden",
+					"doc_type": "Customer",
+					"field_name": "custom_invoice_no",
+					"property": "hidden",
+					"value": "1",
+				},
+			]
+		)
+		self.assertEqual(
+			removed,
+			[
+				"Sales Invoice-custom_invoice_no-hidden",
+				"Sales Invoice-custom_invoice_no-depends_on",
+			],
+		)
+		script = (PACKAGE / "public" / "js" / "invoice_number.js").read_text()
+		self.assertNotIn('.form-page").first().find(".section-body").first()', script)
+		self.assertIn("empty section", script)
+		self.assertIn('frm.get_field("company")', script)
+		self.assertIn('frm.set_df_property("custom_invoice_no", "hidden", 0)', script)
+		records = (PACKAGE / "invoice_number_records.py").read_text()
+		self.assertIn("def show_invoice_number_field", records)
+		self.assertIn("conflicting_property_setters", records)
+		# No saved prefix still uses the Sales Invoice series, so the field is not withheld.
+		fallback = series_prefix("ACC-SINV-.YYYY.-", date(2026, 11, 27))
+		self.assertEqual(fallback[0], "ACC-SINV-2026-")
 
 
 if __name__ == "__main__":
