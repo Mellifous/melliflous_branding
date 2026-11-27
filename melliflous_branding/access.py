@@ -1,11 +1,13 @@
 # Copyright (c) 2026, Melliflous and contributors
 # License: MIT. See license.txt
-"""Who may open Quick Actions. Checked again inside every whitelisted method."""
+"""Who may open the apps-screen tiles. Checked again inside every whitelisted method."""
 
 from __future__ import annotations
 
 import frappe
 from frappe import _
+
+from melliflous_branding.distributors import can_open_distributor_360
 
 
 def can_show_quick_actions() -> bool:
@@ -15,6 +17,19 @@ def can_show_quick_actions() -> bool:
 	except Exception:
 		return False
 	return bool(user) and user != "Guest"
+
+
+def can_show_distributor_360() -> bool:
+	"""Distributor 360 tile. System Manager, Sales Manager, and Sales User only."""
+	try:
+		user = frappe.session.user
+	except Exception:
+		return False
+	try:
+		roles = frappe.get_roles(user)
+	except Exception:
+		roles = []
+	return can_open_distributor_360(user, roles)
 
 
 def require_system_manager() -> None:

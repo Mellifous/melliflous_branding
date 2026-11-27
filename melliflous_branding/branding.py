@@ -34,6 +34,7 @@ TILE_TONES: dict[str, str] = {
 	"GST": "red",
 	"GST India": "red",
 	"ERPNext": "brand",
+	"Distributor 360": "brand",
 }
 
 
