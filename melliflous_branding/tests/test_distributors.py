@@ -527,10 +527,10 @@ class TestDesk(unittest.TestCase):
 		self.assertEqual(tile["title"], "Distributor 360")
 		self.assertEqual(tile["route"], "/desk/distributor-360")
 		self.assertEqual(tile["has_permission"], "melliflous_branding.access.can_show_distributor_360")
-		self.assertEqual(tile["logo"], "/assets/melliflous_branding/images/distributor_360.svg")
-		logo = PACKAGE / "public" / "images" / "distributor_360.svg"
+		self.assertEqual(tile["logo"], "/assets/melliflous_branding/images/distributor_360.png")
+		logo = PACKAGE / "public" / "images" / "distributor_360.png"
 		self.assertTrue(logo.is_file())
-		self.assertIn("<svg", logo.read_text())
+		self.assertTrue(logo.read_bytes().startswith(b"\x89PNG"))
 		self.assertIn("Customer Primary Target", hooks.permission_query_conditions)
 		self.assertIn("melliflous_branding.target_records.refresh_primary_targets", hooks.scheduler_events["daily"])
 		self.assertIn("melliflous_branding.patches.v0_6.ensure_distributors", (PACKAGE / "patches.txt").read_text())
@@ -563,7 +563,7 @@ class TestDesk(unittest.TestCase):
 		self.assertEqual(tile["app_name"], "distributor_360")
 		self.assertEqual(tile["app_title"], "Distributor 360")
 		self.assertEqual(tile["app_route"], "/desk/distributor-360")
-		self.assertEqual(tile["app_logo_url"], "/assets/melliflous_branding/images/distributor_360.svg")
+		self.assertEqual(tile["app_logo_url"], "/assets/melliflous_branding/images/distributor_360.png")
 		self.assertTrue(tile["on_apps_screen"])
 		self.assertEqual(tile["dock"], [])
 		again = place_distributor_360_app(placed, "priya@example.com", ["Sales User"])

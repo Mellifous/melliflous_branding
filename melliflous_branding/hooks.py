@@ -21,7 +21,7 @@ add_to_apps_screen = [
 	},
 	{
 		"name": "distributor_360",
-		"logo": "/assets/melliflous_branding/images/distributor_360.svg",
+		"logo": "/assets/melliflous_branding/images/distributor_360.png",
 		"title": "Distributor 360",
 		"route": "/desk/distributor-360",
 		"has_permission": "melliflous_branding.access.can_show_distributor_360",
