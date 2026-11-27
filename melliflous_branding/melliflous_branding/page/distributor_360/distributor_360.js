@@ -5,7 +5,10 @@
 	const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 	const TABS = [
 		["invoices", "Invoices"],
+		["draft_invoices", "Draft invoices"],
 		["credit_notes", "Credit Notes"],
+		["quotations", "Quotations"],
+		["sales_orders", "Sales Orders"],
 		["payments", "Payments"],
 		["visits", "Visits"],
 		["statements", "Stock Statements"],
@@ -101,6 +104,8 @@
 				'<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3a9 9 0 1 0 .01 18.01A9 9 0 0 0 12 3m1 14v1h-2v-1c-1.7-.3-3-1.4-3-3h2c0 .6.7 1 2 1s2-.4 2-1-1-1-2.5-1.3C8.2 12.1 7 11 7 9.2 7 7.4 8.4 6.2 11 6V5h2v1c1.5.2 2.6 1.1 2.9 2.5h-2c-.2-.5-.6-.8-1.4-.8-1 0-1.5.4-1.5 1s.6.9 2.2 1.2C15.8 10.4 17 11.5 17 13.3c0 1.9-1.5 3.2-4 3.7"/></svg>',
 			visit:
 				'<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7m0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5"/></svg>',
+			quote:
+				'<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 4h9l5 5v11H6zm8 1.5V9h3.5zM8 13h8v2H8zm0 4h5v2H8z"/></svg>',
 		};
 		const node = el("span", "kpi-icon");
 		node.innerHTML = paths[name] || "";
@@ -169,6 +174,7 @@
 
 		const actions = el("div", "btn-row");
 		actions.appendChild(pill(__("New Visit"), "visit", () => openNew("Distributor Visit", { visit_date: frappe.datetime.get_today() })));
+		actions.appendChild(pill(__("New Quotation"), "quote", openQuotation));
 		actions.appendChild(
 			pill(__("New Stock Statement"), "stock", () =>
 				openNew("Distributor Stock Statement", { statement_month: frappe.datetime.month_start() })
@@ -283,6 +289,20 @@
 			frappe.new_doc(doctype);
 		}
 
+		function openQuotation() {
+			const customer = selectedDistributor();
+			if (!customer) {
+				show(__("Pick a distributor first."), true);
+				return;
+			}
+			frappe.route_options = {
+				quotation_to: "Customer",
+				party_name: customer,
+				company: selectedCompany() || (state && state.company) || "",
+			};
+			frappe.new_doc("Quotation");
+		}
+
 		function draw(data) {
 			body.replaceChildren();
 			const currency = data.currency || "";
@@ -290,6 +310,8 @@
 			const profile = data.profile;
 			body.appendChild(headerBand(data, profile));
 			body.appendChild(kpiRow(data, signals, currency));
+			body.appendChild(quotationPanel(data, currency));
+			body.appendChild(draftPanel((data.tabs || {}).draft_invoices || [], currency));
 			body.appendChild(targetCard(data, signals, currency));
 			body.appendChild(el("h2", "", __("Top products")));
 			body.appendChild(products(data.products || [], currency));
@@ -410,7 +432,75 @@
 					signals.visit_tone || "red"
 				)
 			);
+			const quotes = data.quotations || {};
+			grid.appendChild(
+				kpiCard(
+					"quote",
+					__("Quotations"),
+					quotes.count ? moneyText(quotes.total_value, currency) : __("No quotations yet"),
+					quotes.count ? "amber" : "neutral",
+					quotes.count
+						? __("{0} drafts · {1} submitted", [String(quotes.draft_count || 0), String(quotes.submitted_count || 0)])
+						: ""
+				)
+			);
 			return grid;
+		}
+
+		function quotationPanel(data, currency) {
+			const panel = el("section", "panel");
+			panel.appendChild(el("h2", "", __("Quotations")));
+			const quotes = data.quotations || {};
+			const pills = el("div", "qpill-row");
+			(quotes.pills || []).forEach((pillRow) => {
+				pills.appendChild(
+					el("span", `qpill tone-${pillRow.tone || "grey"}`, `${pillRow.status} ${pillRow.count}`)
+				);
+			});
+			if ((quotes.pills || []).length) panel.appendChild(pills);
+			const rows = (data.tabs || {}).quotations || [];
+			if (!rows.length) {
+				panel.appendChild(el("p", "hint", __("No quotations for this customer yet.")));
+				return panel;
+			}
+			panel.appendChild(docList(rows, currency));
+			return panel;
+		}
+
+		function draftPanel(rows, currency) {
+			const panel = el("section", "panel");
+			panel.appendChild(el("h2", "", __("Draft invoices — not counted")));
+			panel.appendChild(
+				el("p", "hint", __("Drafts are not included in primary, the target, or outstanding."))
+			);
+			if (!rows.length) {
+				panel.appendChild(el("p", "hint", __("No draft invoices.")));
+				return panel;
+			}
+			panel.appendChild(docList(rows, currency));
+			return panel;
+		}
+
+		function docList(rows, currency) {
+			const list = el("div");
+			rows.forEach((row) => {
+				const card = el("div", "melliflous-card");
+				const title = el("a", "who", row.name || __("Open"));
+				title.href = docHref(row.doctype, row.name);
+				title.addEventListener("click", (event) => {
+					event.preventDefault();
+					frappe.set_route("Form", row.doctype, row.name);
+				});
+				card.appendChild(title);
+				if (row.status) {
+					card.appendChild(el("span", `qpill tone-${row.tone || "grey"}`, row.status));
+				}
+				const bits = [prettyDate(row.date), row.text || ""];
+				if (row.amount != null) bits.push(moneyText(row.amount, currency));
+				card.appendChild(el("div", "meta", bits.filter(Boolean).join(" · ")));
+				list.appendChild(card);
+			});
+			return list;
 		}
 
 		function stockCard(data, signals, currency) {
@@ -567,7 +657,11 @@
 		function timeline(tabs, currency) {
 			const kinds = [
 				["invoices", "invoice", __("Invoice")],
+				["draft_invoices", "draft", __("Draft invoice")],
 				["credit_notes", "credit", __("Credit note")],
+				["quotations", "quotation", __("Quotation")],
+				["sales_orders", "order", __("Sales order")],
+				["payments", "payment", __("Payment")],
 				["visits", "visit", __("Visit")],
 				["complaints", "complaint", __("Complaint")],
 			];
@@ -583,7 +677,7 @@
 				list.appendChild(el("p", "hint", __("No visits, invoices, or complaints yet.")));
 				return list;
 			}
-			rows.slice(0, 12).forEach((entry) => {
+			rows.slice(0, 18).forEach((entry) => {
 				const item = el("div", `event kind-${entry.kind}`);
 				item.appendChild(el("span", "event-mark", entry.kindLabel.slice(0, 1)));
 				const copy = el("div");
@@ -725,6 +819,9 @@
 			if (tab === "statements") return __("No stock statement yet.");
 			if (tab === "complaints") return __("No complaints. That is a good month.");
 			if (tab === "payments") return __("No payments recorded yet.");
+			if (tab === "quotations") return __("No quotations for this customer yet.");
+			if (tab === "sales_orders") return __("No sales orders for this customer yet.");
+			if (tab === "draft_invoices") return __("No draft invoices.");
 			return "";
 		}
 
@@ -749,7 +846,9 @@
 				el(
 					"p",
 					"hint",
-					__("Visit marks are blue, invoices green, credit notes purple, and complaints red.")
+					__(
+						"Timeline: visits blue, invoices green, draft invoices grey, credit notes purple, quotations amber, sales orders teal, payments green, complaints red."
+					)
 				)
 			);
 			return box;

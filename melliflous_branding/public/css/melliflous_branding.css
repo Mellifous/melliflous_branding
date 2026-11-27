@@ -401,6 +401,7 @@ body.desktop-page .module-folder-app[data-melliflous-tone="brand"] .module-folde
 	cursor: pointer;
 }
 .melliflous-360 .pill.visit { background: #2f6fdb; }
+.melliflous-360 .pill.quote { background: #e07a1f; }
 .melliflous-360 .pill.stock { background: #0e8f8a; }
 .melliflous-360 .pill.complaint { background: #c0392b; }
 .melliflous-360 .pill.target { background: #1f9d55; }
@@ -563,8 +564,27 @@ body.desktop-page .module-folder-app[data-melliflous-tone="brand"] .module-folde
 }
 .melliflous-360 .kind-visit .event-mark { background: #2f6fdb; }
 .melliflous-360 .kind-invoice .event-mark { background: #1f9d55; }
+.melliflous-360 .kind-payment .event-mark { background: #1f9d55; }
+.melliflous-360 .kind-order .event-mark { background: #0e8f8a; }
+.melliflous-360 .kind-quotation .event-mark { background: #e07a1f; }
+.melliflous-360 .kind-draft .event-mark { background: #78716c; }
 .melliflous-360 .kind-complaint .event-mark { background: #c0392b; }
 .melliflous-360 .kind-credit .event-mark { background: #7a45c4; }
+.melliflous-360 .qpill-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+.melliflous-360 .qpill {
+	display: inline-block;
+	margin: 6px 8px 0 0;
+	padding: 3px 10px;
+	border-radius: 999px;
+	font-size: 0.8rem;
+	font-weight: 700;
+	background: #e7e5e4;
+	color: #44403c;
+}
+.melliflous-360 .qpill.tone-grey { background: #e7e5e4; color: #44403c; }
+.melliflous-360 .qpill.tone-blue { background: #e8f0fc; color: #1d4e89; }
+.melliflous-360 .qpill.tone-green { background: #e7f6ee; color: #135c36; }
+.melliflous-360 .qpill.tone-red { background: #fde8e8; color: #8d1d1d; }
 .melliflous-360 .legend-box {
 	margin-top: 20px;
 	padding: 12px 14px;

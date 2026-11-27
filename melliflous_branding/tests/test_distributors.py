@@ -35,8 +35,10 @@ from melliflous_branding.distributors import (
 	prefill_rows,
 	prepare_profile_values,
 	product_pace,
+	quote_tone,
 	received_by_item,
 	statement_period,
+	summarize_quotations,
 	target_suggestion,
 	trailing_months,
 	visit_tone,
@@ -347,6 +349,56 @@ class TestDashboard(unittest.TestCase):
 		self.assertEqual(with_target["signals"]["achievement_pct"], 50)
 		self.assertEqual(with_target["signals"]["primary_tone"], "red")
 
+	def test_quotations_sales_orders_and_draft_invoices(self):
+		self.assertEqual(quote_tone("Draft", 0), "grey")
+		self.assertEqual(quote_tone("Open", 1), "blue")
+		self.assertEqual(quote_tone("Ordered", 1), "green")
+		self.assertEqual(quote_tone("Lost", 1), "red")
+		self.assertEqual(quote_tone("Expired", 1), "red")
+		built = build_dashboard(
+			{
+				"customer": "AJ Traders",
+				"company": "Foods",
+				"currency": "INR",
+				"invoices": [
+					{"name": "SI-1", "posting_date": "2026-11-02", "amount": 1000, "is_return": 0, "company": "Foods", "docstatus": 1}
+				],
+				"draft_invoices": [
+					{"name": "SI-D", "posting_date": "2026-11-20", "amount": 9000, "is_return": 0, "company": "Foods", "docstatus": 0}
+				],
+				"quotations": [
+					{"name": "QTN-D", "transaction_date": "2026-11-01", "amount": 500, "status": "Draft", "docstatus": 0, "company": "Foods"},
+					{"name": "QTN-O", "transaction_date": "2026-11-05", "amount": 1500, "status": "Open", "docstatus": 1, "company": "Foods"},
+					{"name": "QTN-L", "transaction_date": "2026-10-01", "amount": 200, "status": "Lost", "docstatus": 1, "company": "Foods"},
+					{"name": "QTN-X", "transaction_date": "2026-09-01", "amount": 999, "status": "Cancelled", "docstatus": 2, "company": "Foods"},
+				],
+				"sales_orders": [
+					{"name": "SO-1", "transaction_date": "2026-11-08", "amount": 1500, "status": "To Deliver and Bill", "docstatus": 1, "company": "Foods"}
+				],
+				"payments": [
+					{"name": "PE-9", "posting_date": "2026-11-09", "amount": 400, "docstatus": 1, "company": "Foods"}
+				],
+			},
+			TODAY,
+		)
+		self.assertEqual(built["primary_mtd"], 1000)
+		quotes = built["quotations"]
+		self.assertEqual(quotes["draft_count"], 1)
+		self.assertEqual(quotes["submitted_count"], 2)
+		self.assertEqual(quotes["total_value"], 2200)
+		tones = {row["status"]: row["tone"] for row in quotes["pills"]}
+		self.assertEqual(tones["Draft"], "grey")
+		self.assertEqual(tones["Open"], "blue")
+		self.assertEqual(tones["Lost"], "red")
+		self.assertEqual(built["tabs"]["draft_invoices"][0]["text"], "Draft — not counted")
+		self.assertEqual(built["tabs"]["quotations"][0]["doctype"], "Quotation")
+		self.assertEqual(built["tabs"]["sales_orders"][0]["doctype"], "Sales Order")
+		self.assertEqual(built["tabs"]["payments"][0]["name"], "PE-9")
+		self.assertNotIn("SI-D", [row["name"] for row in built["tabs"]["invoices"]])
+		summary = summarize_quotations([])
+		self.assertEqual(summary["count"], 0)
+		self.assertEqual(summary["total_value"], 0)
+
 	def test_growth_changes_only_the_suggestion(self):
 		chart = [{"label": "Sep", "year": 2026, "primary": 100}, {"label": "Oct", "year": 2026, "primary": 100}, {"label": "Nov", "year": 2026, "primary": 100}]
 		base = target_suggestion(chart, TODAY, None)
@@ -546,6 +598,8 @@ class TestDesk(unittest.TestCase):
 		self.assertIn("Create Target", script)
 		self.assertIn("is-error", script)
 		self.assertIn("₹0 — no submitted invoices yet", script)
+		self.assertIn("New Quotation", script)
+		self.assertIn('frappe.new_doc("Quotation")', script)
 		self.assertIn("tone-green", (PACKAGE / "public" / "css" / "melliflous_branding.css").read_text())
 
 		workspace = json.loads((PACKAGE / "melliflous_branding" / "workspace" / "quick_actions" / "quick_actions.json").read_text())
