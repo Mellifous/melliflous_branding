@@ -9,7 +9,8 @@
    the whole desk session in v16, so rules that must only affect the home
    navbar name the .desktop-navbar. */
 
-.melliflous-company-switch {
+.melliflous-company-switch,
+.melliflous-division-switch {
 	-webkit-appearance: none;
 	appearance: none;
 	box-sizing: border-box;
@@ -34,7 +35,8 @@
 	touch-action: manipulation;
 }
 
-.melliflous-company-switch:focus {
+.melliflous-company-switch:focus,
+.melliflous-division-switch:focus {
 	outline: 2px solid var(--outline-gray-3, #8d99a6);
 	outline-offset: 1px;
 }
@@ -49,9 +51,11 @@
 .melliflous-context,
 .melliflous-context-navbar {
 	display: flex;
-	flex-wrap: wrap;
+	flex-wrap: nowrap;
 	align-items: center;
 	gap: 6px;
+	min-width: 0;
+	overflow: visible;
 }
 
 .melliflous-context-label {
@@ -75,8 +79,57 @@
 	white-space: nowrap;
 }
 
+.melliflous-context .melliflous-company-switch {
+	flex: 1 1 10rem;
+	width: 12rem;
+	min-width: 8rem;
+	max-width: 16rem;
+}
+
 .melliflous-division-switch {
-	max-width: 12rem;
+	display: inline-block;
+	flex: 0 0 auto;
+	width: 12rem;
+	min-width: 10rem;
+	max-width: 14rem;
+}
+
+/* The desk navbar is one short row and hides children that are not the home
+   logo or the title. The division control lives in this bar, so the bar has
+   to stay a single visible row or the second control is clipped to nothing. */
+body.desktop-page .desktop-navbar {
+	overflow: visible;
+	height: auto;
+	min-height: var(--desktop-navbar-height, 49px);
+}
+
+body.desktop-page .desktop-navbar > .melliflous-context.desktop-navbar-title,
+body.desktop-page header.navbar .melliflous-context,
+body.has-mobile-nav.desktop-page .desktop-navbar > .melliflous-context.desktop-navbar-title {
+	display: flex !important;
+	flex-wrap: nowrap !important;
+	align-items: center;
+	gap: 6px;
+	position: static !important;
+	left: auto !important;
+	right: auto !important;
+	width: auto !important;
+	max-width: none !important;
+	height: auto !important;
+	overflow: visible !important;
+	transform: none !important;
+	text-align: left !important;
+	visibility: visible !important;
+	opacity: 1 !important;
+}
+
+body.desktop-page .melliflous-division-switch,
+body.desktop-page .melliflous-division-label,
+body.desktop-page .melliflous-division-pill {
+	display: inline-flex !important;
+	visibility: visible !important;
+	flex: 0 0 auto;
+	opacity: 1 !important;
 }
 
 /* Wide home: Frappe hides .desktop-navbar-title. Show the company name, or the

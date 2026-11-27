@@ -11,11 +11,35 @@
 	}
 
 	const FALLBACK = "Melliflous Group";
+	const SWITCHER_STYLE_ID = "melliflous-context-style";
+	// Injected from the script because app_include_css stays cached, and the
+	// desk navbar hides or clips anything that is not the home logo or the title.
+	const SWITCHER_CSS = [
+		"body.desktop-page .desktop-navbar{overflow:visible;height:auto;min-height:var(--desktop-navbar-height,49px);}",
+		"body.desktop-page .melliflous-context{display:flex !important;flex-wrap:nowrap !important;align-items:center;gap:6px;position:static !important;left:auto !important;right:auto !important;width:auto !important;max-width:none !important;height:auto !important;overflow:visible !important;transform:none !important;visibility:visible !important;opacity:1 !important;}",
+		"body.desktop-page .melliflous-context .melliflous-company-switch{flex:1 1 10rem;width:12rem;min-width:8rem;max-width:16rem;}",
+		"body.desktop-page .melliflous-division-switch,body.desktop-page .melliflous-division-label,body.desktop-page .melliflous-division-pill{display:inline-flex !important;visibility:visible !important;flex:0 0 auto;opacity:1 !important;}",
+		"body.desktop-page select.melliflous-division-switch{width:12rem !important;min-width:10rem !important;max-width:14rem !important;}",
+	].join("");
 	let chosen = null;
 	let chosenDivision = null;
 	let select = null;
 	let divisionSelect = null;
 	let saving = false;
+	let divisionLoad = null;
+
+	function inject_switcher_style() {
+		if (document.getElementById(SWITCHER_STYLE_ID)) {
+			return;
+		}
+		const node = document.createElement("style");
+		node.id = SWITCHER_STYLE_ID;
+		node.textContent = SWITCHER_CSS;
+		document.head.appendChild(node);
+		if (frappe.dom && typeof frappe.dom.set_style === "function") {
+			frappe.dom.set_style(SWITCHER_CSS, SWITCHER_STYLE_ID);
+		}
+	}
 
 	function boot() {
 		return (frappe.boot && frappe.boot.melliflous_branding) || {};
@@ -116,7 +140,7 @@
 		if (select && select.isConnected) {
 			return select;
 		}
-		select = document.querySelector("select.melliflous-company-switch");
+		select = document.querySelector("select.melliflous-company-switch:not(.melliflous-division-switch)");
 		if (select) {
 			return select;
 		}
@@ -160,14 +184,44 @@
 			return divisionSelect;
 		}
 		divisionSelect = document.createElement("select");
-		divisionSelect.className = "melliflous-company-switch melliflous-division-switch";
+		divisionSelect.className = "melliflous-division-switch";
 		divisionSelect.setAttribute("aria-label", __("Division"));
 		divisionSelect.addEventListener("change", on_division);
 		return divisionSelect;
 	}
 
+	function same_company(left, right) {
+		return String(left || "").trim() === String(right || "").trim();
+	}
+
 	function divisions_for(company) {
-		return (boot().divisions || []).filter((row) => row && row.company === company);
+		return (boot().divisions || []).filter((row) => row && same_company(row.company, company));
+	}
+
+	function load_divisions(company) {
+		if (divisionLoad || !frappe.call) {
+			return;
+		}
+		divisionLoad = frappe
+			.call({
+				method: "melliflous_branding.division_records.desk_divisions",
+				args: { company: company || "" },
+			})
+			.then((response) => {
+				const message = (response && response.message) || {};
+				const data = boot();
+				data.divisions = message.divisions || [];
+				if (message.division) {
+					data.division = message.division;
+				}
+				if (frappe.boot) {
+					frappe.boot.melliflous_branding = data;
+				}
+				mount();
+			})
+			.catch(() => {
+				divisionLoad = null;
+			});
 	}
 
 	function fill_division(node, company) {
@@ -206,12 +260,15 @@
 		}
 		companyPill.textContent = company || __("Company");
 		companyPill.style.background = "#C8102E";
+		companyPill.hidden = true;
 		const rows = divisions_for(company);
 		const selected = divisionSelect ? divisionSelect.value : "";
 		const match = rows.find((row) => row.name === selected);
-		divisionPill.textContent = match ? match.division_name || match.name : __("Division");
+		divisionPill.textContent = match
+			? match.abbreviation || match.division_name || match.name
+			: __("Division");
 		divisionPill.style.background = (match && match.colour) || "#1F9D55";
-		divisionPill.hidden = !match;
+		divisionPill.hidden = false;
 	}
 
 	function save_context(company, division, previousCompany, previousDivision) {
@@ -285,9 +342,21 @@
 		});
 	}
 
+	function top_bar() {
+		return (
+			document.querySelector(".desktop-navbar") ||
+			document.querySelector("header.navbar .container") ||
+			document.querySelector("header.navbar")
+		);
+	}
+
 	function mount() {
+		inject_switcher_style();
 		const data = boot();
 		const companyNames = data.companies || [];
+		if (!(data.divisions || []).length) {
+			load_divisions(data.company || companyNames[0] || "");
+		}
 		if (!companyNames.length && !(data.divisions || []).length) {
 			if (select) {
 				select.remove();
@@ -305,18 +374,15 @@
 		fill_division(divisionNode, company);
 
 		const bar = context_bar(node, divisionNode, company);
-		if (is_home()) {
-			const navbar = document.querySelector(".desktop-navbar");
-			if (!navbar) {
-				return;
-			}
-			bar.classList.add("melliflous-context-navbar");
-			const home = navbar.querySelector(".navbar-home");
+		const navbar = top_bar();
+		if (navbar) {
+			bar.classList.add("melliflous-context-navbar", "desktop-navbar-title");
+			const home = navbar.querySelector(":scope > .navbar-home");
 			navbar.querySelectorAll("p.desktop-navbar-title").forEach((title) => title.remove());
 			if (home) {
 				home.after(bar);
 			} else if (bar.parentElement !== navbar) {
-				navbar.prepend(bar);
+				navbar.appendChild(bar);
 			}
 			clear_empty_slots(null);
 			refresh_title();
@@ -462,6 +528,7 @@
 	}
 
 	function start() {
+		inject_switcher_style();
 		install_title_hook();
 		ensure_pwa_tags();
 		schedule();
