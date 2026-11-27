@@ -600,7 +600,13 @@ class TestDesk(unittest.TestCase):
 		self.assertIn("₹0 — no submitted invoices yet", script)
 		self.assertIn("New Quotation", script)
 		self.assertIn('frappe.new_doc("Quotation")', script)
-		self.assertIn("tone-green", (PACKAGE / "public" / "css" / "melliflous_branding.css").read_text())
+		self.assertIn("frappe.dom.set_style", script)
+		self.assertIn("melliflous-distributor-360", script)
+		self.assertIn(".melliflous-360 .band", script)
+		self.assertIn('width="18" height="18"', script)
+		stylesheet = (PACKAGE / "public" / "css" / "melliflous_branding.css").read_text()
+		self.assertIn("tone-green", stylesheet)
+		self.assertIn(".melliflous-360 .band", stylesheet)
 
 		workspace = json.loads((PACKAGE / "melliflous_branding" / "workspace" / "quick_actions" / "quick_actions.json").read_text())
 		labels = [row["label"] for row in workspace["shortcuts"]]

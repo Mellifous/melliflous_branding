@@ -476,6 +476,12 @@ body.desktop-page .module-folder-app[data-melliflous-tone="brand"] .module-folde
 	background: #f4f1ee;
 	color: #6b1d2a;
 }
+.melliflous-360 svg {
+	width: 18px !important;
+	height: 18px !important;
+	max-width: 18px;
+	max-height: 18px;
+}
 .melliflous-360 .kpi-icon svg { width: 18px; height: 18px; }
 .melliflous-360 .kpi .detail {
 	margin-top: 4px;
