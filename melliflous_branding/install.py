@@ -15,8 +15,11 @@ def after_migrate():
 	from melliflous_branding.customer_records import ensure_customer_fields
 	from melliflous_branding.distributor_records import ensure_distributor_places
 	from melliflous_branding.division_records import ensure_divisions
+	from melliflous_branding.hsn_records import ensure_hsn_catalog
 	from melliflous_branding.invoice_admin_records import ensure_invoice_admin
+	from melliflous_branding.invoice_number_records import ensure_invoice_numbers
 	from melliflous_branding.raven_roles import grant_missing_raven_roles
+	from melliflous_branding.recipe_records import ensure_recipe_places
 	from melliflous_branding.simple_records import ensure_simple_desk
 	from melliflous_branding.target_records import ensure_target_places
 	from melliflous_branding.team_files import ensure_team_folders
@@ -28,7 +31,10 @@ def after_migrate():
 	ensure_simple_desk()
 	ensure_customer_fields()
 	ensure_invoice_admin()
+	ensure_invoice_numbers()
 	ensure_divisions()
+	ensure_recipe_places()
+	ensure_hsn_catalog()
 	try:
 		from melliflous_branding.quick_actions_workspace import remove_quick_actions_workspace
 

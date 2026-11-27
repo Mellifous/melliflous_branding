@@ -1,0 +1,234 @@
+{
+ "actions": [],
+ "autoname": "field:recipe_name",
+ "creation": "2026-11-27 18:00:00.000000",
+ "description": "A blend or a pack. Saving it writes a BOM. Convert Stock uses that BOM to move raw materials, packs, and the finished item.",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "recipe_name",
+  "company",
+  "division",
+  "column_break_main",
+  "is_active",
+  "item",
+  "item_name",
+  "qty",
+  "uom",
+  "process_loss_percentage",
+  "bom",
+  "ingredients_section",
+  "ingredients",
+  "packaging_section",
+  "packaging",
+  "sub_section",
+  "sub_assemblies",
+  "notes_section",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "recipe_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Recipe Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1
+  },
+  {
+   "fieldname": "division",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Division",
+   "link_filters": "[[\"Division\",\"company\",\"=\",\"eval:doc.company\"]]",
+   "options": "Division"
+  },
+  {
+   "fieldname": "column_break_main",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Active"
+  },
+  {
+   "fieldname": "item",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Finished Item",
+   "options": "Item",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "item.item_name",
+   "fieldname": "item_name",
+   "fieldtype": "Data",
+   "label": "Finished Item Name",
+   "read_only": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "qty",
+   "fieldtype": "Float",
+   "label": "Output Quantity",
+   "precision": "6",
+   "reqd": 1
+  },
+  {
+   "fieldname": "uom",
+   "fieldtype": "Link",
+   "label": "Output UOM",
+   "options": "UOM",
+   "reqd": 1
+  },
+  {
+   "description": "Extra raw spice on top of the percentages. 2% on a 1 kg blend consumes 1.02 kg of spices and still receives 1 kg. Packs and sub-recipes are not increased.",
+   "fieldname": "process_loss_percentage",
+   "fieldtype": "Percent",
+   "label": "Expected Process Loss %"
+  },
+  {
+   "fieldname": "bom",
+   "fieldtype": "Link",
+   "label": "BOM",
+   "options": "BOM",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ingredients_section",
+   "fieldtype": "Section Break",
+   "label": "Ingredients"
+  },
+  {
+   "fieldname": "ingredients",
+   "fieldtype": "Table",
+   "label": "Ingredients",
+   "options": "Recipe Ingredient"
+  },
+  {
+   "fieldname": "packaging_section",
+   "fieldtype": "Section Break",
+   "label": "Packaging"
+  },
+  {
+   "description": "Quantity used for the output quantity above. A recipe of 1 pouch uses 1 pouch and 1 label.",
+   "fieldname": "packaging",
+   "fieldtype": "Table",
+   "label": "Packaging",
+   "options": "Recipe Packaging"
+  },
+  {
+   "fieldname": "sub_section",
+   "fieldtype": "Section Break",
+   "label": "Sub-recipes"
+  },
+  {
+   "description": "A packed pouch consumes a bulk blend that was already made. The bulk recipe keeps its own BOM.",
+   "fieldname": "sub_assemblies",
+   "fieldtype": "Table",
+   "label": "Sub-recipes",
+   "options": "Recipe Sub Assembly"
+  },
+  {
+   "fieldname": "notes_section",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Notes"
+  }
+ ],
+ "links": [],
+ "modified": "2026-11-27 18:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Melliflous Branding",
+ "name": "Recipe",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "select": 1,
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Manufacturing Manager",
+   "select": 1,
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Stock Manager",
+   "select": 1,
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 0,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Manufacturing User",
+   "select": 1,
+   "write": 0
+  },
+  {
+   "create": 0,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Stock User",
+   "select": 1,
+   "write": 0
+  }
+ ],
+ "search_fields": "item,company,division",
+ "sort_field": "recipe_name",
+ "sort_order": "ASC",
+ "states": [],
+ "title_field": "recipe_name",
+ "track_changes": 1
+}

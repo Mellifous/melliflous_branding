@@ -31,12 +31,15 @@ DESK_ASSET_VERSION = "20261127e"
 app_include_css = [
 	f"/assets/melliflous_branding/css/melliflous_branding.css?v={DESK_ASSET_VERSION}",
 	f"/assets/melliflous_branding/css/desk_theme.css?v={DESK_ASSET_VERSION}",
+	f"/assets/melliflous_branding/css/recipes.css?v={DESK_ASSET_VERSION}",
 ]
 app_include_js = [
 	f"/assets/melliflous_branding/js/melliflous_branding.js?v={DESK_ASSET_VERSION}",
 	f"/assets/melliflous_branding/js/quick_actions.js?v={DESK_ASSET_VERSION}",
 	f"/assets/melliflous_branding/js/desk_tiles.js?v={DESK_ASSET_VERSION}",
 	f"/assets/melliflous_branding/js/desk_theme.js?v={DESK_ASSET_VERSION}",
+	# HSN warnings. Own file so the desk theme and invoice naming stay untouched.
+	"/assets/melliflous_branding/js/hsn_guard.js?v=20261127hsn",
 ]
 
 # Desk boot. sessions.get calls extend_bootinfo on every boot, including a
@@ -68,16 +71,24 @@ doc_events = {
 		"on_update": "melliflous_branding.customer_records.remember_billing_change",
 	},
 	"Sales Invoice": {
+		"before_insert": "melliflous_branding.invoice_number_records.prepare_invoice_number",
+		"autoname": "melliflous_branding.invoice_number_records.assign_invoice_number",
 		"validate": [
 			"melliflous_branding.customer_records.block_selling",
 			"melliflous_branding.division_records.apply_division",
+			"melliflous_branding.invoice_number_records.validate_invoice_number",
+			"melliflous_branding.hsn_records.validate_document",
 		],
+		"on_update": "melliflous_branding.invoice_number_records.sync_invoice_number",
 		"before_rename": "melliflous_branding.invoice_admin_records.guard_rename",
 		"after_rename": "melliflous_branding.invoice_admin_records.log_rename",
 		"on_trash": "melliflous_branding.invoice_admin_records.guard_delete",
 	},
 	"Purchase Invoice": {
-		"validate": "melliflous_branding.division_records.apply_division",
+		"validate": [
+			"melliflous_branding.division_records.apply_division",
+			"melliflous_branding.hsn_records.validate_document",
+		],
 		"before_rename": "melliflous_branding.invoice_admin_records.guard_rename",
 		"after_rename": "melliflous_branding.invoice_admin_records.log_rename",
 		"on_trash": "melliflous_branding.invoice_admin_records.guard_delete",
@@ -86,30 +97,42 @@ doc_events = {
 		"validate": [
 			"melliflous_branding.customer_records.block_selling",
 			"melliflous_branding.division_records.apply_division",
+			"melliflous_branding.hsn_records.validate_document",
 		]
 	},
 	"Quotation": {
 		"validate": [
 			"melliflous_branding.customer_records.block_selling",
 			"melliflous_branding.division_records.apply_division",
+			"melliflous_branding.hsn_records.validate_document",
 		]
 	},
 	"Delivery Note": {
 		"validate": [
 			"melliflous_branding.customer_records.block_selling",
 			"melliflous_branding.division_records.apply_division",
+			"melliflous_branding.hsn_records.validate_document",
 		]
 	},
 	"Payment Entry": {"validate": "melliflous_branding.division_records.apply_division"},
-	"Item": {"validate": "melliflous_branding.division_records.apply_division"},
+	"Item": {
+		"validate": [
+			"melliflous_branding.division_records.apply_division",
+			"melliflous_branding.hsn_records.validate_item",
+		]
+	},
 	"Purchase Order": {"validate": "melliflous_branding.division_records.apply_division"},
 	"CRM Lead": {"validate": "melliflous_branding.division_records.apply_division"},
 	"CRM Deal": {"validate": "melliflous_branding.division_records.apply_division"},
+	"Stock Entry": {"validate": "melliflous_branding.recipe_records.guard_recipe_stock"},
 }
 
 doctype_js = {
 	"Customer": "public/js/customer.js",
-	"Sales Invoice": "public/js/invoice_admin.js",
+	"Sales Invoice": [
+		"public/js/invoice_admin.js",
+		"public/js/invoice_number.js",
+	],
 	"Purchase Invoice": "public/js/invoice_admin.js",
 }
 doctype_list_js = {"Customer": "public/js/customer_list.js"}
@@ -124,8 +147,10 @@ fixtures = [
 			"Customer-custom_blocked_on",
 			"Customer-custom_documents_tab",
 			"Customer-custom_customer_documents",
+			"Sales Invoice-custom_invoice_no",
 		]]],
-	}
+	},
+	{"doctype": "HSN Category Map"},
 ]
 
 # Customer primary targets. The daily job rewrites achieved amount, gap, percent,

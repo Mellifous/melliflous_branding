@@ -114,6 +114,23 @@ New Sales Invoice, Quotation, and Payment Entry forms start on MIMT with today's
 
 The Quick Invoice page is a standard Page. The first deploy that runs migrate imports it. Until that migrate, the button is on screen and the address answers only after **Update Now**.
 
+## Sales Invoice numbers
+
+The **Invoice No** field is the first field on the Sales Invoice Details tab, including on a phone. That value is the document name, so it is the number GST and e-invoice use. It can be at most 16 characters: a letter or digit first, then letters, digits, `/` and `-`.
+
+A new invoice is filled with the next serial after the highest number already saved for that company and prefix. Drafts and cancelled invoices count, so a number is not issued twice. If you type a number that is already used, saving is refused: `Invoice no X is already used. Please change it (next free number: Y).` The next invoice then continues from the highest serial, including one you typed by hand.
+
+Numbers follow posting date. An earlier date cannot get a higher serial than a later date in the same series, and a later date cannot get a lower one. A back-dated invoice is offered a free number between the invoice before it and the invoice after it. If nothing fits, the form asks you to change the date. Cancelled invoices do not set that order, but their numbers stay taken. Drafts do set the order. Two people saving at once are serialized on that company and prefix; the second save is asked to change the number.
+
+**Configure the series.** Open Melliflous Settings → Invoice numbers. Add one row per company.
+
+- **Prefix.** The start of the number, such as `MIMT/26-27/`. Leave it blank to keep using the Sales Invoice naming series. `ACC-SINV-.YYYY.-` becomes `ACC-SINV-2026-`, and the serial is shortened so the full number stays within 16 characters (`ACC-SINV-2026-01` up to `ACC-SINV-2026-99`). Set a shorter prefix when that book is too small.
+- **Starting number.** The first number to issue when nothing higher is saved yet. If the old billing software stopped at 150, enter **151**. Leave 0 to start at 1. Once an invoice uses a higher serial, the next one is one past that serial.
+
+Credit notes use the same prefix, so a credit note cannot collide with a tax invoice. Submitted invoices stay on the number they were saved with. An Invoice Admin can still rename those from the menu. A draft can be changed from Invoice No; that renames the document.
+
+The field is created on migrate (`ensure_invoice_numbers`). Until that migrate, new invoices keep ERPNext's own naming series.
+
 ## Simple desk
 
 Melliflous Simple Mode is on unless an admin turns it off. Nothing is deleted and no core file is edited. A hidden page still opens from its address.
@@ -218,6 +235,53 @@ Sales Manager and System Manager can create and edit every distributor record, a
 
 The Melliflous Branding sidebar lists Distributor 360, Distributor Visits, Stock Statements, Complaints, and Distributor Follow-up. Team Chat, Team Files, and the customer-target links stay where they were. On migrate, the same links are put back if they are missing. The patch `ensure_distributors` imports the DocTypes, the page, and the report once for a site that already had the app.
 
+## Recipes and Convert Stock
+
+A recipe is how the plant turns raw spices, a bulk blend, and packs into a finished item. Saving a recipe writes a standard ERPNext **BOM**. **Convert Stock** writes a **Stock Entry** and, when you press Convert, submits it. Raw materials and packs leave the source warehouse. The finished item enters the target warehouse. ERPNext values the finished item from the materials that were consumed.
+
+Open **Recipes** at `/desk/recipes`. The same links are on the **Recipes** workspace and, after Update Now, on the Melliflous Branding sidebar.
+
+**Write a blend.** Name the recipe, pick the company and division, and pick the finished item (create the Item first; this app does not create items). Set the output quantity and its UOM. Use the item's stock UOM. **By percent**, each ingredient is a share of that output before loss, and the percentages have to add up to 100. A 2% expected process loss on a 1 kg blend puts 1.02 kg of spices on the BOM and still receives 1 kg, so the loss sits in the cost. **By quantity**, type the amount you will consume, including loss. Packs are per the output quantity: a recipe of 1 pouch uses 1 pouch and 1 label. Process loss does not add extra pouches.
+
+**Pack a pouch from a bulk blend.** Save the bulk recipe first. On the pouch recipe, add that recipe as a sub-recipe and add the pouch, carton, and label. Converting the pouch consumes the bulk item that is already in stock. It does not grind the spices again. The BOM keeps the sub-recipe's BOM number so the multi-level recipe is visible, and the stock entry does not explode it.
+
+A blend of raw spices is a Stock Entry of type **Manufacture**. A recipe with no raw spices, only a sub-recipe and packs, is **Repack**. Both roll the material value into the finished item.
+
+**Convert.** Open `/desk/convert-stock`. Pick the company, division, recipe, and the quantity to produce. Add one or more source warehouses. Stock is taken from the first, then the next. Pick the target warehouse for the finished goods. The page shows, for each ingredient and pack, what the recipe needs, what is in stock, and the shortfall in red, plus the estimated cost and the cost per unit. Change **Actual qty** when the floor used a different amount. Lower **Actual output** when the batch came out short. Batch no, manufacturing date, and expiry date are optional unless the item tracks batches; a new finished-goods batch is created, and a raw-material batch has to exist already.
+
+**Convert** submits the stock entry. **Save as draft** leaves it unsubmitted, including when stock is short. If something is short, Convert stays blocked. A Manufacturing Manager or a System Manager can tick **Convert despite short stock** and convert anyway. Anyone else cannot. If the company does not allow negative stock, ERPNext can still refuse that entry. Cancelling the stock entry puts the stock back. **Undo this conversion** does that, and only for someone who is allowed to cancel a Stock Entry. It does not delete the document. A user without Delete does not gain Delete.
+
+**Read the register.** Production / Conversion Register filters by company, division, recipe, and date. Each row has the planned quantity, the actual output, yield %, the expected loss %, the actual loss % (how far the spices consumed moved from the loss-free blend), loss versus expected, the total cost, and the cost per unit. Cancelled entries stay hidden unless Include cancelled is ticked. Yield under 100% is amber. Loss above the recipe is red.
+
+The recipe stores the company and the division. The BOM and the stock entry get both. Manufacturing stays hidden in simple mode; use Recipes and Convert Stock instead of the Manufacturing workspace.
+
+No real blend is loaded with the app. Items, warehouses, and recipes are entered on the site.
+
+## HSN and GST checks
+
+Open **HSN Audit** at `/desk/hsn-audit`, or the HSN Audit report on Item. The page lists every enabled item whose HSN or item tax template looks wrong, with the suggested code. Tick the rows and **Apply selected**. Only a System Manager can apply them, and nothing is written until that button is pressed. Ambiguous rows start unticked. Migrate fills **HSN Category Map** and does not change Item.
+
+Saving an Item, Sales Invoice, Purchase Invoice, Quotation, Sales Order, or Delivery Note opens one dialog when something looks off. **Apply and save** on an Item writes the suggestion onto the form. **Save anyway** leaves the document as it is. The save is blocked only when a quantity or rate is negative, a GSTIN fails its format or check digit, or an HSN on a selling or purchase document contains letters or an impossible length. A missing HSN is a warning, so a draft can still be saved.
+
+The dialog is one list, with 16px type and 44px buttons, and it uses the full width on a phone. E-invoice and e-way bill stay manual. This check does not turn those automatic flags on. An e-way bill above the limit is a warning only.
+
+What it warns about:
+
+| Check | What it says |
+| --- | --- |
+| HSN | Missing, not 6 or 8 digits, not in the GST HSN master, or not the code for that product. 6 digits are the minimum above Rs 5 crore turnover (Notification 78/2020-Central Tax). |
+| Tax template | The item tax rate is not the GST rate for that HSN. |
+| Tax type | IGST on a supply inside the company's state, or CGST/SGST on a supply to another state. A Bihar to Bihar supply is CGST and SGST. |
+| GSTIN | Missing on a registered or company customer, wrong check digit, or the state code does not match the billing address. |
+| Rate | Zero, below valuation, or more than 20% under the price list rate. |
+| Quantity | Zero, or the same item on two rows. Negative quantity or rate blocks the save. |
+| Date | In the future, or in an earlier GST month (monthly GSTR-1 is due on the 11th). |
+| E-way bill | Total above Rs 50,000, or above Rs 1,00,000 when the supply starts and ends in Bihar, and no e-way bill number. Quotation and Sales Order are not checked. |
+| Address | No billing address, or no place of supply. |
+| UOM | Row UOM differs from the stock UOM and the conversion is missing or 1. |
+
+Rates are from Notification 9/2025-Central Tax (Rate) and Notification 10/2025-Central Tax (Rate), both dated 17 September 2025, effective 22 September 2025. Spice headings 0904 to 0910, pasta and vermicelli (1902), sauces (2103), soya bari (21061000) and soya flour (12081000) are 5%. Besan, sattu and atta are 5% when pre-packaged and labelled, and nil when sold loose. Garam masala is suggested as ground spice mixture 09109100. Sunkeera products are suggested as food supplements 21069099, not pan masala 21069020. Kitchen king, curry powder, and other wellness names that are not Sunkeera stay ambiguous. Every suggestion, including these two, is written onto an item only when someone ticks the row and presses Apply.
+
 ## v16 details that shaped this
 
 - The home header title is hidden on a wide desk and shown only on the phone tab-bar layout. The company name is shown in that header on a wide desk as well, because otherwise the replacement would only be visible on a phone and in the tab.
@@ -243,7 +307,7 @@ The bench group needs the app, then the site needs it installed. Order:
 7. Open the site **melliflous** (`melliflous.m.frappe.cloud`) and install the app `melliflous_branding` from the site's app list. Frappe is already on the bench. `required_apps` is only `frappe`, so ERPNext, HRMS, CRM, and India Compliance do not have to be named for the install to succeed.
 8. Hard-refresh `https://melliflous.m.frappe.cloud/desk`. On iPhone Safari, use Add to Home Screen from that URL, not from the login page.
 
-The app is already on private bench group **bench-52993**. For a later change that is already on `main`: open that bench group, **Deploy** so the bench picks up the commit, then on the site **melliflous** press **Update Now**. Update Now runs migrate, which loads new pages, the Quick Actions workspace, and the sidebar, creates **Home/Team Files** if it is missing, gives Raven User to enabled desk users when that role exists, creates Customer Primary Target plus the Target vs Achievement report, and creates the distributor profile, visit, stock statement, complaint, Distributor 360 page, and Distributor Follow-up report. Hard-refresh `/desk` after it finishes.
+The app is already on private bench group **bench-52993**. For a later change that is already on `main`: open that bench group, **Deploy** so the bench picks up the commit, then on the site **melliflous** press **Update Now**. Update Now runs migrate, which loads new pages, the Quick Actions workspace, and the sidebar, creates **Home/Team Files** if it is missing, gives Raven User to enabled desk users when that role exists, creates Customer Primary Target plus the Target vs Achievement report, and creates the distributor profile, visit, stock statement, complaint, Distributor 360 page, and Distributor Follow-up report. It also loads Recipes, Convert Stock, and the Production / Conversion Register, and adds the recipe fields on Stock Entry and BOM. Hard-refresh `/desk` after it finishes.
 
 Confirm the site file `/files/melliflous_icon_512.png` is public. That is the icon the manifest and the apple touch link ask iOS to use.
 
@@ -252,11 +316,16 @@ To remove it: on the site, uninstall `melliflous_branding`, then remove the app 
 ## Develop
 
 ```bash
-python -m unittest melliflous_branding.tests.test_branding melliflous_branding.tests.test_quick melliflous_branding.tests.test_files melliflous_branding.tests.test_targets melliflous_branding.tests.test_distributors melliflous_branding.tests.test_desk
+python -m unittest melliflous_branding.tests.test_branding melliflous_branding.tests.test_quick melliflous_branding.tests.test_files melliflous_branding.tests.test_targets melliflous_branding.tests.test_distributors melliflous_branding.tests.test_desk melliflous_branding.tests.test_invoice_number melliflous_branding.tests.test_invoice_admin melliflous_branding.tests.test_hsn_guard melliflous_branding.tests.test_recipes
 node --check melliflous_branding/public/js/melliflous_branding.js
 node --check melliflous_branding/public/js/quick_actions.js
 node --check melliflous_branding/public/js/desk_tiles.js
 node --check melliflous_branding/public/js/desk_theme.js
+node --check melliflous_branding/public/js/invoice_admin.js
+node --check melliflous_branding/public/js/invoice_number.js
+node --check melliflous_branding/public/js/hsn_guard.js
+node --check melliflous_branding/melliflous_branding/page/hsn_audit/hsn_audit.js
+node --check melliflous_branding/melliflous_branding/report/hsn_audit/hsn_audit.js
 node --check melliflous_branding/melliflous_branding/page/team_files/team_files.js
 node --check melliflous_branding/melliflous_branding/page/distributor_360/distributor_360.js
 node --check melliflous_branding/melliflous_branding/page/quick_invoice/quick_invoice.js
@@ -269,6 +338,11 @@ node --check melliflous_branding/melliflous_branding/doctype/distributor_complai
 node --check melliflous_branding/melliflous_branding/doctype/distributor_complaint/distributor_complaint_list.js
 node --check melliflous_branding/melliflous_branding/report/customer_target_vs_achievement/customer_target_vs_achievement.js
 node --check melliflous_branding/melliflous_branding/report/distributor_follow_up/distributor_follow_up.js
+node --check melliflous_branding/melliflous_branding/page/recipes/recipes.js
+node --check melliflous_branding/melliflous_branding/page/convert_stock/convert_stock.js
+node --check melliflous_branding/melliflous_branding/doctype/recipe/recipe.js
+node --check melliflous_branding/melliflous_branding/report/production_conversion_register/production_conversion_register.js
+python -m unittest melliflous_branding.tests.test_recipes
 ```
 
 The unit tests cover the title, who sees the picker, User Permission filtering, tile colours, the head tags, and the target rules (periods, credit notes, overlap, the report total, and who can see a row). They do not need a site. A full `bench` install was not run in the environment this was built in: Frappe v16 requires Python 3.14, and that image was not available there.
@@ -279,9 +353,11 @@ Hooks:
 | --- | --- |
 | `add_to_apps_screen` | Distributor 360 is the only entry. The apps grid copies that first entry. Quick Actions is not declared. |
 | `extend_bootinfo` and `boot_session` | Companies, the current default, whether to show the picker, the tone map, the Distributor 360 row, and the simple-desk filter on `boot.app_data`, the sidebar, and the dock. Simple mode stays on when Melliflous Settings does not exist yet. |
-| `app_include_css` / `app_include_js` | Switcher, title, tile colours, and `desk_theme.js`. The theme script injects `<style id="melliflous-desk-theme">` so a cached stylesheet still updates. Asset URLs carry a version query. |
+| `app_include_css` / `app_include_js` | Switcher, title, tile colours, `desk_theme.js`, recipe styles, and `hsn_guard.js`. The theme script injects `<style id="melliflous-desk-theme">` so a cached stylesheet still updates. Asset URLs carry a version query (`20261127e` for the desk theme, `20261127hsn` for the HSN script). |
 | `after_request` | Apple touch icon, manifest link, and `apple-mobile-web-app-title` on `/desk` HTML. |
-| `after_install` / `after_migrate` | Create Home/Team Files if it is missing. On migrate, grant Raven User to enabled desk users when that role exists, add the target links to Selling and CRM when those modules exist, and put the distributor links back on the Melliflous Branding sidebar if they are missing. Migrate also deletes the Quick Actions workspace this app created. | |
+| `after_install` / `after_migrate` | Create Home/Team Files if it is missing. On migrate, grant Raven User to enabled desk users when that role exists, add the target links to Selling and CRM when those modules exist, and put the distributor links back on the Melliflous Branding sidebar if they are missing. Migrate also deletes the Quick Actions workspace this app created, creates the invoice-number series and the HSN Category Map, and adds the recipe fields plus the Recipes sidebar links. |
+| `doc_events` Sales Invoice | Assigns the invoice number, checks it is free and in date order, and warns when the HSN or GST treatment looks wrong. The same HSN check runs on Purchase Invoice, Quotation, Sales Order, Delivery Note, and Item. |
+| `doc_events` Stock Entry `validate` | A submitted recipe conversion is refused when stock is short, unless a Manufacturing Manager or System Manager has confirmed. |
 | `doc_events` File `before_validate` | A file saved into Team Files is forced private. |
 | `scheduler_events` daily | Refresh achieved amount, gap, percent, and status on every Customer Primary Target. |
 | `permission_query_conditions` / `has_permission` | A Sales User reads only the targets they own, and only the distributors assigned to them. Sales Manager and System Manager read all of them. |

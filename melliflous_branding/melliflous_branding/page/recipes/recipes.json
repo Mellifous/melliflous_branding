@@ -1,0 +1,17 @@
+{
+ "doctype": "Page",
+ "icon": "book-open",
+ "module": "Melliflous Branding",
+ "name": "recipes",
+ "page_name": "recipes",
+ "roles": [
+  {"role": "System Manager"},
+  {"role": "Manufacturing Manager"},
+  {"role": "Manufacturing User"},
+  {"role": "Stock Manager"},
+  {"role": "Stock User"}
+ ],
+ "standard": "Yes",
+ "system_page": 0,
+ "title": "Recipes"
+}

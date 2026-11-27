@@ -1,0 +1,48 @@
+{
+ "actions": [],
+ "creation": "2026-11-27 18:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "company",
+  "prefix",
+  "starting_number"
+ ],
+ "fields": [
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1
+  },
+  {
+   "description": "Start of the invoice number, such as MIMT/26-27/. Letters, numbers, / and - only. Leave blank to use the Sales Invoice naming series. The whole number stays within 16 characters.",
+   "fieldname": "prefix",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Prefix"
+  },
+  {
+   "description": "First number to issue when this series has nothing higher yet. Use this to continue from the old billing software: if the last old bill was 150, enter 151. Leave 0 to start at 1. A later invoice in ERPNext still wins: the next number is one past the highest serial already used.",
+   "fieldname": "starting_number",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Starting number",
+   "non_negative": 1
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-11-27 18:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Melliflous Branding",
+ "name": "Sales Invoice Series",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "idx",
+ "sort_order": "ASC",
+ "states": []
+}

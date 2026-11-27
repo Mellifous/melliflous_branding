@@ -1,0 +1,118 @@
+/* Recipe and Convert Stock. Phone first: large type, tall buttons, short stock in red. */
+.melliflous-recipe .intro,
+.melliflous-convert .intro {
+	margin: 8px 0 0;
+	color: var(--ink-gray-7, #4b5563);
+}
+.melliflous-recipe .pct,
+.melliflous-convert .yield {
+	margin-top: 12px;
+	font-weight: 700;
+}
+.melliflous-recipe .pct.is-bad,
+.melliflous-convert .is-short,
+.melliflous-convert .short {
+	color: #8d1d1d;
+}
+.melliflous-recipe .pct.is-ok {
+	color: #135c36;
+}
+.melliflous-recipe .line-card,
+.melliflous-convert .line-card,
+.melliflous-convert .recent-card {
+	margin-top: 12px;
+	padding: 14px;
+	border: 1px solid var(--border-color, #e5e7eb);
+	border-radius: 14px;
+	background: var(--surface-base, #fff);
+}
+.melliflous-convert .line-card.is-short {
+	border-color: #e7b4b4;
+	background: #fde8e8;
+}
+.melliflous-recipe .line-card h3,
+.melliflous-convert .line-card h3,
+.melliflous-convert .recent-card h3 {
+	margin: 0 0 8px;
+	font-size: 1.05rem;
+}
+.melliflous-convert .stats {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 8px;
+	margin-top: 8px;
+}
+.melliflous-convert .stats .stat {
+	padding: 8px 10px;
+	border-radius: 10px;
+	background: rgba(255, 255, 255, 0.7);
+}
+.melliflous-convert .stats .label {
+	font-size: 0.85rem;
+	color: var(--ink-gray-7, #4b5563);
+}
+.melliflous-convert .stats .value {
+	font-size: 1.15rem;
+	font-weight: 700;
+}
+.melliflous-recipe .mode {
+	display: flex;
+	gap: 8px;
+	margin-top: 8px;
+}
+.melliflous-recipe .mode .btn,
+.melliflous-convert .btn-convert,
+.melliflous-convert .btn-draft,
+.melliflous-convert .btn-undo,
+.melliflous-recipe .btn-save {
+	min-height: 56px;
+	font-size: 1.05rem;
+}
+.melliflous-convert .btn-convert,
+.melliflous-convert .btn-draft,
+.melliflous-convert .btn-undo,
+.melliflous-recipe .btn-save {
+	width: 100%;
+	margin-top: 12px;
+}
+.melliflous-recipe .mode .btn {
+	flex: 1 1 0;
+}
+.melliflous-recipe .mode .btn.is-on {
+	background: #7a0019;
+	color: #fff;
+	border-color: #7a0019;
+}
+.melliflous-convert .confirm {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	min-height: 48px;
+	margin-top: 12px;
+	font-size: 16px;
+}
+.melliflous-convert .confirm input {
+	width: 22px;
+	height: 22px;
+}
+.melliflous-recipe input.form-control,
+.melliflous-convert input.form-control {
+	min-height: 48px;
+	font-size: 16px;
+	width: 100%;
+}
+.melliflous-convert .totals {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 8px;
+	margin-top: 16px;
+}
+.melliflous-convert .totals .total {
+	padding: 12px;
+	border-radius: 12px;
+	background: #fff6f7;
+}
+.melliflous-convert .totals .value {
+	font-size: 1.35rem;
+	font-weight: 700;
+}
