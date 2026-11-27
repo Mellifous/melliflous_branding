@@ -1,0 +1,129 @@
+{
+ "charts": [],
+ "content": "[{\"id\": \"rc1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Recipes\", \"col\": 12}}, {\"id\": \"rc2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Convert Stock\", \"col\": 12}}, {\"id\": \"rc3\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Recipe\", \"col\": 12}}, {\"id\": \"rc4\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Production / Conversion Register\", \"col\": 12}}]",
+ "creation": "2026-11-27 18:00:00",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "package",
+ "is_hidden": 0,
+ "label": "Recipes",
+ "links": [
+  {
+   "type": "Card Break",
+   "label": "Recipes",
+   "hidden": 0,
+   "is_query_report": 0,
+   "link_count": 0,
+   "onboard": 0
+  },
+  {
+   "type": "Link",
+   "label": "Recipes",
+   "link_type": "Page",
+   "link_to": "recipes",
+   "hidden": 0,
+   "is_query_report": 0,
+   "link_count": 0,
+   "onboard": 0,
+   "dependencies": ""
+  },
+  {
+   "type": "Link",
+   "label": "Convert Stock",
+   "link_type": "Page",
+   "link_to": "convert-stock",
+   "hidden": 0,
+   "is_query_report": 0,
+   "link_count": 0,
+   "onboard": 0,
+   "dependencies": ""
+  },
+  {
+   "type": "Link",
+   "label": "Recipe",
+   "link_type": "DocType",
+   "link_to": "Recipe",
+   "hidden": 0,
+   "is_query_report": 0,
+   "link_count": 0,
+   "onboard": 0,
+   "dependencies": ""
+  },
+  {
+   "type": "Link",
+   "label": "Production / Conversion Register",
+   "link_type": "Report",
+   "link_to": "Production Conversion Register",
+   "hidden": 0,
+   "is_query_report": 1,
+   "link_count": 0,
+   "onboard": 0,
+   "dependencies": ""
+  }
+ ],
+ "module": "Melliflous Branding",
+ "name": "Recipes",
+ "owner": "Administrator",
+ "restrict_to_domain": "",
+ "roles": [
+  {"role": "System Manager"},
+  {"role": "Manufacturing Manager"},
+  {"role": "Manufacturing User"},
+  {"role": "Stock Manager"},
+  {"role": "Stock User"}
+ ],
+ "sequence_id": 14.0,
+ "shortcuts": [
+  {
+   "color": "",
+   "doc_view": "",
+   "icon": "book-open",
+   "label": "Recipes",
+   "link_to": "recipes",
+   "type": "Page",
+   "url": "",
+   "stats_filter": "",
+   "format": ""
+  },
+  {
+   "color": "",
+   "doc_view": "",
+   "icon": "repeat",
+   "label": "Convert Stock",
+   "link_to": "convert-stock",
+   "type": "Page",
+   "url": "",
+   "stats_filter": "",
+   "format": ""
+  },
+  {
+   "color": "",
+   "doc_view": "List",
+   "icon": "scroll-text",
+   "label": "Recipe",
+   "link_to": "Recipe",
+   "type": "DocType",
+   "url": "",
+   "stats_filter": "",
+   "format": ""
+  },
+  {
+   "color": "",
+   "doc_view": "",
+   "icon": "chart-column",
+   "label": "Production / Conversion Register",
+   "link_to": "Production Conversion Register",
+   "type": "Report",
+   "url": "",
+   "stats_filter": "",
+   "format": "",
+   "report_ref_doctype": "Stock Entry"
+  }
+ ],
+ "standard": 1,
+ "title": "Recipes",
+ "type": "Workspace"
+}

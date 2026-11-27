@@ -1,0 +1,17 @@
+{
+ "doctype": "Page",
+ "icon": "repeat",
+ "module": "Melliflous Branding",
+ "name": "convert-stock",
+ "page_name": "convert-stock",
+ "roles": [
+  {"role": "System Manager"},
+  {"role": "Manufacturing Manager"},
+  {"role": "Manufacturing User"},
+  {"role": "Stock Manager"},
+  {"role": "Stock User"}
+ ],
+ "standard": "Yes",
+ "system_page": 0,
+ "title": "Convert Stock"
+}

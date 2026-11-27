@@ -214,6 +214,28 @@ Sales Manager and System Manager can create and edit every distributor record, a
 
 Quick Actions and the Melliflous Branding sidebar list Distributor 360, Distributor Visits, Stock Statements, Complaints, and Distributor Follow-up. Team Chat, Team Files, and the customer-target links stay where they were. On migrate, the same links are put back if they are missing. The patch `ensure_distributors` imports the DocTypes, the page, and the report once for a site that already had the app.
 
+## Recipes and Convert Stock
+
+A recipe is how the plant turns raw spices, a bulk blend, and packs into a finished item. Saving a recipe writes a standard ERPNext **BOM**. **Convert Stock** writes a **Stock Entry** and, when you press Convert, submits it. Raw materials and packs leave the source warehouse. The finished item enters the target warehouse. ERPNext values the finished item from the materials that were consumed.
+
+Open **Recipes** at `/desk/recipes`. The same links are on the **Recipes** workspace and, after Update Now, on the Melliflous Branding sidebar.
+
+**Write a blend.** Name the recipe, pick the company and division, and pick the finished item (create the Item first; this app does not create items). Set the output quantity and its UOM. Use the item's stock UOM. **By percent**, each ingredient is a share of that output before loss, and the percentages have to add up to 100. A 2% expected process loss on a 1 kg blend puts 1.02 kg of spices on the BOM and still receives 1 kg, so the loss sits in the cost. **By quantity**, type the amount you will consume, including loss. Packs are per the output quantity: a recipe of 1 pouch uses 1 pouch and 1 label. Process loss does not add extra pouches.
+
+**Pack a pouch from a bulk blend.** Save the bulk recipe first. On the pouch recipe, add that recipe as a sub-recipe and add the pouch, carton, and label. Converting the pouch consumes the bulk item that is already in stock. It does not grind the spices again. The BOM keeps the sub-recipe's BOM number so the multi-level recipe is visible, and the stock entry does not explode it.
+
+A blend of raw spices is a Stock Entry of type **Manufacture**. A recipe with no raw spices, only a sub-recipe and packs, is **Repack**. Both roll the material value into the finished item.
+
+**Convert.** Open `/desk/convert-stock`. Pick the company, division, recipe, and the quantity to produce. Add one or more source warehouses. Stock is taken from the first, then the next. Pick the target warehouse for the finished goods. The page shows, for each ingredient and pack, what the recipe needs, what is in stock, and the shortfall in red, plus the estimated cost and the cost per unit. Change **Actual qty** when the floor used a different amount. Lower **Actual output** when the batch came out short. Batch no, manufacturing date, and expiry date are optional unless the item tracks batches; a new finished-goods batch is created, and a raw-material batch has to exist already.
+
+**Convert** submits the stock entry. **Save as draft** leaves it unsubmitted, including when stock is short. If something is short, Convert stays blocked. A Manufacturing Manager or a System Manager can tick **Convert despite short stock** and convert anyway. Anyone else cannot. If the company does not allow negative stock, ERPNext can still refuse that entry. Cancelling the stock entry puts the stock back. **Undo this conversion** does that, and only for someone who is allowed to cancel a Stock Entry. It does not delete the document. A user without Delete does not gain Delete.
+
+**Read the register.** Production / Conversion Register filters by company, division, recipe, and date. Each row has the planned quantity, the actual output, yield %, the expected loss %, the actual loss % (how far the spices consumed moved from the loss-free blend), loss versus expected, the total cost, and the cost per unit. Cancelled entries stay hidden unless Include cancelled is ticked. Yield under 100% is amber. Loss above the recipe is red.
+
+The recipe stores the company and the division. The BOM and the stock entry get both. Manufacturing stays hidden in simple mode; use Recipes and Convert Stock instead of the Manufacturing workspace.
+
+No real blend is loaded with the app. Items, warehouses, and recipes are entered on the site.
+
 ## v16 details that shaped this
 
 - The home header title is hidden on a wide desk and shown only on the phone tab-bar layout. The company name is shown in that header on a wide desk as well, because otherwise the replacement would only be visible on a phone and in the tab.
@@ -239,7 +261,7 @@ The bench group needs the app, then the site needs it installed. Order:
 7. Open the site **melliflous** (`melliflous.m.frappe.cloud`) and install the app `melliflous_branding` from the site's app list. Frappe is already on the bench. `required_apps` is only `frappe`, so ERPNext, HRMS, CRM, and India Compliance do not have to be named for the install to succeed.
 8. Hard-refresh `https://melliflous.m.frappe.cloud/desk`. On iPhone Safari, use Add to Home Screen from that URL, not from the login page.
 
-The app is already on private bench group **bench-52993**. For a later change that is already on `main`: open that bench group, **Deploy** so the bench picks up the commit, then on the site **melliflous** press **Update Now**. Update Now runs migrate, which loads new pages, the Quick Actions workspace, and the sidebar, creates **Home/Team Files** if it is missing, gives Raven User to enabled desk users when that role exists, creates Customer Primary Target plus the Target vs Achievement report, and creates the distributor profile, visit, stock statement, complaint, Distributor 360 page, and Distributor Follow-up report. Hard-refresh `/desk` after it finishes.
+The app is already on private bench group **bench-52993**. For a later change that is already on `main`: open that bench group, **Deploy** so the bench picks up the commit, then on the site **melliflous** press **Update Now**. Update Now runs migrate, which loads new pages, the Quick Actions workspace, and the sidebar, creates **Home/Team Files** if it is missing, gives Raven User to enabled desk users when that role exists, creates Customer Primary Target plus the Target vs Achievement report, and creates the distributor profile, visit, stock statement, complaint, Distributor 360 page, and Distributor Follow-up report. It also loads Recipes, Convert Stock, and the Production / Conversion Register, and adds the recipe fields on Stock Entry and BOM. Hard-refresh `/desk` after it finishes.
 
 Confirm the site file `/files/melliflous_icon_512.png` is public. That is the icon the manifest and the apple touch link ask iOS to use.
 
@@ -265,6 +287,11 @@ node --check melliflous_branding/melliflous_branding/doctype/distributor_complai
 node --check melliflous_branding/melliflous_branding/doctype/distributor_complaint/distributor_complaint_list.js
 node --check melliflous_branding/melliflous_branding/report/customer_target_vs_achievement/customer_target_vs_achievement.js
 node --check melliflous_branding/melliflous_branding/report/distributor_follow_up/distributor_follow_up.js
+node --check melliflous_branding/melliflous_branding/page/recipes/recipes.js
+node --check melliflous_branding/melliflous_branding/page/convert_stock/convert_stock.js
+node --check melliflous_branding/melliflous_branding/doctype/recipe/recipe.js
+node --check melliflous_branding/melliflous_branding/report/production_conversion_register/production_conversion_register.js
+python -m unittest melliflous_branding.tests.test_recipes
 ```
 
 The unit tests cover the title, who sees the picker, User Permission filtering, tile colours, the head tags, and the target rules (periods, credit notes, overlap, the report total, and who can see a row). They do not need a site. A full `bench` install was not run in the environment this was built in: Frappe v16 requires Python 3.14, and that image was not available there.
@@ -277,7 +304,8 @@ Hooks:
 | `extend_bootinfo` and `boot_session` | Companies, the current default, whether to show the picker, the tone map, the Distributor 360 row, and the simple-desk filter on `boot.app_data`, the sidebar, and the dock. Simple mode stays on when Melliflous Settings does not exist yet. |
 | `app_include_css` / `app_include_js` | Switcher, title, tile colours, and `desk_theme.js`. The theme script injects `<style id="melliflous-desk-theme">` so a cached stylesheet still updates. Asset URLs carry a version query. |
 | `after_request` | Apple touch icon, manifest link, and `apple-mobile-web-app-title` on `/desk` HTML. |
-| `after_install` / `after_migrate` | Create Home/Team Files if it is missing. On migrate, grant Raven User to enabled desk users when that role exists, add the target links to Selling and CRM when those modules exist, and put the distributor links back on Quick Actions and the Melliflous Branding sidebar if they are missing. |
+| `after_install` / `after_migrate` | Create Home/Team Files if it is missing. On migrate, grant Raven User to enabled desk users when that role exists, add the target links to Selling and CRM when those modules exist, put the distributor links back on Quick Actions and the Melliflous Branding sidebar if they are missing, and add the recipe fields plus the Recipes sidebar links. |
+| `doc_events` Stock Entry `validate` | A submitted recipe conversion is refused when stock is short, unless a Manufacturing Manager or System Manager has confirmed. |
 | `doc_events` File `before_validate` | A file saved into Team Files is forced private. |
 | `scheduler_events` daily | Refresh achieved amount, gap, percent, and status on every Customer Primary Target. |
 | `permission_query_conditions` / `has_permission` | A Sales User reads only the targets they own, and only the distributors assigned to them. Sales Manager and System Manager read all of them. |

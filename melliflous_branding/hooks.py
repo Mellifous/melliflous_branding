@@ -38,6 +38,7 @@ DESK_ASSET_VERSION = "20261127c"
 app_include_css = [
 	f"/assets/melliflous_branding/css/melliflous_branding.css?v={DESK_ASSET_VERSION}",
 	f"/assets/melliflous_branding/css/desk_theme.css?v={DESK_ASSET_VERSION}",
+	f"/assets/melliflous_branding/css/recipes.css?v={DESK_ASSET_VERSION}",
 ]
 app_include_js = [
 	f"/assets/melliflous_branding/js/melliflous_branding.js?v={DESK_ASSET_VERSION}",
@@ -112,6 +113,7 @@ doc_events = {
 	"Purchase Order": {"validate": "melliflous_branding.division_records.apply_division"},
 	"CRM Lead": {"validate": "melliflous_branding.division_records.apply_division"},
 	"CRM Deal": {"validate": "melliflous_branding.division_records.apply_division"},
+	"Stock Entry": {"validate": "melliflous_branding.recipe_records.guard_recipe_stock"},
 }
 
 doctype_js = {
