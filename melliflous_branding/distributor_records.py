@@ -741,9 +741,36 @@ def dashboard(customer, company=None, growth_pct=None):
 	if not company:
 		frappe.throw(_("Pick a company."))
 	try:
-		return build_dashboard(fetch_bundle(customer, company, profile), getdate(frappe.utils.today()), growth_pct)
+		bundle = fetch_bundle(customer, company, profile)
+		bundle["current_target"] = _current_month_target(customer, company)
+		return build_dashboard(bundle, getdate(frappe.utils.today()), growth_pct)
 	except DistributorError as exc:
 		_throw(exc)
+
+
+def _current_month_target(customer, company):
+	"""Whole-customer primary target for this month, if a Sales Manager has set one."""
+	if not frappe.db.table_exists("Customer Primary Target"):
+		return None
+	start = statement_period(getdate(frappe.utils.today()))[0]
+	rows = frappe.get_all(
+		"Customer Primary Target",
+		filters={
+			"customer": customer,
+			"company": company,
+			"period_type": "Monthly",
+			"from_date": start,
+		},
+		fields=["name", "target_amount", "item_group", "brand"],
+		limit_page_length=20,
+		ignore_permissions=True,
+	)
+	whole = [row for row in rows if not row.item_group and not row.brand]
+	chosen = (whole or rows)[:1]
+	if not chosen:
+		return None
+	row = chosen[0]
+	return {"name": row.name, "target_amount": row.target_amount}
 
 
 @frappe.whitelist()

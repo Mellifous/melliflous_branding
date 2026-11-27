@@ -42,13 +42,19 @@ frappe.query_reports["Distributor Follow-up"] = {
 			return default_formatter(value, row, column, data);
 		}
 		const formatted = default_formatter(value, row, column, data);
-		if (column.fieldname === "achievement_pct" && data.achievement_pct != null && Number(data.achievement_pct) < 70) {
-			return `<span class="indicator-pill red">${formatted}</span>`;
+		const tones = {
+			achievement_pct: data.achievement_tone,
+			days_since_order: data.order_tone,
+			next_visit_due: data.visit_tone,
+			overdue_amount: data.overdue_tone,
+			reasons: data.row_tone,
+		};
+		const tone = tones[column.fieldname];
+		if (!tone || tone === "neutral") {
+			return formatted;
 		}
-		if (column.fieldname === "reasons" && data.reasons) {
-			const text = frappe.utils.escape_html ? frappe.utils.escape_html(String(data.reasons)) : formatted;
-			return `<span class="text-danger">${text}</span>`;
-		}
-		return formatted;
+		const colour = { green: "green", amber: "orange", red: "red" }[tone] || "gray";
+		const text = formatted || "—";
+		return `<span class="indicator-pill ${colour}">${text}</span>`;
 	},
 };
