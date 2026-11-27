@@ -116,6 +116,24 @@ Sales Manager and System Manager can create, edit, and delete every target, and 
 
 Quick Actions has both shortcuts, and so does the Melliflous Branding sidebar. On migrate, the same two links are added to the Selling sidebar and the CRM sidebar (the CRM module is FCRM) when those modules exist. On an older desk that still opens the workspace page, they are added to the Selling and CRM workspaces as well. That step does not pin those workspaces, so a later ERPNext update can still refresh them, and the links are put back on the next migrate.
 
+## Distributors
+
+A distributor is an ERPNext Customer with one Distributor Profile. The profile holds the company, the account manager (a User), the salesman (a Sales Person, a User, or both), the territory and area, how many counters they serve, and how often they are visited. Weekly adds 7 days to the last visit, fortnightly adds 14, and monthly adds one month (31 January becomes the last day of February). Next visit due stays empty until the first visit is filed. There is one profile per customer.
+
+**Log a visit.** Distributor Visit is the phone form. Pick the distributor, the date, and who went. The stock-on-hand table is item, quantity, UOM, and an optional batch written on the pack. Record the order as an amount, a Sales Order, or both, plus how many counters were visited and the next follow-up. Saving the visit sets the profile's last visit to the latest visit date and recomputes the next visit due. Deleting a visit does the same from the visits that remain.
+
+**File the month's secondary sales.** Distributor Stock Statement is one per distributor, company, and month. Pick any day in the month. Fill Items copies last month's closing stock into opening, and fills primary received from submitted Sales Invoices for that month. A credit note is subtracted, whether ERPNext stored the quantity as negative or positive. Secondary sales is what the distributor sold onward. Closing stock is opening plus primary received minus secondary sales. Tick Edit closing to keep a figure you typed; untick it and the formula is used again. Leave Keep this opening unticked to keep using last month's closing. Value is closing quantity times the rate. An item that closed at zero and was not billed this month is left off the fill, so the list does not grow forever.
+
+**Record a complaint.** Type is Quality, Damage, Short Supply, Expiry, Pricing, or Other. Item, batch, and quantity are optional. Description is required. Attach photos of the pack or the bill. Status runs Open, In Progress, Resolved, Closed. Assigned To starts as the account manager. The credit note has to be a submitted Sales Invoice with Is Return ticked, for the same customer.
+
+**Read one distributor.** Distributor 360 (`/desk/distributor-360`) asks for the customer and the company. It shows the last billing date and amount, primary for this month, the last 3 months, and the last 12 months (net total before GST, credit notes subtracted), secondary sales and closing stock from the latest statement, counters, the last visit, days since the last order, open complaints, and the outstanding receivable. The chart is primary against secondary for 12 months. A month with no stock statement has no secondary bar. Below that are the top products, the product-mix share by month, and the buying pattern: orders in 12 months, average order value, average days between orders, and orders per month. The suggested target for next month is the average primary of the last three calendar months, including the month in progress, times one plus the growth percent. Growth starts at 10. Create Target asks you to confirm, then creates or updates the Customer Primary Target for that customer and company for next month, with no item group and no brand. Only a Sales Manager or a System Manager can press it. The tabs list recent invoices, credit notes, payments, visits, stock statements, and complaints, each opening the document. New Visit, New Stock Statement, and New Complaint are on the page. If a call fails, the message is written on the page.
+
+**Chase the book.** Distributor Follow-up lists distributors that need a person: no visit yet or the next visit is before today, no order yet or no order in the last X days (30 unless you change it; an order exactly X days ago is still inside the window), a current-month primary target under 70%, an open complaint (Open or In Progress), or an overdue receivable. Filter by company, account manager, or sales person, and by one of those reasons. Inactive distributors are hidden unless Include inactive is ticked, and a visit is not chased for them. The current-month whole-customer target is the one that counts; if there is only an item-group target, the lowest percent is used.
+
+Sales Manager and System Manager can create and edit every distributor record, and they can open 360 for any customer. A Sales User can read a profile, and can create and edit visits, stock statements, and complaints, only when they are that profile's account manager, salesman, or the Sales Person linked to their Employee. They keep a record they created if the profile is later moved to someone else, as long as they do not change the distributor. They cannot create or delete profiles. 360 and the follow-up report use the same rule, so a salesman does not open another account's billing.
+
+Quick Actions and the Melliflous Branding sidebar list Distributor 360, Distributor Visits, Stock Statements, Complaints, and Distributor Follow-up. Team Chat, Team Files, and the customer-target links stay where they were. On migrate, the same links are put back if they are missing. The patch `ensure_distributors` imports the DocTypes, the page, and the report once for a site that already had the app.
+
 ## v16 details that shaped this
 
 - The home header title is hidden on a wide desk and shown only on the phone tab-bar layout. The company name is shown in that header on a wide desk as well, because otherwise the replacement would only be visible on a phone and in the tab.
@@ -141,7 +159,7 @@ The bench group needs the app, then the site needs it installed. Order:
 7. Open the site **melliflous** (`melliflous.m.frappe.cloud`) and install the app `melliflous_branding` from the site's app list. Frappe is already on the bench. `required_apps` is only `frappe`, so ERPNext, HRMS, CRM, and India Compliance do not have to be named for the install to succeed.
 8. Hard-refresh `https://melliflous.m.frappe.cloud/desk`. On iPhone Safari, use Add to Home Screen from that URL, not from the login page.
 
-The app is already on private bench group **bench-52993**. For a later change that is already on `main`: open that bench group, **Deploy** so the bench picks up the commit, then on the site **melliflous** press **Update Now**. Update Now runs migrate, which loads new pages, the Quick Actions workspace, and the sidebar, creates **Home/Team Files** if it is missing, gives Raven User to enabled desk users when that role exists, and creates Customer Primary Target plus the Target vs Achievement report. Hard-refresh `/desk` after it finishes.
+The app is already on private bench group **bench-52993**. For a later change that is already on `main`: open that bench group, **Deploy** so the bench picks up the commit, then on the site **melliflous** press **Update Now**. Update Now runs migrate, which loads new pages, the Quick Actions workspace, and the sidebar, creates **Home/Team Files** if it is missing, gives Raven User to enabled desk users when that role exists, creates Customer Primary Target plus the Target vs Achievement report, and creates the distributor profile, visit, stock statement, complaint, Distributor 360 page, and Distributor Follow-up report. Hard-refresh `/desk` after it finishes.
 
 Confirm the site file `/files/melliflous_icon_512.png` is public. That is the icon the manifest and the apple touch link ask iOS to use.
 
@@ -150,14 +168,21 @@ To remove it: on the site, uninstall `melliflous_branding`, then remove the app 
 ## Develop
 
 ```bash
-python -m unittest melliflous_branding.tests.test_branding melliflous_branding.tests.test_quick melliflous_branding.tests.test_files melliflous_branding.tests.test_targets
+python -m unittest melliflous_branding.tests.test_branding melliflous_branding.tests.test_quick melliflous_branding.tests.test_files melliflous_branding.tests.test_targets melliflous_branding.tests.test_distributors
 node --check melliflous_branding/public/js/melliflous_branding.js
 node --check melliflous_branding/public/js/quick_actions.js
 node --check melliflous_branding/public/js/desk_tiles.js
 node --check melliflous_branding/melliflous_branding/page/team_files/team_files.js
+node --check melliflous_branding/melliflous_branding/page/distributor_360/distributor_360.js
 node --check melliflous_branding/melliflous_branding/doctype/customer_primary_target/customer_primary_target.js
 node --check melliflous_branding/melliflous_branding/doctype/customer_primary_target/customer_primary_target_list.js
+node --check melliflous_branding/melliflous_branding/doctype/distributor_profile/distributor_profile.js
+node --check melliflous_branding/melliflous_branding/doctype/distributor_visit/distributor_visit.js
+node --check melliflous_branding/melliflous_branding/doctype/distributor_stock_statement/distributor_stock_statement.js
+node --check melliflous_branding/melliflous_branding/doctype/distributor_complaint/distributor_complaint.js
+node --check melliflous_branding/melliflous_branding/doctype/distributor_complaint/distributor_complaint_list.js
 node --check melliflous_branding/melliflous_branding/report/customer_target_vs_achievement/customer_target_vs_achievement.js
+node --check melliflous_branding/melliflous_branding/report/distributor_follow_up/distributor_follow_up.js
 ```
 
 The unit tests cover the title, who sees the picker, User Permission filtering, tile colours, the head tags, and the target rules (periods, credit notes, overlap, the report total, and who can see a row). They do not need a site. A full `bench` install was not run in the environment this was built in: Frappe v16 requires Python 3.14, and that image was not available there.
@@ -169,10 +194,10 @@ Hooks:
 | `app_include_css` / `app_include_js` | Switcher, title, and tile colours inside the desk. |
 | `extend_bootinfo` and `boot_session` | Companies, the current default, whether to show the picker, and the tone map. |
 | `after_request` | Apple touch icon, manifest link, and `apple-mobile-web-app-title` on `/desk` HTML. |
-| `after_install` / `after_migrate` | Create Home/Team Files if it is missing. On migrate, grant Raven User to enabled desk users when that role exists, and add the target links to Selling and CRM when those modules exist. |
+| `after_install` / `after_migrate` | Create Home/Team Files if it is missing. On migrate, grant Raven User to enabled desk users when that role exists, add the target links to Selling and CRM when those modules exist, and put the distributor links back on Quick Actions and the Melliflous Branding sidebar if they are missing. |
 | `doc_events` File `before_validate` | A file saved into Team Files is forced private. |
 | `scheduler_events` daily | Refresh achieved amount, gap, percent, and status on every Customer Primary Target. |
-| `permission_query_conditions` / `has_permission` | A Sales User reads only the targets they own. Sales Manager and System Manager read all of them. |
+| `permission_query_conditions` / `has_permission` | A Sales User reads only the targets they own, and only the distributors assigned to them. Sales Manager and System Manager read all of them. |
 | `melliflous_branding.api.set_default_company` | Whitelisted POST. Writes the user default `company`. |
 | `melliflous_branding.team_files` | Whitelisted list, upload, download, and delete. Each one requires a desk user and stays inside Home/Team Files. |
 | `melliflous_branding.target_records` | Whitelisted month bounds, the bulk target list, and saving a month of targets. Sales Manager or System Manager only, for the bulk save. |

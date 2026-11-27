@@ -1,0 +1,138 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-11-27 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "item",
+  "item_name",
+  "uom",
+  "opening_qty",
+  "opening_edited",
+  "primary_qty",
+  "secondary_qty",
+  "closing_qty",
+  "closing_edited",
+  "rate",
+  "currency",
+  "closing_value",
+  "secondary_value"
+ ],
+ "fields": [
+  {
+   "fieldname": "item",
+   "fieldtype": "Link",
+   "label": "Item",
+   "options": "Item",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fetch_from": "item.item_name",
+   "fieldname": "item_name",
+   "fieldtype": "Data",
+   "label": "Item Name",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fetch_from": "item.stock_uom",
+   "fieldname": "uom",
+   "fieldtype": "Link",
+   "label": "UOM",
+   "options": "UOM"
+  },
+  {
+   "default": "0",
+   "fieldname": "opening_qty",
+   "fieldtype": "Float",
+   "label": "Opening",
+   "in_list_view": 1,
+   "non_negative": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "opening_edited",
+   "fieldtype": "Check",
+   "label": "Keep this opening",
+   "description": "Leave unticked to use last month's closing stock."
+  },
+  {
+   "default": "0",
+   "fieldname": "primary_qty",
+   "fieldtype": "Float",
+   "label": "Primary Received",
+   "in_list_view": 1,
+   "read_only": 1,
+   "description": "Submitted sales invoices for this month, with credit notes subtracted."
+  },
+  {
+   "default": "0",
+   "fieldname": "secondary_qty",
+   "fieldtype": "Float",
+   "label": "Secondary Sales",
+   "in_list_view": 1,
+   "non_negative": 1
+  },
+  {
+   "fieldname": "closing_qty",
+   "fieldtype": "Float",
+   "label": "Closing Stock",
+   "in_list_view": 1,
+   "description": "Opening + primary received - secondary sales, unless Edit closing is ticked."
+  },
+  {
+   "default": "0",
+   "fieldname": "closing_edited",
+   "fieldtype": "Check",
+   "label": "Edit closing",
+   "description": "Tick this to keep a closing figure you typed. Untick it and the formula is used again."
+  },
+  {
+   "fieldname": "rate",
+   "fieldtype": "Currency",
+   "label": "Rate",
+   "options": "currency",
+   "non_negative": 1,
+   "description": "Price used to value the closing stock."
+  },
+  {
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "closing_value",
+   "fieldtype": "Currency",
+   "label": "Value",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "secondary_value",
+   "fieldtype": "Currency",
+   "label": "Secondary Value",
+   "options": "currency",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-11-27 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Melliflous Branding",
+ "name": "Distributor Stock Statement Item",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "sort_field": "idx",
+ "sort_order": "ASC",
+ "states": [],
+ "track_changes": 1,
+ "istable": 1,
+ "editable_grid": 1
+}

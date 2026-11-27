@@ -1,0 +1,259 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-11-27 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "distributor",
+  "distributor_name",
+  "distributor_profile",
+  "column_break_head",
+  "company",
+  "statement_month",
+  "from_date",
+  "to_date",
+  "period_key",
+  "currency",
+  "items_section",
+  "items",
+  "totals_section",
+  "total_opening_qty",
+  "total_primary_qty",
+  "total_secondary_qty",
+  "column_break_totals",
+  "total_secondary_value",
+  "total_closing_qty",
+  "total_closing_value",
+  "notes_section",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "default": "DSS-.YYYY.-",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "options": "DSS-.YYYY.-",
+   "reqd": 1,
+   "hidden": 1,
+   "no_copy": 1,
+   "set_only_once": 1
+  },
+  {
+   "fieldname": "distributor",
+   "fieldtype": "Link",
+   "label": "Distributor",
+   "options": "Customer",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "search_index": 1
+  },
+  {
+   "fetch_from": "distributor.customer_name",
+   "fieldname": "distributor_name",
+   "fieldtype": "Data",
+   "label": "Distributor Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "distributor_profile",
+   "fieldtype": "Link",
+   "label": "Distributor Profile",
+   "options": "Distributor Profile",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "column_break_head",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "statement_month",
+   "fieldtype": "Date",
+   "label": "Month",
+   "reqd": 1,
+   "in_list_view": 1,
+   "description": "Any day in the month. One statement per distributor, company, and month."
+  },
+  {
+   "fieldname": "from_date",
+   "fieldtype": "Date",
+   "label": "From Date",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "to_date",
+   "fieldtype": "Date",
+   "label": "To Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "period_key",
+   "fieldtype": "Data",
+   "label": "Period Key",
+   "unique": 1,
+   "hidden": 1,
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fetch_from": "company.default_currency",
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "items_section",
+   "fieldtype": "Section Break",
+   "label": "Items"
+  },
+  {
+   "fieldname": "items",
+   "fieldtype": "Table",
+   "label": "Items",
+   "options": "Distributor Stock Statement Item",
+   "description": "Quantities are in the item's stock UOM. Fill Items copies last month's closing and this month's invoices."
+  },
+  {
+   "fieldname": "totals_section",
+   "fieldtype": "Section Break",
+   "label": "Totals"
+  },
+  {
+   "fieldname": "total_opening_qty",
+   "fieldtype": "Float",
+   "label": "Opening Qty",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "total_primary_qty",
+   "fieldtype": "Float",
+   "label": "Primary Received Qty",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "total_secondary_qty",
+   "fieldtype": "Float",
+   "label": "Secondary Qty",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "column_break_totals",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "total_secondary_value",
+   "fieldtype": "Currency",
+   "label": "Secondary Value",
+   "options": "currency",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "total_closing_qty",
+   "fieldtype": "Float",
+   "label": "Closing Qty",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "total_closing_value",
+   "fieldtype": "Currency",
+   "label": "Closing Value",
+   "options": "currency",
+   "read_only": 1,
+   "no_copy": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "notes_section",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-11-27 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Melliflous Branding",
+ "name": "Distributor Stock Statement",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "select": 1,
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales Manager",
+   "select": 1,
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "import": 0,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales User",
+   "select": 1,
+   "share": 0,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "from_date",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1,
+ "allow_import": 1,
+ "autoname": "naming_series:",
+ "naming_rule": "By \"Naming Series\" field",
+ "description": "Monthly secondary sales. Opening comes from last month's closing. Primary received comes from submitted sales invoices. Closing is opening + received - secondary, and it can be edited.",
+ "search_fields": "distributor_name",
+ "title_field": "distributor_name"
+}

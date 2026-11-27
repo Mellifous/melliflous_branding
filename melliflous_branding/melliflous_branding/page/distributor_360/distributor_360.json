@@ -1,0 +1,21 @@
+{
+ "doctype": "Page",
+ "icon": "users",
+ "module": "Melliflous Branding",
+ "name": "distributor-360",
+ "page_name": "distributor-360",
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Sales Manager"
+  },
+  {
+   "role": "Sales User"
+  }
+ ],
+ "standard": "Yes",
+ "system_page": 1,
+ "title": "Distributor 360"
+}
