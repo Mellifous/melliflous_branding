@@ -7,6 +7,10 @@
  "field_order": [
   "simple_mode",
   "simple_help",
+  "invoice_section",
+  "invoice_admin_users",
+  "allow_auto_einvoice",
+  "invoice_help",
   "workspace_restore"
  ],
  "fields": [
@@ -23,6 +27,30 @@
    "options": "<p>System Manager and Administrator can also press <b>Full desk</b> on the navbar. That shows every module for them only, and leaves this switch on for the rest of the team. A hidden page can still be opened from its address.</p>"
   },
   {
+   "fieldname": "invoice_section",
+   "fieldtype": "Section Break",
+   "label": "Invoices"
+  },
+  {
+   "description": "These users, and Administrator, may rename or delete Sales Invoices and Purchase Invoices. Saving this form gives them the Invoice Admin role. Add the desk user here. The email address alone does not grant access.",
+   "fieldname": "invoice_admin_users",
+   "fieldtype": "Table",
+   "label": "Invoice Admin Users",
+   "options": "Invoice Admin User"
+  },
+  {
+   "default": "0",
+   "description": "Leave this off. e-Invoice and e-Way Bill stay available from the buttons on a submitted Sales Invoice, and are not generated or cancelled automatically. Tick this only if automatic generation should be allowed again.",
+   "fieldname": "allow_auto_einvoice",
+   "fieldtype": "Check",
+   "label": "Allow auto e-Invoice/e-Way Bill"
+  },
+  {
+   "fieldname": "invoice_help",
+   "fieldtype": "HTML",
+   "options": "<p>Generate e-Invoice and Generate e-Waybill stay on submitted Sales Invoices for an Invoice Admin or a System Manager. Other users do not see those buttons, and they cannot rename or delete an invoice.</p>"
+  },
+  {
    "fieldname": "workspace_restore",
    "fieldtype": "Long Text",
    "hidden": 1,
@@ -32,7 +60,7 @@
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-11-27 00:00:00.000000",
+ "modified": "2026-11-27 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Melliflous Branding",
  "name": "Melliflous Settings",

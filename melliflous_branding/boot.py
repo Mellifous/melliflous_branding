@@ -53,6 +53,12 @@ def boot_session(bootinfo):
 		apply_simple_boot(bootinfo)
 	except Exception:
 		frappe.logger("melliflous_branding").exception("Could not apply the simple desk")
+	try:
+		from melliflous_branding.invoice_admin_records import apply_invoice_boot
+
+		apply_invoice_boot(bootinfo)
+	except Exception:
+		frappe.logger("melliflous_branding").exception("Could not apply invoice admin")
 
 
 def branding_boot() -> dict:
