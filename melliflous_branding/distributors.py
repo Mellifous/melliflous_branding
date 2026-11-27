@@ -11,6 +11,12 @@ from __future__ import annotations
 import json
 from datetime import date, timedelta
 
+from melliflous_branding.customer_compliance import (
+	ComplianceError,
+	clean_billing_status,
+	document_summary,
+	present_documents,
+)
 from melliflous_branding.targets import MONTHS, as_date, as_flag, clean_text, month_bounds, signed_amount
 
 VISIT_FREQUENCIES = ("Weekly", "Fortnightly", "Monthly")
@@ -28,6 +34,11 @@ WRITE_PTYPES = frozenset({"read", "write", "create", "report", "export", "print"
 VISIT_IDENTITY = ("owner", "salesman")
 STATEMENT_IDENTITY = ("owner",)
 COMPLAINT_IDENTITY = ("owner", "assigned_to")
+BENEFIT_IDENTITY = ("owner",)
+BENEFIT_TYPES = ("Gift", "Incentive", "Scheme", "Discount")
+BENEFIT_STATUSES = ("Planned", "Given")
+HISTORY_PRESETS = ("This month", "3M", "6M", "12M", "FY", "All")
+COMPARE_PRICE_LISTS = ("Classic Distributor", "Classic Retailer", "Classic MRP", "Standard Selling")
 GROWTH_DEFAULT = 10.0
 GROWTH_FACTOR_DEFAULT = 1.10
 DEFAULT_TARGET_AMOUNT = 0.0
@@ -924,6 +935,8 @@ def build_dashboard(bundle, today, growth_pct=GROWTH_DEFAULT, settings=None) -> 
 		"overdue_tone": overdue_tone(overdue_amount),
 		"no_submitted_invoices": no_submitted,
 	}
+	documents = present_documents(bundle.get("documents"), today)
+	billing_status = clean_billing_status(bundle.get("billing_status") or "Active")
 	return {
 		"customer": customer,
 		"customer_name": clean_text(bundle.get("customer_name")) or customer,
@@ -955,6 +968,10 @@ def build_dashboard(bundle, today, growth_pct=GROWTH_DEFAULT, settings=None) -> 
 		"open_complaints": open_complaints,
 		"outstanding": outstanding,
 		"overdue_amount": overdue_amount,
+		"billing_status": billing_status,
+		"block_reason": "" if billing_status == "Active" else clean_text(bundle.get("block_reason")),
+		"documents": documents,
+		"document_summary": document_summary(documents),
 		"chart": chart,
 		"suggestion": target_suggestion(chart, today, growth_pct),
 		"recommendation": recommendation,
@@ -1567,6 +1584,11 @@ def _mis_row(profile, facts, today, month_keys, settings) -> dict:
 		pct = round(primary_mtd / target_amount * 100, 2) if target_amount else None
 	last_billing = as_date(facts.get("last_billing"))
 	days_since = None if not last_billing else (today - last_billing).days
+	try:
+		billing_status = clean_billing_status(facts.get("billing_status") or "Active")
+	except ComplianceError:
+		billing_status = "Active"
+	documents = present_documents(facts.get("documents"), today)
 	return {
 		"distributor": customer,
 		"name": clean_text(_field(profile, "customer_name")) or customer,
@@ -1598,10 +1620,13 @@ def _mis_row(profile, facts, today, month_keys, settings) -> dict:
 		"recommendation_basis": recommendation["basis"],
 		"target_source": clean_text(facts.get("target_source")) or None,
 		"target_name": clean_text(facts.get("target_name")) or None,
+		"billing_status": billing_status,
+		"block_reason": "" if billing_status == "Active" else clean_text(facts.get("block_reason")),
+		"document_summary": document_summary(documents),
 	}
 
 
-def _matches_mis_filters(row, search, territory, account_manager, sales_person, rag) -> bool:
+def _matches_mis_filters(row, search, territory, account_manager, sales_person, rag, billing) -> bool:
 	if search:
 		haystack = " ".join(
 			[
@@ -1624,6 +1649,8 @@ def _matches_mis_filters(row, search, territory, account_manager, sales_person, 
 		return False
 	if rag and row["rag"] != rag:
 		return False
+	if billing and row.get("billing_status") != billing:
+		return False
 	return True
 
 
@@ -1642,6 +1669,9 @@ def build_distributor_mis(profiles, metrics, filters, today, month_starts=None, 
 	rag = clean_text(filters.get("rag")).casefold()
 	if rag not in ("", "green", "amber", "red"):
 		rag = ""
+	billing = clean_text(filters.get("billing"))
+	if billing not in ("", "Active", "Blocked", "Blacklisted"):
+		billing = ""
 	if month_starts:
 		starts = [as_date(day) for day in month_starts]
 	else:
@@ -1656,7 +1686,7 @@ def build_distributor_mis(profiles, metrics, filters, today, month_starts=None, 
 	matched = [
 		row
 		for row in built
-		if _matches_mis_filters(row, search, territory, account_manager, sales_person, rag)
+		if _matches_mis_filters(row, search, territory, account_manager, sales_person, rag, billing)
 	]
 	active_count = sum(1 for row in matched if row["active"])
 	inactive_count = len(matched) - active_count
@@ -1695,3 +1725,503 @@ def build_distributor_mis(profiles, metrics, filters, today, month_starts=None, 
 			"default_amount": money(0 if settings.get("default_amount") in (None, "") else settings.get("default_amount")),
 		},
 	}
+
+
+def complaint_tone(status) -> str:
+	shown = clean_text(status)
+	if shown == "Open":
+		return "red"
+	if shown == "In Progress":
+		return "amber"
+	if shown in {"Resolved", "Closed"}:
+		return "green"
+	return "neutral"
+
+
+def clean_benefit(row) -> dict:
+	"""A gift, incentive, scheme, or discount recorded against a distributor."""
+	row = row or {}
+	kind = clean_text(row.get("benefit_type"))
+	if kind not in BENEFIT_TYPES:
+		raise DistributorError("Benefit type must be Gift, Incentive, Scheme, or Discount.")
+	status = clean_text(row.get("status")) or "Planned"
+	if status not in BENEFIT_STATUSES:
+		raise DistributorError("Benefit status must be Planned or Given.")
+	value = money(row.get("value") or 0)
+	if value < 0:
+		raise DistributorError("Benefit value cannot be negative.")
+	quantity = None
+	if row.get("qty") not in (None, ""):
+		quantity = qty(row.get("qty"))
+		if quantity < 0:
+			raise DistributorError("Benefit quantity cannot be negative.")
+	return {
+		"benefit_type": kind,
+		"status": status,
+		"value": value,
+		"qty": quantity,
+		"description": clean_text(row.get("description")),
+		"item": clean_text(row.get("item")),
+	}
+
+
+def fiscal_year_start(today, fiscal_start=4) -> date:
+	today = as_date(today)
+	month = int(fiscal_start or 4)
+	if month < 1 or month > 12:
+		month = 4
+	start = date(today.year, month, 1)
+	if today < start:
+		start = date(today.year - 1, month, 1)
+	return start
+
+
+def history_window(preset, today, fiscal_start=4) -> dict:
+	"""The range for one distributor's history. Blank means the last 12 months."""
+	today = as_date(today)
+	if not today:
+		raise DistributorError("Today is missing.")
+	asked = clean_text(preset) or "12M"
+	aliases = {
+		"this month": "This month",
+		"3m": "3M",
+		"6m": "6M",
+		"12m": "12M",
+		"fy": "FY",
+		"all": "All",
+	}
+	key = aliases.get(asked.casefold(), asked if asked in HISTORY_PRESETS else "12M")
+	if key == "This month":
+		start = date(today.year, today.month, 1)
+	elif key == "3M":
+		start = trailing_months(today, 3)[0]
+	elif key == "6M":
+		start = trailing_months(today, 6)[0]
+	elif key == "FY":
+		start = fiscal_year_start(today, fiscal_start)
+	elif key == "All":
+		start = None
+	else:
+		key = "12M"
+		start = trailing_months(today, 12)[0]
+	return {"preset": key, "start": start, "end": today}
+
+
+def _in_history(day, window) -> bool:
+	posted = as_date(day)
+	if not posted or posted > window["end"]:
+		return False
+	if window["start"] and posted < window["start"]:
+		return False
+	return True
+
+
+def _month_key(day):
+	posted = as_date(day)
+	if not posted:
+		return None
+	return (posted.year, posted.month)
+
+
+def build_history(facts, today, preset="12M", fiscal_start=4) -> dict:
+	"""Shape already-fetched rows into the history sections. The window is applied here."""
+	facts = facts or {}
+	window = history_window(preset, today, fiscal_start)
+	months = {}
+	invoices = []
+	drafts = []
+	credits = []
+	for row in facts.get("invoices") or []:
+		if not _in_history(row.get("posting_date"), window):
+			continue
+		raw_status = row.get("docstatus")
+		status_code = 1 if raw_status is None else int(raw_status)
+		if status_code == 0 or clean_text(row.get("status")) == "Draft":
+			if not as_flag(row.get("is_return")):
+				drafts.append(_money_doc(row))
+			continue
+		if status_code != 1:
+			continue
+		shaped = _money_doc(row)
+		if as_flag(row.get("is_return")):
+			credits.append(shaped)
+			continue
+		invoices.append(shaped)
+		key = _month_key(row.get("posting_date"))
+		bucket = months.setdefault(key, {"net": 0.0, "tax": 0.0, "grand": 0.0, "outstanding": 0.0, "count": 0})
+		bucket["net"] += shaped["net"]
+		bucket["tax"] += shaped["tax"]
+		bucket["grand"] += shaped["grand"]
+		bucket["outstanding"] += shaped["outstanding"]
+		bucket["count"] += 1
+	month_rows = []
+	for key in sorted(months):
+		year, month = key
+		bucket = months[key]
+		month_rows.append(
+			{
+				"label": MONTHS[month - 1],
+				"year": year,
+				"month": month,
+				"net": money(bucket["net"]),
+				"tax": money(bucket["tax"]),
+				"grand": money(bucket["grand"]),
+				"outstanding": money(bucket["outstanding"]),
+				"count": bucket["count"],
+			}
+		)
+	invoices.sort(key=lambda row: (row["date"] or date.min, row["name"]), reverse=True)
+	drafts.sort(key=lambda row: (row["date"] or date.min, row["name"]), reverse=True)
+	credits.sort(key=lambda row: (row["date"] or date.min, row["name"]), reverse=True)
+	if facts.get("month_totals"):
+		month_rows = []
+		for row in facts.get("month_totals") or []:
+			if not row.get("year") or not row.get("month"):
+				continue
+			posted = date(int(row["year"]), int(row["month"]), 1)
+			if not _in_history(posted, window):
+				continue
+			month_rows.append(
+				{
+					"label": MONTHS[int(row["month"]) - 1],
+					"year": int(row["year"]),
+					"month": int(row["month"]),
+					"net": money(row.get("net") or 0),
+					"tax": money(row.get("tax") or 0),
+					"grand": money(row.get("grand") or 0),
+					"outstanding": money(row.get("outstanding") or 0),
+					"count": int(row.get("count") or 0),
+				}
+			)
+		month_rows.sort(key=lambda row: (row["year"], row["month"]))
+	billing_net = money(sum(row["net"] for row in month_rows)) if facts.get("month_totals") else money(sum(row["net"] for row in invoices))
+	billing_tax = money(sum(row["tax"] for row in month_rows)) if facts.get("month_totals") else money(sum(row["tax"] for row in invoices))
+	billing_grand = money(sum(row["grand"] for row in month_rows)) if facts.get("month_totals") else money(sum(row["grand"] for row in invoices))
+	billing_outstanding = (
+		money(sum(row["outstanding"] for row in month_rows))
+		if facts.get("month_totals")
+		else money(sum(row["outstanding"] for row in invoices))
+	)
+	complaints = []
+	for row in facts.get("complaints") or []:
+		if not _in_history(row.get("complaint_date") or row.get("date"), window):
+			continue
+		status = clean_text(row.get("status"))
+		complaints.append(
+			{
+				"name": clean_text(row.get("name")),
+				"date": as_date(row.get("complaint_date") or row.get("date")),
+				"type": clean_text(row.get("complaint_type") or row.get("type")),
+				"status": status,
+				"tone": complaint_tone(status),
+			}
+		)
+	complaints.sort(key=lambda row: (row["date"] or date.min, row["name"]), reverse=True)
+	quotes = []
+	for row in facts.get("quotations") or []:
+		if int(row.get("docstatus") if row.get("docstatus") is not None else 1) == 2:
+			continue
+		if not _in_history(row.get("transaction_date") or row.get("date"), window):
+			continue
+		status = clean_text(row.get("status")) or "Draft"
+		quotes.append(
+			{
+				"name": clean_text(row.get("name")),
+				"date": as_date(row.get("transaction_date") or row.get("date")),
+				"status": status,
+				"tone": quote_tone(status, row.get("docstatus") if row.get("docstatus") is not None else 1),
+				"amount": money(row.get("amount") or 0),
+			}
+		)
+	quotes.sort(key=lambda row: (row["date"] or date.min, row["name"]), reverse=True)
+	ordered = sum(1 for row in quotes if row["status"] == "Ordered")
+	benefits = []
+	by_type = {}
+	given = 0.0
+	for row in facts.get("benefits") or []:
+		if not _in_history(row.get("benefit_date") or row.get("date"), window):
+			continue
+		try:
+			cleaned = clean_benefit(row)
+		except DistributorError:
+			continue
+		benefits.append(
+			{
+				"name": clean_text(row.get("name")),
+				"date": as_date(row.get("benefit_date") or row.get("date")),
+				**cleaned,
+			}
+		)
+		bucket = by_type.setdefault(cleaned["benefit_type"], {"type": cleaned["benefit_type"], "count": 0, "value": 0.0})
+		bucket["count"] += 1
+		bucket["value"] += cleaned["value"]
+		if cleaned["status"] == "Given":
+			given += cleaned["value"]
+	benefits.sort(key=lambda row: (row["date"] or date.min, row["name"]), reverse=True)
+	primary_net = money(billing_net - sum(row["net"] for row in credits))
+	items = _history_items(facts.get("item_lines") or [], window, facts.get("item_months"))
+	prices = _history_prices(
+		facts.get("item_lines") or [],
+		facts.get("price_rows") or [],
+		window,
+		facts.get("rate_months"),
+		facts.get("last_rates"),
+	)
+	return {
+		"preset": window["preset"],
+		"start": window["start"],
+		"end": window["end"],
+		"billing": {
+			"months": month_rows,
+			"invoices": invoices,
+			"drafts": drafts,
+			"net": billing_net,
+			"tax": billing_tax,
+			"grand": billing_grand,
+			"outstanding": billing_outstanding,
+		},
+		"credit_notes": {
+			"rows": credits,
+			"count": len(credits),
+			"net": money(sum(row["net"] for row in credits)),
+			"grand": money(sum(row["grand"] for row in credits)),
+		},
+		"complaints": {
+			"rows": complaints,
+			"open": sum(1 for row in complaints if row["status"] in OPEN_COMPLAINTS),
+		},
+		"quotations": {
+			"rows": quotes,
+			"count": len(quotes),
+			"ordered": ordered,
+			"conversion": round(ordered / len(quotes) * 100, 2) if quotes else None,
+		},
+		"benefits": {
+			"rows": benefits,
+			"by_type": [by_type[name] | {"value": money(by_type[name]["value"])} for name in BENEFIT_TYPES if name in by_type],
+			"given": money(given),
+			"primary": primary_net,
+			"roi": round(given / primary_net * 100, 2) if primary_net else None,
+		},
+		"most_bought": items["tops"],
+		"items": {"months": items["months"], "rows": items["rows"]},
+		"prices": prices,
+	}
+
+
+def _money_doc(row) -> dict:
+	return {
+		"name": clean_text(row.get("name")),
+		"date": as_date(row.get("posting_date") or row.get("date")),
+		"net": money(abs(float(row.get("net") or 0))),
+		"tax": money(abs(float(row.get("tax") or 0))),
+		"grand": money(abs(float(row.get("grand") or 0))),
+		"outstanding": money(row.get("outstanding") or 0),
+	}
+
+
+def _history_items(lines, window, item_months=None) -> dict:
+	cells = {}
+	names = {}
+	month_keys = []
+	seen = set()
+	if item_months is not None:
+		lines = [
+			{
+				"item": row.get("item") or row.get("item_code"),
+				"item_name": row.get("item_name"),
+				"posting_date": date(int(row["year"]), int(row["month"]), 1),
+				"qty": row.get("qty"),
+				"amount": row.get("amount"),
+				"is_return": 0,
+			}
+			for row in item_months
+			if row.get("year") and row.get("month")
+		]
+	for row in lines:
+		if as_flag(row.get("is_return")):
+			continue
+		if not _in_history(row.get("posting_date"), window):
+			continue
+		item = clean_text(row.get("item") or row.get("item_code"))
+		if not item:
+			continue
+		names[item] = clean_text(row.get("item_name")) or names.get(item) or item
+		key = _month_key(row.get("posting_date"))
+		if key not in seen:
+			seen.add(key)
+			month_keys.append(key)
+		bucket = cells.setdefault((item, key), {"qty": 0.0, "amount": 0.0})
+		bucket["qty"] += float(row.get("qty") or 0)
+		bucket["amount"] += float(row.get("amount") or 0)
+	month_keys.sort()
+	months = [{"label": MONTHS[month - 1], "year": year, "month": month} for year, month in month_keys]
+	rows = []
+	total_qty = 0.0
+	total_amount = 0.0
+	for item in names:
+		qty_sum = sum(cells.get((item, key), {}).get("qty", 0) for key in month_keys)
+		amount_sum = sum(cells.get((item, key), {}).get("amount", 0) for key in month_keys)
+		total_qty += qty_sum
+		total_amount += amount_sum
+		series = [money(cells.get((item, key), {}).get("amount", 0)) for key in month_keys]
+		rows.append(
+			{
+				"item": item,
+				"item_name": names[item],
+				"qty": qty(qty_sum),
+				"amount": money(amount_sum),
+				"cells": [
+					{
+						"qty": qty(cells.get((item, key), {}).get("qty", 0)),
+						"amount": money(cells.get((item, key), {}).get("amount", 0)),
+					}
+					for key in month_keys
+				],
+				"spark": series,
+			}
+		)
+	rows.sort(key=lambda row: (-row["amount"], row["item"]))
+
+	def share(part, whole):
+		return round(part / whole * 100, 2) if whole else 0.0
+
+	by_qty = sorted(rows, key=lambda row: (-row["qty"], row["item"]))[:10]
+	by_value = rows[:10]
+	return {
+		"months": months,
+		"rows": rows,
+		"tops": {
+			"by_qty": [{**row, "share": share(row["qty"], total_qty)} for row in by_qty],
+			"by_value": [{**row, "share": share(row["amount"], total_amount)} for row in by_value],
+		},
+	}
+
+
+def _history_prices(lines, price_rows, window, rate_months=None, last_rates=None) -> list:
+	if rate_months is not None:
+		return _prices_from_months(rate_months, last_rates or [], price_rows, window)
+	grouped = {}
+	for row in lines:
+		if as_flag(row.get("is_return")):
+			continue
+		if not _in_history(row.get("posting_date"), window):
+			continue
+		item = clean_text(row.get("item") or row.get("item_code"))
+		if not item:
+			continue
+		rate = row.get("rate")
+		if rate in (None, ""):
+			continue
+		bucket = grouped.setdefault(
+			item,
+			{"item": item, "item_name": clean_text(row.get("item_name")) or item, "rates": [], "months": {}},
+		)
+		if clean_text(row.get("item_name")):
+			bucket["item_name"] = clean_text(row.get("item_name"))
+		value = money(rate)
+		posted = as_date(row.get("posting_date"))
+		bucket["rates"].append((posted or date.min, clean_text(row.get("name")), value))
+		key = _month_key(posted)
+		if key:
+			bucket["months"].setdefault(key, []).append(value)
+	lists = {}
+	for row in price_rows or []:
+		item = clean_text(row.get("item") or row.get("item_code"))
+		price_list = clean_text(row.get("price_list"))
+		if not item or price_list not in COMPARE_PRICE_LISTS or row.get("rate") in (None, ""):
+			continue
+		lists.setdefault(item, {})[price_list] = money(row.get("rate"))
+	built = []
+	for item, bucket in grouped.items():
+		rates = [value for _day, _name, value in bucket["rates"]]
+		last = sorted(bucket["rates"], key=lambda point: (point[0], point[1]))[-1][2]
+		keys = sorted(bucket["months"])
+		series = []
+		for year, month in keys:
+			values = bucket["months"][(year, month)]
+			series.append({"label": MONTHS[month - 1], "year": year, "rate": money(sum(values) / len(values))})
+		distributor = lists.get(item, {}).get("Classic Distributor")
+		built.append(
+			{
+				"item": item,
+				"item_name": bucket["item_name"],
+				"min": money(min(rates)),
+				"max": money(max(rates)),
+				"avg": money(sum(rates) / len(rates)),
+				"last": last,
+				"series": series,
+				"lists": lists.get(item, {}),
+				"below_distributor": bool(distributor is not None and last < distributor),
+			}
+		)
+	built.sort(key=lambda row: row["item"])
+	return built
+
+
+def _prices_from_months(rate_months, last_rates, price_rows, window) -> list:
+	grouped = {}
+	for row in rate_months or []:
+		if not row.get("year") or not row.get("month"):
+			continue
+		posted = date(int(row["year"]), int(row["month"]), 1)
+		if not _in_history(posted, window):
+			continue
+		item = clean_text(row.get("item") or row.get("item_code"))
+		if not item:
+			continue
+		bucket = grouped.setdefault(
+			item,
+			{"item_name": clean_text(row.get("item_name")) or item, "months": [], "count": 0, "weighted": 0.0},
+		)
+		if clean_text(row.get("item_name")):
+			bucket["item_name"] = clean_text(row.get("item_name"))
+		count = int(row.get("count") or 0)
+		avg = float(row.get("avg") or 0)
+		bucket["months"].append(
+			{
+				"year": int(row["year"]),
+				"month": int(row["month"]),
+				"min": money(row.get("min") or 0),
+				"max": money(row.get("max") or 0),
+				"avg": money(avg),
+				"count": count,
+			}
+		)
+		bucket["count"] += count
+		bucket["weighted"] += avg * count
+	last = {}
+	for row in last_rates or []:
+		item = clean_text(row.get("item") or row.get("item_code"))
+		if item and row.get("rate") not in (None, ""):
+			last[item] = money(row.get("rate"))
+	lists = {}
+	for row in price_rows or []:
+		item = clean_text(row.get("item") or row.get("item_code"))
+		price_list = clean_text(row.get("price_list"))
+		if item and price_list in COMPARE_PRICE_LISTS and row.get("rate") not in (None, ""):
+			lists.setdefault(item, {})[price_list] = money(row.get("rate"))
+	built = []
+	for item, bucket in grouped.items():
+		points = sorted(bucket["months"], key=lambda point: (point["year"], point["month"]))
+		series = [{"label": MONTHS[point["month"] - 1], "year": point["year"], "rate": point["avg"]} for point in points]
+		minimum = min(point["min"] for point in points)
+		maximum = max(point["max"] for point in points)
+		average = money(bucket["weighted"] / bucket["count"]) if bucket["count"] else series[-1]["rate"]
+		latest = last.get(item, series[-1]["rate"])
+		distributor = lists.get(item, {}).get("Classic Distributor")
+		built.append(
+			{
+				"item": item,
+				"item_name": bucket["item_name"],
+				"min": minimum,
+				"max": maximum,
+				"avg": average,
+				"last": latest,
+				"series": series,
+				"lists": lists.get(item, {}),
+				"below_distributor": bool(distributor is not None and latest < distributor),
+			}
+		)
+	built.sort(key=lambda row: row["item"])
+	return built

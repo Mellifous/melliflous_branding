@@ -62,11 +62,37 @@ after_install = "melliflous_branding.install.after_install"
 after_migrate = ["melliflous_branding.install.after_migrate"]
 
 # A file saved into Team Files is forced private before Frappe writes it.
+# Selling documents refuse a Blocked or Blacklisted customer. Unblock first.
 doc_events = {
 	"File": {
 		"before_validate": "melliflous_branding.team_files.keep_team_file_private",
-	}
+	},
+	"Customer": {
+		"validate": "melliflous_branding.customer_records.validate_customer",
+		"on_update": "melliflous_branding.customer_records.remember_billing_change",
+	},
+	"Sales Invoice": {"validate": "melliflous_branding.customer_records.block_selling"},
+	"Sales Order": {"validate": "melliflous_branding.customer_records.block_selling"},
+	"Quotation": {"validate": "melliflous_branding.customer_records.block_selling"},
+	"Delivery Note": {"validate": "melliflous_branding.customer_records.block_selling"},
 }
+
+doctype_js = {"Customer": "public/js/customer.js"}
+doctype_list_js = {"Customer": "public/js/customer_list.js"}
+
+fixtures = [
+	{
+		"doctype": "Custom Field",
+		"filters": [["name", "in", [
+			"Customer-custom_billing_status",
+			"Customer-custom_block_reason",
+			"Customer-custom_blocked_by",
+			"Customer-custom_blocked_on",
+			"Customer-custom_documents_tab",
+			"Customer-custom_customer_documents",
+		]]],
+	}
+]
 
 # Customer primary targets. The daily job rewrites achieved amount, gap, percent,
 # and status. Sales User is limited to the targets they own.
@@ -82,6 +108,7 @@ permission_query_conditions = {
 	"Distributor Visit": "melliflous_branding.distributor_records.visit_permission_query",
 	"Distributor Stock Statement": "melliflous_branding.distributor_records.statement_permission_query",
 	"Distributor Complaint": "melliflous_branding.distributor_records.complaint_permission_query",
+	"Distributor Benefit": "melliflous_branding.distributor_records.benefit_permission_query",
 }
 
 has_permission = {
@@ -90,4 +117,5 @@ has_permission = {
 	"Distributor Visit": "melliflous_branding.distributor_records.has_visit_permission",
 	"Distributor Stock Statement": "melliflous_branding.distributor_records.has_statement_permission",
 	"Distributor Complaint": "melliflous_branding.distributor_records.has_complaint_permission",
+	"Distributor Benefit": "melliflous_branding.distributor_records.has_benefit_permission",
 }

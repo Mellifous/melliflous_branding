@@ -12,7 +12,7 @@ frappe.pages["quick-invoice"].on_page_load = function (wrapper) {
 	page.body.append(root);
 
 	const API = "melliflous_branding.invoice_records";
-	const state = { customer: "", price_list: "", rows: [] };
+	const state = { customer: "", price_list: "", rows: [], blockMessage: "" };
 
 	function el(tag, className, text) {
 		const node = document.createElement(tag);
@@ -250,6 +250,9 @@ frappe.pages["quick-invoice"].on_page_load = function (wrapper) {
 			.then((response) => {
 				const data = (response && response.message) || {};
 				fillPrices(data.price_lists, data.price_list);
+				state.blockMessage = data.block_message || "";
+				if (state.blockMessage) note.show(state.blockMessage, true);
+				else note.clear();
 				state.rows.forEach(quoteRow);
 			})
 			.catch((response) => note.show(serverMessage(response), true));
@@ -269,6 +272,7 @@ frappe.pages["quick-invoice"].on_page_load = function (wrapper) {
 	}
 
 	function clientErrors(body) {
+		if (state.blockMessage) return state.blockMessage;
 		if (!String(body.customer || "").trim()) return __("Choose a customer first.");
 		if (!String(body.price_list || "").trim()) return __("Choose a price list.");
 		if (!body.items.length) return __("Add at least one item.");
