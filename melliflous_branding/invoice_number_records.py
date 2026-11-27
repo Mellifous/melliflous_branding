@@ -27,9 +27,11 @@ from melliflous_branding.invoice_number import (
 	InvoiceNumberError,
 	clean,
 	clean_invoice_no,
+	conflicting_property_setters,
 	detect_prefix,
 	duplicate_message,
 	format_problem,
+	invoice_number_field_visibility,
 	plan_invoice,
 	series_prefix,
 	split_serial,
@@ -47,6 +49,30 @@ def ensure_invoice_numbers() -> None:
 	from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
 	create_custom_fields({"Sales Invoice": [dict(INVOICE_NO_FIELD)]}, update=True)
+	show_invoice_number_field()
+
+
+def show_invoice_number_field() -> None:
+	"""Keep Invoice No visible. A Property Setter from an earlier edit can hide it after the field exists."""
+	if not frappe.db.exists("DocType", "Custom Field"):
+		return
+	name = "Sales Invoice-custom_invoice_no"
+	if frappe.db.exists("Custom Field", name):
+		frappe.db.set_value(
+			"Custom Field",
+			name,
+			invoice_number_field_visibility(),
+			update_modified=False,
+		)
+	if frappe.db.table_exists("Property Setter"):
+		rows = frappe.get_all(
+			"Property Setter",
+			filters={"doc_type": "Sales Invoice", "field_name": FIELDNAME},
+			fields=["name", "doc_type", "field_name", "property", "value"],
+		)
+		for setter in conflicting_property_setters(rows):
+			frappe.delete_doc("Property Setter", setter, ignore_permissions=True, force=True)
+	frappe.clear_cache(doctype="Sales Invoice")
 
 
 def prepare_invoice_number(doc, method=None):

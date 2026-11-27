@@ -23,6 +23,10 @@ INVOICE_NO_FIELD = {
 	"label": "Invoice No",
 	"fieldtype": "Data",
 	"insert_after": "customer_section",
+	"hidden": 0,
+	"read_only": 0,
+	"depends_on": "",
+	"read_only_depends_on": "",
 	"bold": 1,
 	"length": MAX_LEN,
 	"no_copy": 1,
@@ -32,6 +36,44 @@ INVOICE_NO_FIELD = {
 		"Letters, numbers, / and - only, up to 16 characters."
 	),
 }
+
+# A Property Setter on these keys can hide Invoice No even when the Custom Field is visible.
+INVOICE_NO_SETTER_PROPERTIES = (
+	"hidden",
+	"depends_on",
+	"read_only",
+	"read_only_depends_on",
+	"insert_after",
+)
+
+
+def invoice_number_field_visibility() -> dict:
+	"""Values that keep Invoice No on screen, including when no company prefix is saved."""
+	return {
+		"hidden": 0,
+		"read_only": 0,
+		"depends_on": "",
+		"read_only_depends_on": "",
+		"insert_after": "customer_section",
+	}
+
+
+def conflicting_property_setters(rows) -> list:
+	"""Names of Sales Invoice setters that hide Invoice No or move it out of the customer section."""
+	names = []
+	for row in rows or []:
+		if not isinstance(row, dict):
+			continue
+		if (row.get("doc_type") or "") != "Sales Invoice":
+			continue
+		if (row.get("field_name") or "") != INVOICE_NO_FIELD["fieldname"]:
+			continue
+		if (row.get("property") or "") not in INVOICE_NO_SETTER_PROPERTIES:
+			continue
+		name = row.get("name")
+		if name:
+			names.append(name)
+	return names
 
 
 class InvoiceNumberError(ValueError):

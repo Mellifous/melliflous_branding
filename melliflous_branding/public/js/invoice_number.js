@@ -6,6 +6,13 @@ const INVOICE_NO_CHECK = "melliflous_branding.invoice_number_records.check_invoi
 
 function prepareInvoiceNumber(frm) {
 	if (!frm.fields_dict || !frm.fields_dict.custom_invoice_no) return;
+	const df = frm.fields_dict.custom_invoice_no.df;
+	if (df) {
+		df.hidden = 0;
+		df.depends_on = null;
+		df.hidden_due_to_dependency = false;
+	}
+	frm.set_df_property("custom_invoice_no", "hidden", 0);
 	frm.set_df_property("naming_series", "hidden", 1);
 	const locked = cint(frm.doc.docstatus) !== 0;
 	frm.set_df_property("custom_invoice_no", "read_only", locked ? 1 : 0);
@@ -116,17 +123,24 @@ function setInvoiceNumber(frm, value) {
 function placeInvoiceNumber(frm) {
 	const field = frm.get_field("custom_invoice_no");
 	if (!field || !field.$wrapper || !field.$wrapper.length) return;
-	const layout = field.$wrapper.closest(".form-layout");
-	if (!layout.length) return;
-	const body = layout.find(".form-page").first().find(".section-body").first();
+	// Frappe's tabbed form opens with an empty section under the default tab.
+	// That section is marked empty and hidden. The first .section-body is that
+	// hidden section, so moving Invoice No there takes it off the screen even
+	// though it is the first labelled field. Anchor to the section that already
+	// shows Company, which is the customer section.
+	const anchor = frm.get_field("company") || frm.get_field("naming_series") || frm.get_field("customer");
+	const section = anchor && anchor.$wrapper ? anchor.$wrapper.closest(".form-section") : $();
+	if (!section.length || section.hasClass("empty-section")) return;
+	const body = section.children(".section-body").first();
 	if (!body.length) return;
 	let slot = body.children(".melliflous-invoice-no");
 	if (!slot.length) {
 		slot = $('<div class="form-column col-sm-12 melliflous-invoice-no"></div>');
 		body.prepend(slot);
 	}
-	if (!slot[0].contains(field.$wrapper[0])) slot.append(field.$wrapper);
-	field.$wrapper.css({ width: "100%", maxWidth: "100%" });
+	if (!slot[0].contains(field.$wrapper[0])) slot.prepend(field.$wrapper);
+	field.$wrapper.removeClass("hide-control").css({ display: "", width: "100%", maxWidth: "100%" });
+	section.removeClass("empty-section").addClass("visible-section");
 }
 
 function styleInvoiceNumber(frm) {

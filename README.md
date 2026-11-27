@@ -116,7 +116,7 @@ The Quick Invoice page is a standard Page. The first deploy that runs migrate im
 
 ## Sales Invoice numbers
 
-The **Invoice No** field is the first field on the Sales Invoice Details tab, including on a phone. That value is the document name, so it is the number GST and e-invoice use. It can be at most 16 characters: a letter or digit first, then letters, digits, `/` and `-`.
+The **Invoice No** field is the first field on the Sales Invoice Details tab, including on a phone, above Company. That value is the document name, so it is the number GST and e-invoice use. It can be at most 16 characters: a letter or digit first, then letters, digits, `/` and `-`. It stays on screen when Melliflous Settings has no prefix yet, and the number then comes from the Sales Invoice series.
 
 A new invoice is filled with the next serial after the highest number already saved for that company and prefix. Drafts and cancelled invoices count, so a number is not issued twice. If you type a number that is already used, saving is refused: `Invoice no X is already used. Please change it (next free number: Y).` The next invoice then continues from the highest serial, including one you typed by hand.
 

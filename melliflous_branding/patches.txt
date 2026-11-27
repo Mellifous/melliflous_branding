@@ -19,3 +19,4 @@ melliflous_branding.patches.v0_12.remove_quick_actions_workspace
 melliflous_branding.patches.v0_12.ensure_invoice_numbers
 melliflous_branding.patches.v0_12.ensure_hsn_catalog
 melliflous_branding.patches.v0_12.ensure_recipes
+melliflous_branding.patches.v0_13.show_invoice_number
