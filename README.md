@@ -20,7 +20,8 @@ Other desk pages keep their own tab title (a Sales Invoice stays a Sales Invoice
 
 Users who are allowed more than one Company get a company control:
 
-- On the home screen it is the header title. On an iPhone it is the centred title, using a native `<select>` so iOS Safari opens the system picker. The font is at least 16px so focusing it does not zoom the page, and the row is at least 44px tall when it sits on an in-app page.
+- On a wide desk it is a Company select and a Division select in the header, with the division's short pill (SK, SUN) beside them.
+- On a phone, or any window up to 900px, those two selects leave the header. One chip stays in the bar: the division pill, the company name, and the division name. It is at least 44px tall. Tapping it opens a bottom sheet with a full-width Company select and a full-width Division select. The type is 16px so iOS Safari does not zoom. Done, the dimmed backdrop, or Escape closes the sheet. Choosing either value still saves and reloads, the same as the wide controls.
 - On every other desk page it is a bar at the top of the page head, above the breadcrumbs. It stays inside the sticky page head, including on a phone.
 
 Choosing a company calls `melliflous_branding.api.set_default_company`, which writes the same DefaultValue key Session Defaults writes (`frappe.defaults.set_user_default("company", ...)`). The open page updates its boot copy, so a document or report opened afterwards defaults to that company. The header title updates without a reload.
@@ -93,7 +94,11 @@ List pills, form badges, and a Status column in a report use one meaning:
 
 A status that is not in this list keeps the colour ERPNext already gave it. The words on the pill and the list filter do not change. Sales Invoice, Quotation, Sales Order, Payment Entry, Delivery Note, Purchase Invoice, Purchase Order, Customer, Lead, Opportunity, Item, and Stock Entry are the lists this applies to.
 
-`desk_theme.js` injects a `<style id="melliflous-desk-theme">` tag on load and again on every route change, using `frappe.dom.set_style` when Frappe provides it. The same rules live in `public/css/desk_theme.css`. The asset URLs carry `?v=20261127a`. No bench build is required for the colours to show. Hard-refresh `/desk` after the deploy.
+`desk_theme.js` injects a `<style id="melliflous-desk-theme">` tag on load and again on every route change, using `frappe.dom.set_style` when Frappe provides it. The same rules live in `public/css/desk_theme.css`. The asset URLs carry `?v=20261127e`. No bench build is required for the colours to show. Hard-refresh `/desk` after the deploy.
+
+On the apps home, the greeting and the six quick actions sit in a full-width block above the app tiles. A phone shows the actions as a two-column grid of coloured cards. The app tiles wrap underneath, three across, with the whole label visible. A wide desk shows the six actions in one row and the tiles in a wrapping grid. Nothing on that screen scrolls sideways.
+
+Select lists, link suggestions, the form menu, list filters, and the navbar menu stay above the page and the phone tab bar. On a narrow screen each row is at least 44px, a long list scrolls inside the menu, and a menu that would run off the screen is pulled back into view. The page head still shows the control that opens the sidebar.
 
 ## Quick Invoice
 

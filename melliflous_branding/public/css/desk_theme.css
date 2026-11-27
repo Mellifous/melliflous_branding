@@ -5,10 +5,14 @@
 	--melliflous-red: #c8102e;
 	--melliflous-maroon: #7a0019;
 	--melliflous-red-hover: #9b0c24;
+	--melliflous-gold: #e4c56a;
+	--melliflous-gold-deep: #a6842c;
+	--melliflous-cream: #fbf6ee;
+	--melliflous-cream-card: #fffaf3;
 	--melliflous-ink: #1c1917;
-	--melliflous-card: #ffffff;
-	--melliflous-line: #eadfd8;
-	--melliflous-shadow: 0 1px 2px rgba(28, 25, 23, 0.06), 0 10px 28px rgba(122, 0, 25, 0.06);
+	--melliflous-card: #fffaf3;
+	--melliflous-line: #ead9c8;
+	--melliflous-shadow: 0 1px 2px rgba(28, 25, 23, 0.05), 0 12px 28px rgba(122, 0, 25, 0.08);
 	--melliflous-selling: #1f9d55;
 	--melliflous-buying: #2f6fdb;
 	--melliflous-stock: #0e8f8a;
@@ -19,10 +23,12 @@
 }
 
 [data-theme="dark"] {
-	--melliflous-ink: #f5f5f4;
-	--melliflous-card: #1c1917;
-	--melliflous-line: #44403c;
-	--melliflous-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px rgba(0, 0, 0, 0.35);
+	--melliflous-ink: #f6efe9;
+	--melliflous-card: #241418;
+	--melliflous-cream: #140d0f;
+	--melliflous-cream-card: #2a171c;
+	--melliflous-line: #5c3038;
+	--melliflous-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 28px rgba(0, 0, 0, 0.35);
 }
 
 /* Status pills. v16 draws .es-badge; older rows still use .indicator-pill.
@@ -175,12 +181,13 @@ body .btn-primary,
 body .shortcut-widget-box,
 body .number-widget-box,
 body .melliflous-shortcut {
+	transition: box-shadow 160ms ease, background-color 160ms ease;
+}
+
+body .melliflous-shortcut {
 	transition: transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
 }
 
-body .btn-primary:hover,
-body .shortcut-widget-box:hover,
-body .number-widget-box:hover,
 body .melliflous-shortcut:hover {
 	transform: translateY(-1px);
 }
@@ -200,17 +207,35 @@ body .frappe-card {
 	border-radius: 16px;
 }
 
-/* Navbar accent and a warm sidebar. */
+/* Navbar in the brand crimson, with a gold hairline. */
 body .navbar,
-body .desktop-navbar {
+body .desktop-navbar,
+body.desktop-page .navbar-container {
 	position: relative;
-	box-shadow: inset 0 -3px 0 var(--melliflous-red);
+	background: linear-gradient(100deg, #5c0012 0%, #9b1230 52%, #c8102e 100%);
+	color: #fffaf3;
+	box-shadow: inset 0 -3px 0 var(--melliflous-gold), 0 8px 24px rgba(92, 0, 18, 0.18);
+}
+
+body .navbar .nav-link,
+body .navbar .navbar-brand,
+body .navbar .btn-reset,
+body.desktop-page .desktop-navbar a,
+body.desktop-page .desktop-navbar .melliflous-simple-toggle {
+	color: #fffaf3;
+}
+
+[data-theme="dark"] body .navbar,
+[data-theme="dark"] body .desktop-navbar,
+[data-theme="dark"] body.desktop-page .navbar-container {
+	background: linear-gradient(100deg, #3a0a14 0%, #7a0019 62%, #9b1230 100%);
+	color: #fff5f5;
 }
 
 body .body-sidebar,
 body .standard-sidebar,
 body .layout-side-section {
-	background: #fff7f6;
+	background: #fff7f0;
 }
 
 [data-theme="dark"] body .body-sidebar,
@@ -280,10 +305,15 @@ body .msg-box.no-result {
 }
 
 .melliflous-greeting {
-	margin: 8px 16px 4px;
-	padding: 14px 16px;
-	border-radius: 16px;
-	background: linear-gradient(120deg, var(--melliflous-red) 0%, var(--melliflous-maroon) 100%);
+	box-sizing: border-box;
+	width: 100%;
+	max-width: 100%;
+	margin: 0 0 12px;
+	padding: 16px 18px;
+	border-radius: 18px;
+	background:
+		radial-gradient(120% 80% at 100% 0%, rgba(228, 197, 106, 0.35), transparent 46%),
+		linear-gradient(120deg, var(--melliflous-red) 0%, var(--melliflous-maroon) 100%);
 	color: #fff;
 	box-shadow: var(--melliflous-shadow);
 }
@@ -303,41 +333,84 @@ body .msg-box.no-result {
 
 .melliflous-shortcuts {
 	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+	grid-template-columns: repeat(2, minmax(0, 1fr));
 	gap: 10px;
-	margin: 8px 16px 16px;
+	width: 100%;
+	max-width: 100%;
+	margin: 0 0 14px;
+	box-sizing: border-box;
+	min-width: 0;
 }
 
 .melliflous-shortcut {
 	display: flex;
-	align-items: center;
-	justify-content: flex-start;
-	min-height: 64px;
-	padding: 12px 14px;
+	flex-direction: column;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 10px;
+	min-width: 0;
+	min-height: 96px;
+	padding: 12px;
 	border: 0;
-	border-radius: 14px;
-	border-left: 5px solid transparent;
-	background: var(--melliflous-card);
-	color: var(--melliflous-ink);
-	font-size: 1rem;
-	font-weight: 700;
-	line-height: 1.25;
+	border-radius: 18px;
+	background: linear-gradient(145deg, #e11d3a, #7a0019);
+	color: #fff;
+	font-size: 0.95rem;
+	font-weight: 800;
+	line-height: 1.2;
 	text-align: left;
 	text-decoration: none;
-	box-shadow: var(--melliflous-shadow);
+	box-shadow: 0 10px 22px rgba(92, 0, 18, 0.16);
 	cursor: pointer;
+	touch-action: manipulation;
+	box-sizing: border-box;
 }
 
-.melliflous-shortcut.tone-brand { border-left-color: var(--melliflous-red); }
-.melliflous-shortcut.tone-blue { border-left-color: var(--melliflous-buying); }
-.melliflous-shortcut.tone-green { border-left-color: var(--melliflous-selling); }
-.melliflous-shortcut.tone-teal { border-left-color: var(--melliflous-stock); }
-.melliflous-shortcut.tone-amber { border-left-color: var(--melliflous-manufacturing); }
-.melliflous-shortcut.tone-maroon { border-left-color: var(--melliflous-maroon); }
+.melliflous-shortcut-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 36px;
+	height: 36px;
+	border-radius: 12px;
+	background: rgba(255, 255, 255, 0.2);
+}
+
+.melliflous-shortcut-label {
+	display: block;
+	max-width: 100%;
+	overflow-wrap: anywhere;
+}
+
+.melliflous-shortcut.tone-brand { background: linear-gradient(145deg, #e11d3a, #7a0019); }
+.melliflous-shortcut.tone-blue { background: linear-gradient(145deg, #3b82f6, #1e3a8a); }
+.melliflous-shortcut.tone-green { background: linear-gradient(145deg, #22c55e, #14532d); }
+.melliflous-shortcut.tone-teal { background: linear-gradient(145deg, #2dd4bf, #0f766e); }
+.melliflous-shortcut.tone-amber {
+	background: linear-gradient(145deg, #f8e7b0, #d4a017);
+	color: #1c1917;
+}
+.melliflous-shortcut.tone-maroon { background: linear-gradient(145deg, #be123c, #4c0519); }
+
+.melliflous-shortcut.tone-amber .melliflous-shortcut-icon {
+	background: rgba(28, 25, 23, 0.1);
+}
 
 .melliflous-shortcut:hover {
 	text-decoration: none;
-	color: var(--melliflous-ink);
+	color: inherit;
+}
+
+@media (min-width: 768px) {
+	.melliflous-shortcuts {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+}
+
+@media (min-width: 1100px) {
+	.melliflous-shortcuts {
+		grid-template-columns: repeat(6, minmax(0, 1fr));
+	}
 }
 
 .melliflous-simple-toggle {
@@ -456,13 +529,19 @@ body[data-melliflous-module="manufacturing"] .widget.number {
 }
 
 .melliflous-greeting svg,
-.melliflous-shortcuts svg,
 .melliflous-simple-toggle svg,
 .melliflous-invoice svg {
 	width: 18px;
 	height: 18px;
 	max-width: 18px;
 	max-height: 18px;
+}
+
+.melliflous-shortcut-icon svg {
+	width: 20px;
+	height: 20px;
+	max-width: 20px;
+	max-height: 20px;
 }
 
 @media (max-width: 720px) {
@@ -474,18 +553,291 @@ body[data-melliflous-module="manufacturing"] .widget.number {
 	}
 }
 
+/* Home apps screen. The shortcut row and the icon grid are stacked, full width,
+   and the icons wrap so a phone never scrolls sideways. */
+body.desktop-page .desktop-wrapper {
+	max-width: 100%;
+}
+
+body.desktop-page .desktop-container {
+	display: flex !important;
+	flex-direction: column !important;
+	align-items: stretch !important;
+	justify-content: flex-start !important;
+	width: 100% !important;
+	max-width: 1120px;
+	margin: 0 auto;
+	padding: 16px 14px 96px;
+	box-sizing: border-box;
+}
+
+body.desktop-page .desktop-container > .icons-container {
+	width: 100%;
+	min-width: 0;
+	margin-top: 4px !important;
+	padding: 0 !important;
+}
+
+body.desktop-page .desktop-container > .icons-container > .icons {
+	display: grid !important;
+	width: 100%;
+	grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+	grid-template-rows: none !important;
+	gap: 10px !important;
+	justify-items: stretch;
+}
+
+body.desktop-page .desktop-container > .icons-container > .icons > .desktop-icon {
+	width: 100% !important;
+	height: auto !important;
+	min-height: 112px;
+	box-sizing: border-box;
+	padding: 12px 8px;
+	border: 1px solid #f0e0d0;
+	border-radius: 18px;
+	background: linear-gradient(180deg, #fffdf8, #fff4ea);
+	box-shadow: var(--melliflous-shadow);
+}
+
+body.desktop-page .desktop-container .icon-caption {
+	height: auto;
+	text-wrap: wrap;
+}
+
+body.desktop-page .desktop-container .icon-title,
+body.desktop-page .desktop-container a.icon-title {
+	display: block;
+	white-space: normal !important;
+	overflow: visible;
+	text-overflow: unset;
+	overflow-wrap: anywhere;
+	line-height: 1.25;
+	color: var(--melliflous-ink);
+}
+
+[data-theme="dark"] body.desktop-page .desktop-container > .icons-container > .icons > .desktop-icon {
+	background: #2a171c;
+	border-color: #5c3038;
+	color: #fff5f5;
+}
+
+[data-theme="dark"] body.desktop-page .desktop-container .icon-title,
+[data-theme="dark"] body.desktop-page .desktop-container a.icon-title {
+	color: #fff5f5;
+}
+
+@media (min-width: 700px) {
+	body.desktop-page .desktop-container > .icons-container > .icons {
+		grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)) !important;
+	}
+}
+
+/* Warm desk chrome: cream page, gold-edged cards, readable dark mode. */
+body {
+	background: var(--melliflous-cream);
+	color: var(--melliflous-ink);
+}
+
+body .page-head {
+	background: linear-gradient(180deg, rgba(200, 16, 46, 0.07), transparent 80%);
+	border-bottom: 1px solid var(--melliflous-line);
+}
+
+[data-theme="dark"] body .page-head {
+	background: linear-gradient(180deg, rgba(200, 16, 46, 0.2), transparent 80%);
+}
+
+body .layout-main-section,
+body .form-layout,
+body .frappe-card,
+body .widget,
+body .shortcut-widget-box,
+body .number-widget-box {
+	background: var(--melliflous-card);
+	border: 1px solid var(--melliflous-line);
+}
+
+body .form-control,
+body textarea.form-control,
+body select.form-control,
+body .like-disabled-input {
+	border-radius: 10px;
+	border-color: var(--melliflous-line);
+	background: var(--melliflous-cream-card);
+	color: var(--melliflous-ink);
+}
+
+body .form-control:focus,
+body select.form-control:focus,
+body textarea.form-control:focus {
+	border-color: var(--melliflous-red);
+	box-shadow: 0 0 0 3px rgba(200, 16, 46, 0.16);
+}
+
+body .btn-default,
+body .btn-secondary {
+	border-radius: 10px;
+	border-color: var(--melliflous-gold-deep);
+	background: var(--melliflous-cream-card);
+	color: var(--melliflous-maroon);
+}
+
+[data-theme="dark"] body .btn-default,
+[data-theme="dark"] body .btn-secondary {
+	color: #f6e7c1;
+	background: #321c22;
+	border-color: var(--melliflous-gold-deep);
+}
+
+body .list-row:hover,
+body .frappe-list .list-row:hover {
+	background: #fff6ee;
+}
+
+[data-theme="dark"] body .list-row:hover,
+[data-theme="dark"] body .frappe-list .list-row:hover {
+	background: #3a2228;
+}
+
+body .modal-content {
+	overflow: visible;
+	border: 1px solid var(--melliflous-line);
+	border-radius: 18px;
+	background: var(--melliflous-card);
+	color: var(--melliflous-ink);
+	box-shadow: 0 24px 60px rgba(92, 0, 18, 0.22);
+}
+
+body .modal-header {
+	background: linear-gradient(90deg, #7a0019, #c8102e);
+	color: #fffaf3;
+}
+
+body .modal-header .btn,
+body .modal-header .close,
+body .modal-header .btn-modal-close {
+	color: #fffaf3;
+}
+
+body .number-widget-box,
+body .widget.number {
+	border-top: 3px solid var(--melliflous-gold);
+	background: linear-gradient(180deg, var(--melliflous-cream-card), var(--melliflous-card));
+}
+
+body .standard-sidebar-item,
+body .sidebar-item {
+	border-radius: 10px;
+}
+
+body .melliflous-simple-toggle {
+	min-height: 36px;
+	border-color: var(--melliflous-gold);
+	color: #fffaf3;
+}
+
 @media (prefers-reduced-motion: reduce) {
 	body .btn-primary,
 	body .shortcut-widget-box,
 	body .number-widget-box,
-	body .melliflous-shortcut {
+	body .melliflous-shortcut,
+	body .desktop-icon,
+	.melliflous-sheet-panel {
 		transition: none;
 	}
 
-	body .btn-primary:hover,
-	body .shortcut-widget-box:hover,
-	body .number-widget-box:hover,
 	body .melliflous-shortcut:hover {
 		transform: none;
+	}
+}
+
+/* Menus, link suggestions, and the sidebar. Ancestors above stay overflow
+   visible. These rules only size and stack the menus themselves. */
+.dropdown-menu,
+.awesomplete > ul,
+.popover,
+.filter-popover,
+.list-filter-popover {
+	z-index: 2050;
+	max-width: calc(100vw - 16px);
+	border-radius: 14px;
+	border: 1px solid var(--melliflous-line);
+	background: var(--melliflous-card);
+	color: var(--melliflous-ink);
+	box-shadow: 0 16px 40px rgba(92, 0, 18, 0.18);
+}
+
+.dropdown-menu .dropdown-item,
+.dropdown-menu > li > a,
+.awesomplete > ul > li,
+.popover .dropdown-item {
+	min-height: 44px;
+	display: flex;
+	align-items: center;
+	padding: 8px 14px;
+	color: var(--melliflous-ink);
+	white-space: normal;
+}
+
+.dropdown-menu .dropdown-item:hover,
+.dropdown-menu > li > a:hover,
+.awesomplete > ul > li:hover,
+.awesomplete > ul > li[aria-selected="true"],
+.awesomplete mark {
+	background: rgba(200, 16, 46, 0.1);
+	color: var(--melliflous-maroon);
+}
+
+[data-theme="dark"] .dropdown-menu,
+[data-theme="dark"] .awesomplete > ul,
+[data-theme="dark"] .popover,
+[data-theme="dark"] .filter-popover {
+	background: #2a171c;
+	color: #fff5f5;
+	border-color: #5c3038;
+}
+
+[data-theme="dark"] .dropdown-menu .dropdown-item,
+[data-theme="dark"] .dropdown-menu > li > a,
+[data-theme="dark"] .awesomplete > ul > li {
+	color: #fff5f5;
+}
+
+[data-theme="dark"] .dropdown-menu .dropdown-item:hover,
+[data-theme="dark"] .awesomplete > ul > li:hover,
+[data-theme="dark"] .awesomplete > ul > li[aria-selected="true"] {
+	background: #4a2030;
+	color: #fff5f5;
+}
+
+@media (max-width: 900px) {
+	.dropdown-menu,
+	.awesomplete > ul,
+	.popover,
+	.filter-popover,
+	.list-filter-popover {
+		max-height: min(60dvh, calc(100dvh - 7.5rem));
+		overflow-y: auto;
+		-webkit-overflow-scrolling: touch;
+		overscroll-behavior: contain;
+	}
+
+	body .page-head .sidebar-toggle-btn {
+		opacity: 1 !important;
+		visibility: visible !important;
+		position: relative !important;
+		right: auto !important;
+		bottom: auto !important;
+		width: 44px !important;
+		height: 44px !important;
+		min-width: 44px;
+		min-height: 44px;
+		border-radius: 12px;
+	}
+
+	body .standard-sidebar-item,
+	body .sidebar-item,
+	body .desk-sidebar .sidebar-item a {
+		min-height: 44px;
 	}
 }

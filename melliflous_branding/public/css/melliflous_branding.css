@@ -51,11 +51,12 @@
 .melliflous-context,
 .melliflous-context-navbar {
 	display: flex;
-	flex-wrap: nowrap;
+	flex-wrap: wrap;
 	align-items: center;
-	gap: 6px;
+	gap: 8px;
 	min-width: 0;
-	overflow: visible;
+	max-width: 100%;
+	box-sizing: border-box;
 }
 
 .melliflous-context-label {
@@ -64,6 +65,15 @@
 	letter-spacing: 0.03em;
 	text-transform: uppercase;
 	color: #57534e;
+}
+
+body .desktop-navbar .melliflous-context-label,
+body .navbar .melliflous-context-label {
+	color: #f8e7b0;
+}
+
+.melliflous-context-pill[hidden] {
+	display: none !important;
 }
 
 .melliflous-context-pill {
@@ -79,57 +89,252 @@
 	white-space: nowrap;
 }
 
-.melliflous-context .melliflous-company-switch {
-	flex: 1 1 10rem;
-	width: 12rem;
-	min-width: 8rem;
+.melliflous-context .melliflous-company-switch,
+.melliflous-context .melliflous-division-switch {
+	flex: 1 1 9rem;
+	width: auto;
+	min-width: 0;
 	max-width: 16rem;
 }
 
 .melliflous-division-switch {
 	display: inline-block;
-	flex: 0 0 auto;
-	width: 12rem;
-	min-width: 10rem;
-	max-width: 14rem;
 }
 
-/* The desk navbar is one short row and hides children that are not the home
-   logo or the title. The division control lives in this bar, so the bar has
-   to stay a single visible row or the second control is clipped to nothing. */
-body.desktop-page .desktop-navbar {
-	overflow: visible;
+/* The desk navbar stays one row. Overflow stays visible so a user menu or
+   autocomplete list that opens from the bar is not clipped. The chip text
+   ellipsises on its own. */
+body.desktop-page .desktop-navbar,
+body.desktop-page .navbar-container {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	max-width: 100%;
 	height: auto;
 	min-height: var(--desktop-navbar-height, 49px);
+	overflow: visible;
+	box-sizing: border-box;
+	padding-inline: 8px;
+}
+
+body.desktop-page .desktop-navbar > .navbar-home {
+	flex: 0 0 auto;
 }
 
 body.desktop-page .desktop-navbar > .melliflous-context.desktop-navbar-title,
 body.desktop-page header.navbar .melliflous-context,
 body.has-mobile-nav.desktop-page .desktop-navbar > .melliflous-context.desktop-navbar-title {
 	display: flex !important;
-	flex-wrap: nowrap !important;
+	flex-wrap: wrap;
 	align-items: center;
-	gap: 6px;
+	gap: 8px;
 	position: static !important;
 	left: auto !important;
 	right: auto !important;
+	flex: 1 1 auto;
 	width: auto !important;
-	max-width: none !important;
+	min-width: 0;
+	max-width: 100% !important;
 	height: auto !important;
-	overflow: visible !important;
+	overflow: visible;
 	transform: none !important;
 	text-align: left !important;
 	visibility: visible !important;
 	opacity: 1 !important;
 }
 
-body.desktop-page .melliflous-division-switch,
-body.desktop-page .melliflous-division-label,
-body.desktop-page .melliflous-division-pill {
-	display: inline-flex !important;
-	visibility: visible !important;
+body.desktop-page .melliflous-context:not(.is-compact) .melliflous-division-switch,
+body.desktop-page .melliflous-context:not(.is-compact) .melliflous-division-label,
+body.desktop-page .melliflous-context:not(.is-compact) .melliflous-division-pill {
+	display: inline-flex;
+	visibility: visible;
+	opacity: 1;
+}
+
+.melliflous-context-chip {
+	display: none;
+	align-items: center;
+	gap: 8px;
+	width: 100%;
+	min-width: 0;
+	min-height: 44px;
+	margin: 0;
+	padding: 4px 12px 4px 4px;
+	border: 1px solid #e4c56a;
+	border-radius: 999px;
+	background: #fffaf3;
+	color: #1c1917;
+	text-align: left;
+	cursor: pointer;
+	touch-action: manipulation;
+	box-shadow: 0 6px 16px rgba(92, 0, 18, 0.12);
+}
+
+.melliflous-chip-pill {
+	display: inline-flex;
 	flex: 0 0 auto;
-	opacity: 1 !important;
+	align-items: center;
+	justify-content: center;
+	min-width: 36px;
+	height: 36px;
+	padding: 0 8px;
+	border-radius: 999px;
+	color: #fff;
+	font-size: 12px;
+	font-weight: 800;
+	letter-spacing: 0.02em;
+}
+
+.melliflous-chip-copy {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	min-width: 0;
+	line-height: 1.15;
+}
+
+.melliflous-chip-company,
+.melliflous-chip-division {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.melliflous-chip-company {
+	font-size: 13px;
+	font-weight: 800;
+}
+
+.melliflous-chip-division {
+	font-size: 12px;
+	font-weight: 700;
+	color: #7a0019;
+}
+
+.melliflous-chip-caret {
+	flex: 0 0 auto;
+	width: 10px;
+	height: 10px;
+	border-right: 2px solid #7a0019;
+	border-bottom: 2px solid #7a0019;
+	transform: rotate(45deg) translateY(-2px);
+}
+
+.melliflous-context-sheet {
+	position: fixed;
+	inset: 0;
+	z-index: 1080;
+}
+
+.melliflous-context-sheet[hidden] {
+	display: none !important;
+}
+
+.melliflous-sheet-backdrop {
+	position: absolute;
+	inset: 0;
+	border: 0;
+	background: rgba(28, 10, 12, 0.48);
+	cursor: pointer;
+}
+
+.melliflous-sheet-panel {
+	position: absolute;
+	right: 0;
+	bottom: 0;
+	left: 0;
+	max-height: min(86vh, 560px);
+	overflow: auto;
+	padding: 8px 16px calc(16px + env(safe-area-inset-bottom));
+	border-radius: 22px 22px 0 0;
+	background: linear-gradient(180deg, #fffaf3 0%, #f8efe4 100%);
+	color: #1c1917;
+	box-shadow: 0 -18px 40px rgba(92, 0, 18, 0.28);
+}
+
+.melliflous-sheet-handle {
+	width: 42px;
+	height: 4px;
+	margin: 4px auto 10px;
+	border-radius: 999px;
+	background: #e4c56a;
+}
+
+.melliflous-sheet-title {
+	margin: 0 0 8px;
+	font-size: 1.15rem;
+	font-weight: 800;
+	color: #7a0019;
+}
+
+.melliflous-sheet-fields {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.melliflous-sheet-fields .melliflous-context-label {
+	margin-top: 8px;
+	color: #7a0019;
+}
+
+.melliflous-sheet-fields .melliflous-company-switch,
+.melliflous-sheet-fields .melliflous-division-switch {
+	width: 100% !important;
+	min-width: 0 !important;
+	max-width: none !important;
+	min-height: 48px;
+	font-size: 16px;
+	background-color: #fff;
+}
+
+.melliflous-sheet-done {
+	width: 100%;
+	min-height: 48px;
+	margin-top: 14px;
+	border: 0;
+	border-radius: 14px;
+	background: linear-gradient(90deg, #c8102e, #7a0019);
+	color: #fff;
+	font-size: 16px;
+	font-weight: 800;
+	cursor: pointer;
+	touch-action: manipulation;
+}
+
+.melliflous-context.is-compact > .melliflous-context-pill,
+.melliflous-context.is-compact > .melliflous-context-label,
+.melliflous-context.is-compact > select {
+	display: none !important;
+}
+
+.melliflous-context.is-compact > .melliflous-context-chip {
+	display: flex !important;
+}
+
+.melliflous-context:not(.is-compact) > .melliflous-context-chip {
+	display: none !important;
+}
+
+@media (max-width: 900px) {
+	.melliflous-context > .melliflous-context-label,
+	.melliflous-context > .melliflous-company-switch,
+	.melliflous-context > .melliflous-division-switch,
+	.melliflous-context > .melliflous-context-pill {
+		display: none !important;
+	}
+
+	.melliflous-context > .melliflous-context-chip,
+	.melliflous-sheet-fields .melliflous-context-label,
+	.melliflous-sheet-fields .melliflous-company-switch,
+	.melliflous-sheet-fields .melliflous-division-switch {
+		display: flex !important;
+	}
+
+	.melliflous-sheet-fields .melliflous-company-switch,
+	.melliflous-sheet-fields .melliflous-division-switch {
+		display: block !important;
+	}
 }
 
 /* Wide home: Frappe hides .desktop-navbar-title. Show the company name, or the
@@ -894,6 +1099,45 @@ body.desktop-page .module-folder-app[data-melliflous-tone="brand"] .module-folde
 	color: #C8102E;
 	font-weight: 800;
 }
+[data-theme="dark"] .melliflous-context-chip,
+[data-theme="dark"] .melliflous-sheet-panel {
+	background: #2a171c;
+	color: #fff5f5;
+	border-color: #e4c56a;
+}
+
+[data-theme="dark"] .melliflous-chip-division,
+[data-theme="dark"] .melliflous-sheet-title,
+[data-theme="dark"] .melliflous-sheet-fields .melliflous-context-label {
+	color: #f6e7c1;
+}
+
+[data-theme="dark"] .melliflous-sheet-fields .melliflous-company-switch,
+[data-theme="dark"] .melliflous-sheet-fields .melliflous-division-switch {
+	background-color: #1c1214;
+	color: #fff5f5;
+	border-color: #6b3a42;
+}
+
+[data-theme="dark"] .melliflous-quick.melliflous-360 {
+	color: #f6efe9;
+}
+
+[data-theme="dark"] .melliflous-360 .kpi,
+[data-theme="dark"] .melliflous-360 .panel,
+[data-theme="dark"] .melliflous-360 .event,
+[data-theme="dark"] .melliflous-360 .pill.ghost {
+	background: #2a171c;
+	border-color: #5c3038;
+	color: #f6efe9;
+}
+
+[data-theme="dark"] .melliflous-360 .kpi .detail,
+[data-theme="dark"] .melliflous-360 .kpi .label,
+[data-theme="dark"] .melliflous-360 .spark-label {
+	color: #e7d5cc;
+}
+
 .melliflous-360 .doc-row {
 	display: flex;
 	flex-wrap: wrap;
