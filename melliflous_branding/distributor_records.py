@@ -606,18 +606,96 @@ def _payments(customer, company):
 	amount = _column(columns, "base_paid_amount", "paid_amount", fallback=None)
 	if not amount:
 		return []
+	company_field = "company" if "company" in columns else "null"
 	company_sql = "and company = %s" if "company" in columns else ""
 	party_type = "and party_type = 'Customer'" if "party_type" in columns else ""
+	status = _column(columns, "status", fallback="''")
+	docstatus = "docstatus" if "docstatus" in columns else "1"
 	params = [customer]
 	if company_sql:
 		params.append(company)
 	return frappe.db.sql(
 		f"""
-		select name, posting_date, company, {amount} as amount
+		select name, posting_date, {company_field} as company, {amount} as amount,
+			{status} as status, {docstatus} as docstatus
 		from `tabPayment Entry`
-		where docstatus = 1 and party = %s {party_type} {company_sql}
+		where {docstatus} < 2 and party = %s {party_type} {company_sql}
 		order by posting_date desc, name desc
-		limit 12
+		limit 24
+		""",
+		tuple(params),
+		as_dict=True,
+	)
+
+
+def _quotations(customer, company):
+	if not frappe.db.table_exists("Quotation"):
+		return []
+	columns = set(frappe.db.get_table_columns("Quotation") or [])
+	if "transaction_date" not in columns:
+		return []
+	if "party_name" in columns and "quotation_to" in columns:
+		party_sql = "quotation_to = 'Customer' and party_name = %s"
+	elif "customer" in columns:
+		party_sql = "customer = %s"
+	else:
+		return []
+	return _selling_rows("Quotation", customer, company, "transaction_date", party_sql, columns)
+
+
+def _sales_orders(customer, company):
+	if not frappe.db.table_exists("Sales Order"):
+		return []
+	columns = set(frappe.db.get_table_columns("Sales Order") or [])
+	if "customer" not in columns or "transaction_date" not in columns:
+		return []
+	return _selling_rows("Sales Order", customer, company, "transaction_date", "customer = %s", columns)
+
+
+def _draft_invoices(customer, company):
+	"""Unsubmitted invoices. They are listed and are not part of primary billing."""
+	if not frappe.db.table_exists("Sales Invoice"):
+		return []
+	columns = set(frappe.db.get_table_columns("Sales Invoice") or [])
+	if "customer" not in columns or "posting_date" not in columns or "docstatus" not in columns:
+		return []
+	is_return = "and ifnull(is_return, 0) = 0" if "is_return" in columns else ""
+	rows = _selling_rows(
+		"Sales Invoice",
+		customer,
+		company,
+		"posting_date",
+		f"customer = %s and docstatus = 0 {is_return}",
+		columns,
+		limit=20,
+	)
+	for row in rows:
+		row["docstatus"] = 0
+		row["is_return"] = 0
+		row["posting_date"] = row.get("transaction_date")
+	return rows
+
+
+def _selling_rows(doctype, customer, company, date_field, party_sql, columns, limit=30):
+	amount = _column(columns, "base_net_total", "net_total", "base_grand_total", "grand_total", fallback=None)
+	if not amount:
+		return []
+	company_field = "company" if "company" in columns else "null"
+	company_sql = "and company = %s" if "company" in columns else ""
+	status = _column(columns, "status", fallback="''")
+	docstatus = "docstatus" if "docstatus" in columns else "0"
+	params = [customer]
+	if company_sql:
+		params.append(company)
+	# party_sql is built only from column names in this module, never from the request.
+	return frappe.db.sql(
+		f"""
+		select name, `{date_field}` as transaction_date, {company_field} as company,
+			{status} as status, {docstatus} as docstatus, {amount} as amount
+		from `tab{doctype}`
+		where {docstatus} < 2 and {party_sql} {company_sql}
+		order by `{date_field}` desc, name desc
+		limit {int(limit)}
 		""",
 		tuple(params),
 		as_dict=True,
@@ -694,8 +772,11 @@ def fetch_bundle(customer, company, profile):
 		"currency": company_currency(company),
 		"profile": profile,
 		"invoices": _invoice_headers(customer, company, window_start, window_end),
+		"draft_invoices": _draft_invoices(customer, company),
 		"lines": _invoice_item_lines(customer, company, window_start, window_end),
 		"payments": _payments(customer, company),
+		"quotations": _quotations(customer, company),
+		"sales_orders": _sales_orders(customer, company),
 		"statements": statements,
 		"visits": visits,
 		"complaints": complaints,

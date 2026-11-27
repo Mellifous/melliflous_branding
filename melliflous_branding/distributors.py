@@ -730,6 +730,9 @@ def build_dashboard(bundle, today, growth_pct=GROWTH_DEFAULT) -> dict:
 	visits = [row for row in bundle.get("visits") or [] if not company or _in_company(row, company)]
 	complaints = [row for row in bundle.get("complaints") or [] if _in_company(row, company)]
 	payments = [row for row in bundle.get("payments") or [] if _in_company(row, company)]
+	quotations = [row for row in bundle.get("quotations") or [] if _in_company(row, company)]
+	sales_orders = [row for row in bundle.get("sales_orders") or [] if _in_company(row, company)]
+	draft_invoices = [row for row in bundle.get("draft_invoices") or [] if _in_company(row, company)]
 
 	primary = {}
 	for row in invoices:
@@ -950,10 +953,16 @@ def build_dashboard(bundle, today, growth_pct=GROWTH_DEFAULT) -> dict:
 			"average_days_between": average_gap,
 			"orders_per_month": round(order_count / CHART_MONTHS, 2),
 		},
+		"quotations": summarize_quotations(quotations),
 		"tabs": {
 			"invoices": _recent([_invoice_tab(row) for row in invoices if not as_flag(row.get("is_return"))]),
+			"draft_invoices": _recent(
+				[_selling_tab(row, "Sales Invoice", "posting_date") for row in draft_invoices if not as_flag(row.get("is_return"))]
+			),
 			"credit_notes": _recent([_invoice_tab(row) for row in invoices if as_flag(row.get("is_return"))]),
 			"payments": _recent([_payment_tab(row) for row in payments]),
+			"quotations": _recent([_selling_tab(row, "Quotation") for row in quotations]),
+			"sales_orders": _recent([_selling_tab(row, "Sales Order") for row in sales_orders]),
 			"visits": _recent([_visit_tab(row) for row in visits]),
 			"statements": _recent([_statement_tab(row) for row in statements]),
 			"complaints": _recent([_complaint_tab(row) for row in complaints]),
@@ -980,6 +989,90 @@ def _profile_view(profile):
 	}
 
 
+def quote_tone(status, docstatus=1) -> str:
+	"""Draft grey, Open blue, Ordered green, Lost and Expired red."""
+	if int(docstatus or 0) == 0 or clean_text(status) in ("", "Draft"):
+		return "grey"
+	label = clean_text(status)
+	if label in ("Lost", "Expired", "Cancelled"):
+		return "red"
+	if label == "Ordered":
+		return "green"
+	return "blue"
+
+
+def summarize_quotations(rows) -> dict:
+	"""Drafts and submitted quotations. Cancelled documents are left out. Value is the net total."""
+	kept = []
+	for row in rows or []:
+		if int(row.get("docstatus") or 0) == 2:
+			continue
+		kept.append(row)
+	counts = {}
+	value = 0.0
+	drafts = 0
+	submitted = 0
+	for row in kept:
+		docstatus = int(row.get("docstatus") or 0)
+		if docstatus == 0:
+			drafts += 1
+			label = "Draft"
+		else:
+			submitted += 1
+			label = clean_text(row.get("status")) or "Open"
+		counts[label] = counts.get(label, 0) + 1
+		value += float(row.get("amount") or 0)
+	order = ("Draft", "Open", "Replied", "Ordered", "Lost", "Expired", "Cancelled")
+	pills = []
+	seen = set()
+	for label in list(order) + [label for label in counts if label not in order]:
+		if label in seen or label not in counts:
+			continue
+		seen.add(label)
+		pills.append(
+			{
+				"status": label,
+				"count": counts[label],
+				"tone": quote_tone(label, 0 if label == "Draft" else 1),
+			}
+		)
+	return {
+		"draft_count": drafts,
+		"submitted_count": submitted,
+		"count": len(kept),
+		"total_value": money(value),
+		"pills": pills,
+	}
+
+
+def _selling_tab(row, doctype, date_field="transaction_date") -> dict:
+	docstatus = int(row.get("docstatus") or 0)
+	status = clean_text(row.get("status"))
+	text = status
+	tone = ""
+	if doctype == "Quotation":
+		if docstatus == 0:
+			status = "Draft"
+		tone = quote_tone(status, docstatus)
+		text = status
+	elif doctype == "Sales Invoice" and docstatus == 0:
+		text = "Draft — not counted"
+		tone = "grey"
+		status = "Draft"
+	elif docstatus == 0 and not text:
+		text = "Draft"
+		status = "Draft"
+	return {
+		"doctype": doctype,
+		"name": row.get("name"),
+		"date": as_date(row.get(date_field) or row.get("posting_date")),
+		"amount": money(row.get("amount")),
+		"text": text,
+		"status": status,
+		"tone": tone,
+	}
+
+
 def _invoice_tab(row) -> dict:
 	return {
 		"doctype": "Sales Invoice",
@@ -991,12 +1084,15 @@ def _invoice_tab(row) -> dict:
 
 
 def _payment_tab(row) -> dict:
+	draft = int(row.get("docstatus") or 1) == 0
 	return {
 		"doctype": "Payment Entry",
 		"name": row.get("name"),
 		"date": as_date(row.get("posting_date")),
 		"amount": money(row.get("amount")),
-		"text": "",
+		"text": "Draft" if draft else clean_text(row.get("status")),
+		"status": "Draft" if draft else clean_text(row.get("status")),
+		"tone": "grey" if draft else "green",
 	}
 
 
