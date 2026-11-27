@@ -32,6 +32,11 @@
   "column_break_owner",
   "sales_user",
   "remarks",
+  "target_source",
+  "recommended_amount",
+  "set_by",
+  "set_on",
+  "recommendation_basis",
   "achievement_section",
   "achieved_amount",
   "gap",
@@ -211,6 +216,48 @@
    "label": "Remarks"
   },
   {
+   "description": "Manual is an amount typed in. Recommended is the calculated monthly target.",
+   "fieldname": "target_source",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Source",
+   "no_copy": 1,
+   "options": "\nManual\nRecommended",
+   "read_only": 1
+  },
+  {
+   "description": "The recommended target at the time this target was set.",
+   "fieldname": "recommended_amount",
+   "fieldtype": "Currency",
+   "label": "Recommended Amount",
+   "no_copy": 1,
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "set_by",
+   "fieldtype": "Link",
+   "label": "Set By",
+   "no_copy": 1,
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "set_on",
+   "fieldtype": "Datetime",
+   "label": "Set On",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "description": "How the recommended amount was worked out when the target was set.",
+   "fieldname": "recommendation_basis",
+   "fieldtype": "Small Text",
+   "label": "Recommendation Basis",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
    "fieldname": "achievement_section",
    "fieldtype": "Section Break",
    "label": "Achievement"
@@ -268,7 +315,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-11-26 18:00:00.000000",
+ "modified": "2026-11-27 10:30:00.000000",
  "modified_by": "Administrator",
  "module": "Melliflous Branding",
  "name": "Customer Primary Target",

@@ -1,0 +1,76 @@
+{
+ "actions": [],
+ "creation": "2026-11-27 10:30:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "growth_factor",
+  "default_target"
+ ],
+ "fields": [
+  {
+   "default": "1.10",
+   "description": "Recommended monthly target is the higher of the last 3-month and last 6-month average primary, times this factor. 1.10 means 10 percent growth. Draft invoices are excluded.",
+   "fieldname": "growth_factor",
+   "fieldtype": "Float",
+   "label": "Growth Factor"
+  },
+  {
+   "default": "0",
+   "description": "Recommended target for a distributor with no submitted invoice in the last 6 months.",
+   "fieldname": "default_target",
+   "fieldtype": "Currency",
+   "label": "Default Target"
+  }
+ ],
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-11-27 10:30:00.000000",
+ "modified_by": "Administrator",
+ "module": "Melliflous Branding",
+ "name": "Distributor Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 0,
+   "delete": 0,
+   "email": 0,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales User",
+   "share": 0,
+   "write": 0
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

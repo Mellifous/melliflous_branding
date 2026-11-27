@@ -12,19 +12,24 @@ from frappe.utils import getdate
 
 from melliflous_branding.distributors import (
 	COMPLAINT_IDENTITY,
+	DEFAULT_TARGET_AMOUNT,
 	DISTRIBUTOR_CARD,
 	DISTRIBUTOR_LINKS,
+	GROWTH_FACTOR_DEFAULT,
 	STATEMENT_IDENTITY,
 	VISIT_IDENTITY,
 	DistributorError,
 	achievement_for_month,
 	add_months,
 	build_dashboard,
+	build_distributor_mis,
 	can_file,
+	can_open_distributor_360,
 	can_read_activity,
 	can_see_profile,
 	clean_complaint,
 	clean_follow_up_filters,
+	clean_growth_factor,
 	clean_visit,
 	find_duplicate_statement,
 	follow_up_columns,
@@ -34,11 +39,14 @@ from melliflous_branding.distributors import (
 	month_label,
 	next_visit_due,
 	normalize_lines,
+	plan_target_save,
 	prefill_rows,
 	prepare_profile_values,
 	received_by_item,
+	recommended_monthly_target,
 	statement_period,
 	statement_period_key,
+	trailing_months,
 	workspace_block,
 	workspace_link,
 	workspace_shortcut,
@@ -824,16 +832,18 @@ def dashboard(customer, company=None, growth_pct=None):
 	try:
 		bundle = fetch_bundle(customer, company, profile)
 		bundle["current_target"] = _current_month_target(customer, company)
-		return build_dashboard(bundle, getdate(frappe.utils.today()), growth_pct)
+		return build_dashboard(bundle, getdate(frappe.utils.today()), growth_pct, _target_settings())
 	except DistributorError as exc:
 		_throw(exc)
 
 
-def _current_month_target(customer, company):
+def _current_month_target(customer, company, start=None):
 	"""Whole-customer primary target for this month, if a Sales Manager has set one."""
 	if not frappe.db.table_exists("Customer Primary Target"):
 		return None
-	start = statement_period(getdate(frappe.utils.today()))[0]
+	start = start or statement_period(getdate(frappe.utils.today()))[0]
+	fields = ["name", "target_amount", "item_group", "brand"]
+	fields.extend(_target_audit_fields())
 	rows = frappe.get_all(
 		"Customer Primary Target",
 		filters={
@@ -842,7 +852,7 @@ def _current_month_target(customer, company):
 			"period_type": "Monthly",
 			"from_date": start,
 		},
-		fields=["name", "target_amount", "item_group", "brand"],
+		fields=fields,
 		limit_page_length=20,
 		ignore_permissions=True,
 	)
@@ -851,7 +861,14 @@ def _current_month_target(customer, company):
 	if not chosen:
 		return None
 	row = chosen[0]
-	return {"name": row.name, "target_amount": row.target_amount}
+	return {
+		"name": row.name,
+		"target_amount": row.target_amount,
+		"target_source": row.get("target_source"),
+		"recommended_amount": row.get("recommended_amount"),
+		"set_by": row.get("set_by"),
+		"set_on": row.get("set_on"),
+	}
 
 
 @frappe.whitelist()
@@ -909,6 +926,510 @@ def create_next_target(customer, company=None, growth_pct=None):
 		"created": created,
 		"period_label": suggestion["period_label"],
 	}
+
+
+def _require_360() -> str:
+	user = require_signed_in()
+	if not can_open_distributor_360(user, frappe.get_roles(user)):
+		frappe.throw(_("You cannot open Distributor 360."), frappe.PermissionError)
+	return user
+
+
+def _target_settings() -> dict:
+	"""Growth factor and the default for a distributor with no recent billing."""
+	growth = GROWTH_FACTOR_DEFAULT
+	default_amount = DEFAULT_TARGET_AMOUNT
+	if not frappe.db.table_exists("Distributor Settings"):
+		return {"growth_factor": growth, "default_amount": default_amount}
+	stored_growth = frappe.db.get_single_value("Distributor Settings", "growth_factor")
+	stored_default = frappe.db.get_single_value("Distributor Settings", "default_target")
+	try:
+		if stored_growth not in (None, ""):
+			growth = clean_growth_factor(stored_growth)
+	except DistributorError:
+		growth = GROWTH_FACTOR_DEFAULT
+	try:
+		if stored_default not in (None, ""):
+			default_amount = float(stored_default)
+	except (TypeError, ValueError):
+		default_amount = DEFAULT_TARGET_AMOUNT
+	return {"growth_factor": growth, "default_amount": default_amount}
+
+
+def _target_audit_fields() -> list:
+	if not frappe.db.table_exists("Customer Primary Target"):
+		return []
+	columns = set(frappe.db.get_table_columns("Customer Primary Target") or [])
+	return [
+		name
+		for name in ("target_source", "recommended_amount", "set_by", "set_on", "recommendation_basis", "remarks")
+		if name in columns
+	]
+
+
+def _visible_profiles(company):
+	if not frappe.db.table_exists("Distributor Profile"):
+		return []
+	filters = {"company": company} if company else {}
+	return frappe.get_list(
+		"Distributor Profile",
+		filters=filters,
+		fields=list(PROFILE_FIELDS),
+		limit_page_length=5000,
+	)
+
+
+@frappe.whitelist()
+def distributor_mis(company=None, activity=None, search=None, territory=None, account_manager=None, sales_person=None, rag=None):
+	"""Book of distributors the user may see. Totals come from grouped queries, not one query per row."""
+	_require_360()
+	company = clean_text(company) or frappe.defaults.get_user_default("company")
+	if not company:
+		frappe.throw(_("Pick a company."))
+	today = getdate(frappe.utils.today())
+	profiles = _visible_profiles(company)
+	months = trailing_months(today, 6)
+	metrics = _mis_metrics(profiles, company, today, months)
+	try:
+		return build_distributor_mis(
+			profiles,
+			metrics,
+			{
+				"activity": activity,
+				"search": search,
+				"territory": territory,
+				"account_manager": account_manager,
+				"sales_person": sales_person,
+				"rag": rag,
+			},
+			today,
+			months,
+			_target_settings(),
+		) | {"company": company, "currency": company_currency(company)}
+	except DistributorError as exc:
+		_throw(exc)
+
+
+@frappe.whitelist()
+def set_distributor_target(customer, company=None, source=None, amount=None, target_month=None, note=None):
+	"""Create or update one month's whole-customer target. Older months are left in place."""
+	require_editor()
+	user = _require_360()
+	customer = clean_text(customer)
+	if not customer:
+		frappe.throw(_("Pick a distributor."))
+	profile = _profile_row(customer)
+	viewer = _viewer()
+	if profile and not can_see_profile(viewer, profile):
+		frappe.throw(_("This distributor is not assigned to you."), frappe.PermissionError)
+	if not profile and not is_manager(viewer):
+		frappe.throw(_("This distributor is not assigned to you."), frappe.PermissionError)
+	company = clean_text(company) or (profile or {}).get("company") or frappe.defaults.get_user_default("company")
+	if not company:
+		frappe.throw(_("Pick a company."))
+	today = getdate(frappe.utils.today())
+	months = trailing_months(today, 6)
+	metrics = _mis_metrics([{"customer": customer}], company, today, months)
+	facts = metrics.get(customer) or {}
+	keys = [(day.year, day.month) for day in months]
+	spark = [facts.get("months", {}).get(key, 0) for key in keys]
+	settings = _target_settings()
+	recommendation = recommended_monthly_target(spark, settings["growth_factor"], settings["default_amount"])
+	try:
+		planned = plan_target_save(source, amount, recommendation["amount"], note)
+		start, _end = statement_period(target_month or today)
+	except (DistributorError, TargetError) as exc:
+		_throw(exc)
+	saved = _save_primary_target(customer, company, start, planned, profile or {}, recommendation, user)
+	saved["currency"] = company_currency(company)
+	saved["recommendation_basis"] = recommendation["basis"]
+	return saved
+
+
+@frappe.whitelist()
+def apply_recommended_targets(customers=None, company=None, target_month=None):
+	"""Set this month's target to the recommended amount for each selected distributor."""
+	require_editor()
+	user = _require_360()
+	if isinstance(customers, str):
+		try:
+			customers = json.loads(customers)
+		except ValueError:
+			customers = [customers]
+	names = []
+	for name in customers or []:
+		cleaned = clean_text(name)
+		if cleaned and cleaned not in names:
+			names.append(cleaned)
+	if not names:
+		frappe.throw(_("Select at least one distributor."))
+	if len(names) > 500:
+		frappe.throw(_("Select up to 500 distributors at a time."))
+	company = clean_text(company) or frappe.defaults.get_user_default("company")
+	if not company:
+		frappe.throw(_("Pick a company."))
+	viewer = _viewer()
+	profiles = _visible_profiles(company)
+	by_customer = {row.customer: row for row in profiles if row.get("customer")}
+	today = getdate(frappe.utils.today())
+	try:
+		start, _end = statement_period(target_month or today)
+	except (DistributorError, TargetError) as exc:
+		_throw(exc)
+	months = trailing_months(today, 6)
+	allowed = []
+	skipped = []
+	for name in names:
+		profile = by_customer.get(name)
+		if not profile or not can_see_profile(viewer, profile):
+			skipped.append({"customer": name, "reason": "This distributor is not assigned to you."})
+			continue
+		allowed.append(profile)
+	metrics = _mis_metrics(allowed, company, today, months)
+	settings = _target_settings()
+	keys = [(day.year, day.month) for day in months]
+	applied = []
+	for profile in allowed:
+		customer = profile.customer
+		facts = metrics.get(customer) or {}
+		spark = [facts.get("months", {}).get(key, 0) for key in keys]
+		recommendation = recommended_monthly_target(spark, settings["growth_factor"], settings["default_amount"])
+		try:
+			planned = plan_target_save("Recommended", None, recommendation["amount"], None)
+		except DistributorError as exc:
+			skipped.append({"customer": customer, "reason": str(exc)})
+			continue
+		saved = _save_primary_target(customer, company, start, planned, profile, recommendation, user)
+		applied.append(
+			{"customer": customer, "name": saved["name"], "target_amount": saved["target_amount"]}
+		)
+	return {"applied": applied, "skipped": skipped, "currency": company_currency(company)}
+
+
+def _save_primary_target(customer, company, start, planned, profile, recommendation, user) -> dict:
+	"""Update the whole-customer target for this month, or insert one. Other months stay."""
+	if not frappe.db.table_exists("Customer Primary Target"):
+		frappe.throw(_("Customer Primary Target is not installed on this site."))
+	existing = frappe.get_all(
+		"Customer Primary Target",
+		filters={
+			"customer": customer,
+			"company": company,
+			"period_type": "Monthly",
+			"from_date": start,
+		},
+		fields=["name", "item_group", "brand"],
+		limit_page_length=20,
+	)
+	match = next((row for row in existing if not row.item_group and not row.brand), None)
+	audit = set(_target_audit_fields())
+	values = {"target_amount": planned["target_amount"]}
+	if "target_source" in audit:
+		values["target_source"] = planned["source"]
+	if "recommended_amount" in audit:
+		values["recommended_amount"] = planned["recommended_amount"]
+	if "set_by" in audit:
+		values["set_by"] = user
+	if "set_on" in audit:
+		values["set_on"] = frappe.utils.now_datetime()
+	if "recommendation_basis" in audit:
+		values["recommendation_basis"] = recommendation.get("basis")
+	if "remarks" in audit and planned.get("note") is not None:
+		values["remarks"] = planned["note"]
+	if match:
+		doc = frappe.get_doc("Customer Primary Target", match.name)
+		for key, value in values.items():
+			doc.set(key, value)
+		doc.save()
+		created = False
+	else:
+		payload = {
+			"doctype": "Customer Primary Target",
+			"customer": customer,
+			"company": company,
+			"period_type": "Monthly",
+			"target_month": start,
+			"sales_person": (profile or {}).get("sales_person"),
+			"sales_user": (profile or {}).get("salesman") or (profile or {}).get("account_manager"),
+		}
+		payload.update(values)
+		doc = frappe.get_doc(payload)
+		doc.insert()
+		created = True
+	return {
+		"name": doc.name,
+		"target_amount": doc.target_amount,
+		"target_source": planned["source"],
+		"recommended_amount": planned["recommended_amount"],
+		"from_date": doc.from_date,
+		"to_date": doc.to_date,
+		"created": created,
+		"period_label": month_label(start),
+	}
+
+
+def _signed_amount_sql(amount_expr, is_return_expr) -> str:
+	"""Submitted net total. A credit note subtracts. The expressions are column names from this module."""
+	return (
+		f"case when ifnull({is_return_expr}, 0) = 1 then -abs(ifnull({amount_expr}, 0)) "
+		f"else ifnull({amount_expr}, 0) end"
+	)
+
+
+def _mis_metrics(profiles, company, today, months) -> dict:
+	"""Grouped facts for the book. One query per measure, chunked, never one query per distributor."""
+	customers = []
+	for profile in profiles or []:
+		customer = clean_text(profile.get("customer") if isinstance(profile, dict) else getattr(profile, "customer", None))
+		if customer and customer not in customers:
+			customers.append(customer)
+	metrics = {customer: {"months": {}} for customer in customers}
+	if not customers:
+		return metrics
+	start = months[0]
+	end = statement_period(months[-1])[1]
+	month_start = statement_period(today)[0]
+	_fill_disabled(metrics, customers)
+	_fill_invoice_metrics(metrics, customers, company, today, start, end, month_start)
+	_fill_target_metrics(metrics, customers, company, month_start)
+	_fill_quotation_metrics(metrics, customers, company)
+	_fill_collection_metrics(metrics, customers, company, month_start, statement_period(today)[1])
+	_fill_visit_metrics(metrics, customers, company, month_start, statement_period(today)[1])
+	return metrics
+
+
+def _fill_disabled(metrics, customers):
+	if not frappe.db.table_exists("Customer"):
+		return
+	columns = set(frappe.db.get_table_columns("Customer") or [])
+	if "disabled" not in columns:
+		return
+	for chunk in _chunks(customers, 300):
+		for row in frappe.get_all(
+			"Customer",
+			filters={"name": ["in", chunk]},
+			fields=["name", "disabled"],
+			limit_page_length=500,
+			ignore_permissions=True,
+		):
+			metrics[row.name]["disabled"] = row.disabled
+
+
+def _fill_invoice_metrics(metrics, customers, company, today, start, end, month_start):
+	"""Submitted invoices only. Drafts stay out of primary, the sparkline, and the last bill."""
+	if not frappe.db.table_exists("Sales Invoice"):
+		return
+	columns = set(frappe.db.get_table_columns("Sales Invoice") or [])
+	if "customer" not in columns or "posting_date" not in columns or "docstatus" not in columns:
+		return
+	amount = _column(columns, "base_net_total", "net_total", "base_grand_total", fallback=None)
+	if not amount:
+		return
+	is_return = _column(columns, "is_return", fallback="0")
+	signed = _signed_amount_sql(amount, is_return)
+	company_sql = "and company = %s" if "company" in columns else ""
+	outstanding = _column(columns, "outstanding_amount", fallback="0")
+	due = _column(columns, "due_date", fallback="null")
+	for chunk in _chunks(customers, 300):
+		params = [start, end, chunk]
+		if company_sql:
+			params.append(company)
+		for row in frappe.db.sql(
+			f"""
+			select customer,
+				year(posting_date) as year,
+				month(posting_date) as month,
+				coalesce(sum({signed}), 0) as amount
+			from `tabSales Invoice`
+			where docstatus = 1 and posting_date between %s and %s and customer in %s
+				{company_sql}
+			group by customer, year(posting_date), month(posting_date)
+			""",
+			tuple(params),
+			as_dict=True,
+		):
+			metrics[row.customer]["months"][(int(row.year), int(row.month))] = float(row.amount or 0)
+		primary_params = [month_start, end, chunk]
+		if company_sql:
+			primary_params.append(company)
+		for row in frappe.db.sql(
+			f"""
+			select customer, coalesce(sum({signed}), 0) as amount
+			from `tabSales Invoice`
+			where docstatus = 1 and posting_date between %s and %s and customer in %s
+				{company_sql}
+			group by customer
+			""",
+			tuple(primary_params),
+			as_dict=True,
+		):
+			metrics[row.customer]["primary_mtd"] = float(row.amount or 0)
+		if "outstanding_amount" in columns:
+			out_params = [today, chunk]
+			if company_sql:
+				out_params.append(company)
+			for row in frappe.db.sql(
+				f"""
+				select customer,
+					coalesce(sum({outstanding}), 0) as outstanding,
+					coalesce(sum(case
+						when {outstanding} > 0 and {due} < %s then {outstanding}
+						else 0
+					end), 0) as overdue
+				from `tabSales Invoice`
+				where docstatus = 1 and customer in %s
+					{company_sql}
+				group by customer
+				""",
+				tuple(out_params),
+				as_dict=True,
+			):
+				metrics[row.customer]["outstanding"] = float(row.outstanding or 0)
+				metrics[row.customer]["overdue"] = float(row.overdue or 0)
+		last_params = [chunk]
+		if company_sql:
+			last_params.append(company)
+		not_return = f"and ifnull({is_return}, 0) = 0" if "is_return" in columns else ""
+		for row in frappe.db.sql(
+			f"""
+			select customer, max(posting_date) as last_billing
+			from `tabSales Invoice`
+			where docstatus = 1 {not_return} and customer in %s
+				{company_sql}
+			group by customer
+			""",
+			tuple(last_params),
+			as_dict=True,
+		):
+			metrics[row.customer]["last_billing"] = row.last_billing
+
+
+def _fill_target_metrics(metrics, customers, company, month_start):
+	if not frappe.db.table_exists("Customer Primary Target"):
+		return
+	audit = _target_audit_fields()
+	extra = ""
+	for name in ("target_source", "recommended_amount"):
+		if name in audit:
+			extra += f", `{name}`"
+	for chunk in _chunks(customers, 300):
+		for row in frappe.db.sql(
+			f"""
+			select name, customer, target_amount, item_group, brand {extra}
+			from `tabCustomer Primary Target`
+			where company = %s and period_type = 'Monthly' and from_date = %s and customer in %s
+			""",
+			(company, month_start, chunk),
+			as_dict=True,
+		):
+			current = metrics[row.customer]
+			whole = not clean_text(row.item_group) and not clean_text(row.brand)
+			if current.get("target_name") and not whole:
+				continue
+			if current.get("target_name") and whole and current.get("_whole_target"):
+				continue
+			current["target_amount"] = row.target_amount
+			current["target_name"] = row.name
+			current["target_source"] = row.get("target_source")
+			current["_whole_target"] = whole
+
+
+def _fill_quotation_metrics(metrics, customers, company):
+	"""Open quotation value: drafts and submitted Open or Replied. Lost, ordered, and cancelled stay out."""
+	if not frappe.db.table_exists("Quotation"):
+		return
+	columns = set(frappe.db.get_table_columns("Quotation") or [])
+	amount = _column(columns, "base_net_total", "net_total", "base_grand_total", fallback=None)
+	if not amount or "docstatus" not in columns:
+		return
+	if "party_name" in columns:
+		party = "party_name"
+		who = "quotation_to = 'Customer'" if "quotation_to" in columns else "1 = 1"
+	elif "customer" in columns:
+		party = "customer"
+		who = "1 = 1"
+	else:
+		return
+	company_sql = "and company = %s" if "company" in columns else ""
+	status_sql = ""
+	if "status" in columns:
+		status_sql = "and ifnull(status, '') in ('', 'Draft', 'Open', 'Replied')"
+	for chunk in _chunks(customers, 300):
+		params = [chunk]
+		if company_sql:
+			params.append(company)
+		for row in frappe.db.sql(
+			f"""
+			select `{party}` as customer, coalesce(sum({amount}), 0) as amount
+			from `tabQuotation`
+			where docstatus < 2 and {who} {status_sql} and `{party}` in %s
+				{company_sql}
+			group by `{party}`
+			""",
+			tuple(params),
+			as_dict=True,
+		):
+			if row.customer in metrics:
+				metrics[row.customer]["open_quotations"] = float(row.amount or 0)
+
+
+def _fill_collection_metrics(metrics, customers, company, month_start, month_end):
+	"""Submitted Payment Entries only. Draft receipts are not collections."""
+	if not frappe.db.table_exists("Payment Entry"):
+		return
+	columns = set(frappe.db.get_table_columns("Payment Entry") or [])
+	if "party" not in columns or "posting_date" not in columns or "docstatus" not in columns:
+		return
+	amount = _column(columns, "base_paid_amount", "paid_amount", fallback=None)
+	if not amount:
+		return
+	party_type = "and party_type = 'Customer'" if "party_type" in columns else ""
+	company_sql = "and company = %s" if "company" in columns else ""
+	for chunk in _chunks(customers, 300):
+		params = [month_start, month_end, chunk]
+		if company_sql:
+			params.append(company)
+		for row in frappe.db.sql(
+			f"""
+			select party as customer, coalesce(sum({amount}), 0) as amount
+			from `tabPayment Entry`
+			where docstatus = 1 {party_type} and posting_date between %s and %s and party in %s
+				{company_sql}
+			group by party
+			""",
+			tuple(params),
+			as_dict=True,
+		):
+			if row.customer in metrics:
+				metrics[row.customer]["collections_mtd"] = float(row.amount or 0)
+
+
+def _fill_visit_metrics(metrics, customers, company, month_start, month_end):
+	if not frappe.db.table_exists("Distributor Visit"):
+		return
+	columns = set(frappe.db.get_table_columns("Distributor Visit") or [])
+	if "distributor" not in columns or "visit_date" not in columns:
+		return
+	company_sql = ""
+	if "company" in columns:
+		company_sql = "and (ifnull(company, '') = '' or company = %s)"
+	for chunk in _chunks(customers, 300):
+		params = [month_start, month_end, chunk]
+		if company_sql:
+			params.append(company)
+		for row in frappe.db.sql(
+			f"""
+			select distributor as customer, count(*) as total
+			from `tabDistributor Visit`
+			where visit_date between %s and %s and distributor in %s
+				{company_sql}
+			group by distributor
+			""",
+			tuple(params),
+			as_dict=True,
+		):
+			if row.customer in metrics:
+				metrics[row.customer]["visits_mtd"] = int(row.total or 0)
 
 
 @frappe.whitelist()
