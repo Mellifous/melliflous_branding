@@ -16,6 +16,389 @@
 	];
 	const EMPTY_BILLING = "₹0 — no submitted invoices yet";
 
+	// The desk often keeps an old copy of app_include_css after a pull. The page
+	// script is what actually updates, so the rules travel with it.
+	const PAGE_STYLE = `
+/* Distributor 360. Light desk theme, cards stack on a phone. */
+.melliflous-quick.melliflous-360 {
+	max-width: 76rem;
+	color: #1c1917;
+}
+.melliflous-360 .toolbar {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 12px;
+	margin-top: 8px;
+}
+.melliflous-360 .growth-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 12px;
+	margin-top: 8px;
+}
+.melliflous-360 .growth-row .form-control {
+	max-width: 8rem;
+}
+.melliflous-360 .pill {
+	border: 0;
+	border-radius: 999px;
+	min-height: 44px;
+	padding: 0 16px;
+	color: #fff;
+	font-weight: 700;
+	cursor: pointer;
+}
+.melliflous-360 .pill.visit { background: #2f6fdb; }
+.melliflous-360 .pill.quote { background: #e07a1f; }
+.melliflous-360 .pill.stock { background: #0e8f8a; }
+.melliflous-360 .pill.complaint { background: #c0392b; }
+.melliflous-360 .pill.target { background: #1f9d55; }
+.melliflous-360 .band {
+	margin-top: 16px;
+	padding: 20px 22px;
+	border-radius: 18px;
+	background: linear-gradient(120deg, #c0392b 0%, #6b1d2a 100%);
+	color: #fff;
+}
+.melliflous-360 .band-title {
+	font-size: 1.6rem;
+	font-weight: 800;
+	line-height: 1.2;
+}
+.melliflous-360 .band-people {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 16px;
+	margin-top: 12px;
+}
+.melliflous-360 .person-label {
+	display: block;
+	font-size: 0.75rem;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	opacity: 0.85;
+}
+.melliflous-360 .person-value {
+	font-weight: 700;
+}
+.melliflous-360 .status-pill {
+	display: inline-block;
+	margin-top: 14px;
+	padding: 4px 12px;
+	border-radius: 999px;
+	background: rgba(255, 255, 255, 0.18);
+	font-weight: 700;
+}
+.melliflous-360 .status-pill.is-off { background: rgba(0, 0, 0, 0.25); }
+.melliflous-360 .band-note { margin: 10px 0 0; }
+.melliflous-360 .band .pill { margin-top: 12px; }
+.melliflous-360 .kpi-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+	gap: 8px;
+	margin-top: 12px;
+}
+.melliflous-360 .kpi {
+	padding: 12px;
+	border: 1px solid #eadfd8;
+	border-radius: 14px;
+	background: #fff;
+	border-top: 4px solid #d6d3d1;
+}
+.melliflous-360 .kpi.tone-green { border-top-color: #1f9d55; background: #f3fbf6; }
+.melliflous-360 .kpi.tone-amber { border-top-color: #e07a1f; background: #fff8ef; }
+.melliflous-360 .kpi.tone-red { border-top-color: #c0392b; background: #fdf4f3; }
+.melliflous-360 .kpi.tone-teal { border-top-color: #0e8f8a; background: #f3fbfa; }
+.melliflous-360 .kpi-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+.melliflous-360 .kpi-icon {
+	display: inline-flex;
+	width: 28px;
+	height: 28px;
+	align-items: center;
+	justify-content: center;
+	border-radius: 8px;
+	background: #f4f1ee;
+	color: #6b1d2a;
+}
+.melliflous-360 svg {
+	width: 18px !important;
+	height: 18px !important;
+	max-width: 18px;
+	max-height: 18px;
+}
+.melliflous-360 .kpi-icon svg { width: 18px; height: 18px; }
+.melliflous-360 .kpi .detail {
+	margin-top: 4px;
+	color: #57534e;
+	font-size: 0.85rem;
+}
+.melliflous-360 .progress {
+	height: 8px;
+	margin-top: 10px;
+	border-radius: 999px;
+	background: #efe7e2;
+	overflow: hidden;
+}
+.melliflous-360 .progress-bar {
+	display: block;
+	height: 100%;
+	border-radius: 999px;
+	background: #a8a29e;
+}
+.melliflous-360 .progress-bar.tone-green { background: #1f9d55; }
+.melliflous-360 .progress-bar.tone-amber { background: #e07a1f; }
+.melliflous-360 .progress-bar.tone-red { background: #c0392b; }
+.melliflous-360 .panel {
+	margin-top: 16px;
+	padding: 14px 16px;
+	border: 1px solid #eadfd8;
+	border-radius: 16px;
+	background: #fff;
+}
+.melliflous-360 .spark {
+	display: flex;
+	align-items: flex-end;
+	gap: 8px;
+	height: 88px;
+	margin-top: 12px;
+}
+.melliflous-360 .spark-col {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	height: 100%;
+	justify-content: flex-end;
+}
+.melliflous-360 .spark-bar {
+	display: block;
+	width: 100%;
+	max-width: 28px;
+	border-radius: 6px 6px 2px 2px;
+	background: #c0392b;
+}
+.melliflous-360 .spark-label {
+	margin-top: 4px;
+	font-size: 0.75rem;
+	color: #57534e;
+}
+.melliflous-360 .badge {
+	display: inline-block;
+	padding: 2px 8px;
+	border-radius: 999px;
+	font-size: 0.8rem;
+	font-weight: 700;
+}
+.melliflous-360 .badge.pace-fast { background: #e7f6ee; color: #135c36; }
+.melliflous-360 .badge.pace-slow { background: #fff4e5; color: #9a4d00; }
+.melliflous-360 .badge.pace-no-movement { background: #fde8e8; color: #8d1d1d; }
+.melliflous-360 .timeline { display: flex; flex-direction: column; gap: 8px; }
+.melliflous-360 .event {
+	display: flex;
+	gap: 10px;
+	align-items: flex-start;
+	padding: 10px 12px;
+	border: 1px solid #eadfd8;
+	border-radius: 12px;
+	background: #fff;
+}
+.melliflous-360 .event-mark {
+	flex: 0 0 auto;
+	width: 28px;
+	height: 28px;
+	border-radius: 999px;
+	color: #fff;
+	font-weight: 800;
+	line-height: 28px;
+	text-align: center;
+}
+.melliflous-360 .kind-visit .event-mark { background: #2f6fdb; }
+.melliflous-360 .kind-invoice .event-mark { background: #1f9d55; }
+.melliflous-360 .kind-payment .event-mark { background: #1f9d55; }
+.melliflous-360 .kind-order .event-mark { background: #0e8f8a; }
+.melliflous-360 .kind-quotation .event-mark { background: #e07a1f; }
+.melliflous-360 .kind-draft .event-mark { background: #78716c; }
+.melliflous-360 .kind-complaint .event-mark { background: #c0392b; }
+.melliflous-360 .kind-credit .event-mark { background: #7a45c4; }
+.melliflous-360 .qpill-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+.melliflous-360 .qpill {
+	display: inline-block;
+	margin: 6px 8px 0 0;
+	padding: 3px 10px;
+	border-radius: 999px;
+	font-size: 0.8rem;
+	font-weight: 700;
+	background: #e7e5e4;
+	color: #44403c;
+}
+.melliflous-360 .qpill.tone-grey { background: #e7e5e4; color: #44403c; }
+.melliflous-360 .qpill.tone-blue { background: #e8f0fc; color: #1d4e89; }
+.melliflous-360 .qpill.tone-green { background: #e7f6ee; color: #135c36; }
+.melliflous-360 .qpill.tone-red { background: #fde8e8; color: #8d1d1d; }
+.melliflous-360 .legend-box {
+	margin-top: 20px;
+	padding: 12px 14px;
+	border-radius: 14px;
+	background: #faf7f5;
+}
+.melliflous-360 .legend-row {
+	display: flex;
+	gap: 8px;
+	align-items: flex-start;
+	margin-top: 6px;
+}
+.melliflous-360 .legend-dot {
+	flex: 0 0 auto;
+	width: 12px;
+	height: 12px;
+	margin-top: 4px;
+	border-radius: 999px;
+	background: #a8a29e;
+}
+.melliflous-360 .legend-dot.tone-green,
+.melliflous-360 .legend-dot.tone-fast { background: #1f9d55; }
+.melliflous-360 .legend-dot.tone-amber,
+.melliflous-360 .legend-dot.tone-slow { background: #e07a1f; }
+.melliflous-360 .legend-dot.tone-red,
+.melliflous-360 .legend-dot.tone-still { background: #c0392b; }
+@media (max-width: 720px) {
+	.melliflous-360 .toolbar,
+	.melliflous-360 .kpi-grid {
+		grid-template-columns: 1fr;
+	}
+	.melliflous-360 .band-title { font-size: 1.35rem; }
+}
+.melliflous-360 .kpi .label {
+	color: var(--ink-gray-7, #4b5563);
+	font-size: 0.85rem;
+}
+.melliflous-360 .kpi .value {
+	margin-top: 4px;
+	font-size: 1.05rem;
+	font-weight: 700;
+	line-height: 1.3;
+	overflow-wrap: anywhere;
+}
+.melliflous-360 .btn-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-top: 12px;
+}
+.melliflous-360 .btn-row .btn,
+.melliflous-360 .btn-primary,
+.melliflous-360 .btn-default {
+	min-height: 44px;
+}
+.melliflous-360 .legend {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 16px;
+	margin: 8px 0;
+}
+.melliflous-360 .swatch::before {
+	content: "";
+	display: inline-block;
+	width: 12px;
+	height: 12px;
+	margin-right: 6px;
+	border-radius: 999px;
+	vertical-align: -1px;
+}
+.melliflous-360 .swatch.primary::before {
+	background: #1f4d3a;
+}
+.melliflous-360 .swatch.secondary::before {
+	background: #e07a1f;
+}
+.melliflous-360 .month-row {
+	display: grid;
+	grid-template-columns: 4.2rem 1fr;
+	gap: 8px;
+	align-items: center;
+	margin-top: 6px;
+}
+.melliflous-360 .month-label {
+	font-size: 0.85rem;
+	color: var(--ink-gray-7, #4b5563);
+}
+.melliflous-360 .bar-track {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+.melliflous-360 .bar-line {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 14px;
+}
+.melliflous-360 .bar {
+	display: block;
+	height: 10px;
+	border-radius: 999px;
+	min-width: 0;
+}
+.melliflous-360 .bar.primary {
+	background: #1f4d3a;
+}
+.melliflous-360 .bar.secondary {
+	background: #e07a1f;
+}
+.melliflous-360 .bar-value {
+	font-size: 0.8rem;
+	color: var(--ink-gray-7, #4b5563);
+}
+.melliflous-360 .table-wrap {
+	overflow-x: auto;
+	margin-top: 8px;
+}
+.melliflous-360 table {
+	width: 100%;
+	border-collapse: collapse;
+}
+.melliflous-360 th,
+.melliflous-360 td {
+	padding: 6px 8px;
+	border-bottom: 1px solid var(--border-color, #e5e7eb);
+	text-align: left;
+	font-size: 0.95rem;
+	white-space: nowrap;
+}
+.melliflous-360 a.who {
+	color: inherit;
+	text-decoration: none;
+}
+`;
+
+	function installStyles() {
+		const id = "melliflous-distributor-360";
+		try {
+			if (window.frappe && frappe.dom && typeof frappe.dom.set_style === "function") {
+				frappe.dom.set_style(PAGE_STYLE, id);
+				return;
+			}
+		} catch (ignored) {
+			/* a plain style tag below still applies the rules */
+		}
+		const parent = document.head || document.documentElement;
+		if (!parent) return;
+		let node = document.getElementById(id);
+		if (!node) {
+			node = document.createElement("style");
+			node.id = id;
+			parent.appendChild(node);
+		}
+		node.textContent = PAGE_STYLE;
+	}
+
+	installStyles();
+
 	function el(tag, className, text) {
 		const node = document.createElement(tag);
 		if (className) node.className = className;
@@ -91,28 +474,34 @@
 	function glyph(name) {
 		const paths = {
 			primary:
-				'<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 19h16v2H4zm2-3 4-5 3 3 5-7 2 1.4-7 9.6-3-3-3 3.8z"/></svg>',
+				'<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 19h16v2H4zm2-3 4-5 3 3 5-7 2 1.4-7 9.6-3-3-3 3.8z"/></svg>',
 			secondary:
-				'<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 7h16v2H4zm0 4h10v2H4zm0 4h16v2H4z"/></svg>',
+				'<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 7h16v2H4zm0 4h10v2H4zm0 4h16v2H4z"/></svg>',
 			stock:
-				'<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 7 12 3l9 4-9 4zm0 3.2V17l9 4 9-4v-6.8l-9 4z"/></svg>',
+				'<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 7 12 3l9 4-9 4zm0 3.2V17l9 4 9-4v-6.8l-9 4z"/></svg>',
 			billing:
-				'<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 2h9l5 5v15H6zm8 1.5V8h4.5zM8 12h8v2H8zm0 4h6v2H8z"/></svg>',
+				'<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 2h9l5 5v15H6zm8 1.5V8h4.5zM8 12h8v2H8zm0 4h6v2H8z"/></svg>',
 			counters:
-				'<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 18V6h4v12zm6 0V10h4v8zm6 0V4h4v14z"/></svg>',
+				'<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 18V6h4v12zm6 0V10h4v8zm6 0V4h4v14z"/></svg>',
 			money:
-				'<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3a9 9 0 1 0 .01 18.01A9 9 0 0 0 12 3m1 14v1h-2v-1c-1.7-.3-3-1.4-3-3h2c0 .6.7 1 2 1s2-.4 2-1-1-1-2.5-1.3C8.2 12.1 7 11 7 9.2 7 7.4 8.4 6.2 11 6V5h2v1c1.5.2 2.6 1.1 2.9 2.5h-2c-.2-.5-.6-.8-1.4-.8-1 0-1.5.4-1.5 1s.6.9 2.2 1.2C15.8 10.4 17 11.5 17 13.3c0 1.9-1.5 3.2-4 3.7"/></svg>',
+				'<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3a9 9 0 1 0 .01 18.01A9 9 0 0 0 12 3m1 14v1h-2v-1c-1.7-.3-3-1.4-3-3h2c0 .6.7 1 2 1s2-.4 2-1-1-1-2.5-1.3C8.2 12.1 7 11 7 9.2 7 7.4 8.4 6.2 11 6V5h2v1c1.5.2 2.6 1.1 2.9 2.5h-2c-.2-.5-.6-.8-1.4-.8-1 0-1.5.4-1.5 1s.6.9 2.2 1.2C15.8 10.4 17 11.5 17 13.3c0 1.9-1.5 3.2-4 3.7"/></svg>',
 			visit:
-				'<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7m0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5"/></svg>',
+				'<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7m0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5"/></svg>',
 			quote:
-				'<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 4h9l5 5v11H6zm8 1.5V9h3.5zM8 13h8v2H8zm0 4h5v2H8z"/></svg>',
+				'<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 4h9l5 5v11H6zm8 1.5V9h3.5zM8 13h8v2H8zm0 4h5v2H8z"/></svg>',
 		};
 		const node = el("span", "kpi-icon");
 		node.innerHTML = paths[name] || "";
+		const drawn = node.querySelector("svg");
+		if (drawn) {
+			drawn.setAttribute("width", "18");
+			drawn.setAttribute("height", "18");
+		}
 		return node;
 	}
 
 	function render(page, wrapper) {
+		installStyles();
 		const host = contentHost(page, wrapper);
 		const root = el("div", "melliflous-quick melliflous-360");
 		host.replaceChildren(root);
@@ -900,6 +1289,7 @@
 	}
 
 	frappe.pages["distributor-360"].on_page_load = function (wrapper) {
+		installStyles();
 		try {
 			const page = frappe.ui.make_app_page({
 				parent: wrapper,
