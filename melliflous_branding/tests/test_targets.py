@@ -363,17 +363,9 @@ class TestDeskLinks(unittest.TestCase):
 			{"System Manager", "Sales Manager", "Sales User"},
 		)
 
-		workspace = json.loads(
-			(PACKAGE / "melliflous_branding" / "workspace" / "quick_actions" / "quick_actions.json").read_text()
+		self.assertFalse(
+			(PACKAGE / "melliflous_branding" / "workspace" / "quick_actions" / "quick_actions.json").exists()
 		)
-		labels = [row["label"] for row in workspace["shortcuts"]]
-		self.assertEqual(labels[:2], ["Team Chat", "Team Files"])
-		self.assertIn("Customer Targets", labels)
-		self.assertIn("Target vs Achievement", labels)
-		content_labels = [block["data"]["shortcut_name"] for block in json.loads(workspace["content"])]
-		self.assertEqual(content_labels[:2], ["Team Chat", "Team Files"])
-		self.assertIn("Customer Targets", content_labels)
-
 		sidebar = json.loads(
 			(PACKAGE / "melliflous_branding" / "sidebar" / "melliflous_branding" / "melliflous_branding.json").read_text()
 		)

@@ -613,14 +613,7 @@ class TestDesk(unittest.TestCase):
 		self.assertIn("tone-green", stylesheet)
 		self.assertIn(".melliflous-360 .band", stylesheet)
 
-		workspace = json.loads((PACKAGE / "melliflous_branding" / "workspace" / "quick_actions" / "quick_actions.json").read_text())
-		labels = [row["label"] for row in workspace["shortcuts"]]
-		self.assertEqual(labels[:2], ["Team Chat", "Team Files"])
-		self.assertIn("Customer Targets", labels)
-		self.assertIn("Distributor 360", labels)
-		self.assertIn("Distributor Follow-up", labels)
-		content = [block["data"]["shortcut_name"] for block in json.loads(workspace["content"])]
-		self.assertEqual(content[:2], ["Team Chat", "Team Files"])
+		self.assertFalse((PACKAGE / "melliflous_branding" / "workspace" / "quick_actions" / "quick_actions.json").exists())
 
 		sidebar = json.loads(
 			(PACKAGE / "melliflous_branding" / "sidebar" / "melliflous_branding" / "melliflous_branding.json").read_text()
@@ -630,6 +623,7 @@ class TestDesk(unittest.TestCase):
 		self.assertEqual(items["Customer Targets"]["link_to"], "Customer Primary Target")
 		self.assertEqual(items["Distributor 360"]["link_to"], "distributor-360")
 		self.assertEqual(items["Distributor Follow-up"]["link_type"], "Report")
+		self.assertNotIn("Quick Actions", items)
 
 		team = (PACKAGE / "melliflous_branding" / "page" / "team_files" / "team_files.js").read_text()
 		self.assertIn('frappe.pages["team-files"].on_page_load', team)
@@ -640,8 +634,8 @@ class TestDesk(unittest.TestCase):
 
 		self.assertIn("Distributor Profile", hooks.permission_query_conditions)
 		tiles = {row["name"]: row for row in hooks.add_to_apps_screen}
-		self.assertEqual(tiles["melliflous_branding"]["title"], "Quick Actions")
-		self.assertEqual(tiles["melliflous_branding"]["route"], "/desk/quick-actions")
+		self.assertNotIn("melliflous_branding", tiles)
+		self.assertNotIn("Quick Actions", [row.get("title") for row in hooks.add_to_apps_screen])
 		tile = tiles["distributor_360"]
 		self.assertEqual(tile["title"], "Distributor 360")
 		self.assertEqual(tile["route"], "/desk/distributor-360")
@@ -677,8 +671,8 @@ class TestDesk(unittest.TestCase):
 			"dock": [],
 		}
 		placed = place_distributor_360_app([quick_actions], "priya@example.com", ["Sales User"])
-		self.assertEqual(placed[0]["app_title"], "Quick Actions")
-		tile = placed[1]
+		self.assertEqual([row["app_title"] for row in placed], ["Distributor 360"])
+		tile = placed[0]
 		self.assertEqual(tile["app_name"], "distributor_360")
 		self.assertEqual(tile["app_title"], "Distributor 360")
 		self.assertEqual(tile["app_route"], "/desk/distributor-360")
@@ -686,9 +680,9 @@ class TestDesk(unittest.TestCase):
 		self.assertTrue(tile["on_apps_screen"])
 		self.assertEqual(tile["dock"], [])
 		again = place_distributor_360_app(placed, "priya@example.com", ["Sales User"])
-		self.assertEqual(len(again), 2)
+		self.assertEqual(len(again), 1)
 		hidden = place_distributor_360_app(placed, "accounts@example.com", ["Accounts User"])
-		self.assertEqual([row["app_title"] for row in hidden], ["Quick Actions"])
+		self.assertEqual(hidden, [])
 		self.assertIn("place_distributor_360_app", (PACKAGE / "boot.py").read_text())
 
 

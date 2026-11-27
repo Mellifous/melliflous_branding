@@ -53,10 +53,28 @@ class TestDivisions(unittest.TestCase):
 		self.assertIn("melliflous-division-switch", script)
 		self.assertIn("desk_divisions", script)
 		self.assertIn("melliflous-context-style", script)
-		self.assertIn("20261127c", (PACKAGE / "hooks.py").read_text())
+		self.assertIn("20261127e", (PACKAGE / "hooks.py").read_text())
+		self.assertIn("melliflous-context-chip", script)
+		self.assertIn("melliflous-context-sheet", script)
+		self.assertIn("is-compact", script)
 		page = (PACKAGE / "melliflous_branding" / "page" / "distributor_360" / "distributor_360.js").read_text()
 		self.assertIn("All divisions", page)
 		self.assertIn("melliflous_branding.patches.v0_10.ensure_divisions", (PACKAGE / "patches.txt").read_text())
+		self.assertIn(
+			"melliflous_branding.patches.v0_12.remove_quick_actions_workspace",
+			(PACKAGE / "patches.txt").read_text(),
+		)
+		from melliflous_branding.quick_actions_workspace import sidebar_item_is_quick_actions, workspace_is_ours
+
+		self.assertTrue(workspace_is_ours("Quick Actions", "Melliflous Branding"))
+		self.assertTrue(workspace_is_ours("Quick Actions", ""))
+		self.assertFalse(workspace_is_ours("Quick Actions", "Selling"))
+		self.assertFalse(workspace_is_ours("Selling", "Melliflous Branding"))
+		self.assertTrue(sidebar_item_is_quick_actions({"link_type": "Workspace", "link_to": "Quick Actions", "label": "Quick Actions"}))
+		self.assertFalse(sidebar_item_is_quick_actions({"link_type": "Page", "link_to": "quick-invoice", "label": "New Quick Invoice"}))
+		remover = (PACKAGE / "quick_actions_workspace.py").read_text()
+		self.assertIn("delete_doc", remover)
+		self.assertIn("is_hidden", remover)
 
 	def test_gst_submission_flags_are_cleared_even_when_the_saved_value_is_blank(self):
 		columns = [

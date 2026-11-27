@@ -476,15 +476,22 @@ def place_distributor_360_app(app_data, user, roles) -> list:
 	"""Return the apps-screen list with one Distributor 360 row, or without it.
 
 	Frappe's boot copies only the first add_to_apps_screen entry of each installed
-	app into app_data. Quick Actions is that first entry for this app, so a second
-	hook entry never becomes a grid icon. This list is what the desktop draws.
-	Calling it again does not add a second copy. A user who cannot open the page
-	does not get the row.
+	app into app_data. A cached boot can still carry the old Quick Actions tile,
+	so that row is dropped here. Distributor 360 is added once. Calling this again
+	does not add a second copy. A user who cannot open the page does not get the row.
 	"""
 	kept = []
 	for row in app_data or []:
-		name = row.get("app_name") if isinstance(row, dict) else None
-		if name == DISTRIBUTOR_360_APP:
+		if not isinstance(row, dict):
+			kept.append(row)
+			continue
+		name = row.get("app_name")
+		title = str(row.get("app_title") or row.get("title") or "").strip().lower()
+		route = str(row.get("app_route") or row.get("route") or "").rstrip("/")
+		if name == DISTRIBUTOR_360_APP or title == "quick actions" or route in {
+			"/desk/quick-actions",
+			"/app/quick-actions",
+		}:
 			continue
 		kept.append(row)
 	if can_open_distributor_360(user, roles):
