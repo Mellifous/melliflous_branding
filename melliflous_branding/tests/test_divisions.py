@@ -51,6 +51,9 @@ class TestDivisions(unittest.TestCase):
 		script = (PACKAGE / "public" / "js" / "melliflous_branding.js").read_text()
 		self.assertIn("set_desk_context", script)
 		self.assertIn("melliflous-division-switch", script)
+		self.assertIn("desk_divisions", script)
+		self.assertIn("melliflous-context-style", script)
+		self.assertIn("20261127c", (PACKAGE / "hooks.py").read_text())
 		page = (PACKAGE / "melliflous_branding" / "page" / "distributor_360" / "distributor_360.js").read_text()
 		self.assertIn("All divisions", page)
 		self.assertIn("melliflous_branding.patches.v0_10.ensure_divisions", (PACKAGE / "patches.txt").read_text())
@@ -71,9 +74,18 @@ class TestDivisions(unittest.TestCase):
 		self.assertNotIn("enable_e_invoice", cleared)
 		self.assertNotIn("api_secret", cleared)
 		self.assertEqual(gst_flags_to_clear(columns, allow_auto=True), [])
+		self.assertIn("auto_generate_e_waybill", gst_flags_to_clear([], allow_auto=False))
+		self.assertIn("generate_e_waybill_with_e_invoice", gst_flags_to_clear([], allow_auto=False))
 		records = (PACKAGE / "invoice_admin_records.py").read_text()
-		self.assertIn("set_single_value", records)
-		self.assertIn("Always write 0", records)
+		self.assertIn("tabSingles", records)
+		self.assertIn("'0'", records)
+		self.assertIn("frappe.db.commit()", records)
+		self.assertIn("clear_cache", records)
+		self.assertIn(
+			"melliflous_branding.patches.v0_11.clear_gst_auto",
+			(PACKAGE / "patches.txt").read_text(),
+		)
+		self.assertIn("keep_einvoice_manual()", (PACKAGE / "install.py").read_text())
 
 
 if __name__ == "__main__":

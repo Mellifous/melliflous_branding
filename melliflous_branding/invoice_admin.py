@@ -109,7 +109,9 @@ def gst_flags_to_clear(column_names, allow_auto=False) -> list:
 	"""
 	if allow_auto:
 		return []
-	columns = set(column_names or [])
+	# These are the India Compliance v16 GST Settings checks. A missing Singles
+	# row makes the form show the field default, which is ticked, so they are
+	# written even when the table column list has not caught up.
 	forced = (
 		"auto_generate_e_invoice",
 		"auto_generate_e_waybill",
@@ -117,9 +119,9 @@ def gst_flags_to_clear(column_names, allow_auto=False) -> list:
 		"auto_cancel_e_invoice",
 		"auto_cancel_e_waybill",
 	)
-	ordered = []
-	for name in list(forced) + auto_fields_to_disable(columns):
-		if name in columns and name not in ordered:
+	ordered = list(forced)
+	for name in auto_fields_to_disable(column_names):
+		if name not in ordered:
 			ordered.append(name)
 	return ordered
 

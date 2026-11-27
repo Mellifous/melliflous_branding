@@ -8,6 +8,8 @@ second role, a second permission row, or a second settings user.
 
 from __future__ import annotations
 
+import re
+
 import frappe
 from frappe import _
 from frappe.utils import cint, now_datetime
@@ -141,27 +143,53 @@ def keep_einvoice_manual() -> None:
 	"""
 	if allow_auto_einvoice():
 		return
-	if not frappe.db.table_exists("GST Settings") or not frappe.db.exists("GST Settings", "GST Settings"):
+	if not frappe.db.exists("DocType", "GST Settings"):
 		return
-	columns = set(frappe.db.get_table_columns("GST Settings") or [])
+	columns = set()
+	if frappe.db.table_exists("GST Settings"):
+		columns = set(frappe.db.get_table_columns("GST Settings") or [])
 	fields = gst_flags_to_clear(columns, allow_auto=False)
 	if not fields:
 		return
-	current = frappe.db.get_value("GST Settings", "GST Settings", fields, as_dict=True) or {}
-	# A missing tabSingles value comes back empty, and the form then shows the
-	# DocType default, which is ticked. Always write 0 so the tick cannot remain.
-	was_on = [name for name in fields if current.get(name) in (None, "") or cint(current.get(name))]
+	current = {}
+	readable = [name for name in fields if name in columns]
+	try:
+		if readable:
+			current = frappe.db.get_value("GST Settings", "GST Settings", readable, as_dict=True) or {}
+	except Exception:
+		current = {}
+	was_on = [name for name in readable if current.get(name) in (None, "") or cint(current.get(name))]
 	if was_on:
 		frappe.logger("melliflous_branding").warning(
-			"Automatic e-invoice or e-way bill was on or still at the default (%s). Turning it off. "
+			"Automatic e-invoice or e-way bill was on or still at the default (%s). Writing 0. "
 			"Tick Allow auto e-Invoice/e-Way Bill on Melliflous Settings to keep it.",
 			", ".join(was_on),
 		)
 	for name in fields:
-		frappe.db.set_single_value("GST Settings", name, 0, update_modified=False)
-		if frappe.db.has_column("GST Settings", name):
-			frappe.db.set_value("GST Settings", "GST Settings", name, 0, update_modified=False)
+		if not _safe_field(name):
+			continue
+		_write_single_zero("GST Settings", name)
+		if name in columns:
+			frappe.db.sql(f"update `tabGST Settings` set `{name}`=0")
+	# A desk boot is a GET, and Frappe rolls a GET back. Commit here or the 0 never lands.
+	frappe.db.commit()
 	frappe.clear_cache(doctype="GST Settings")
+	cache = getattr(frappe.db, "value_cache", None)
+	if cache is not None:
+		cache.pop("GST Settings", None)
+
+
+def _safe_field(name) -> bool:
+	return bool(re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", str(name or "")))
+
+
+def _write_single_zero(doctype, field) -> None:
+	"""Store the string 0. A missing Singles row makes the form use default 1, which is ticked."""
+	frappe.db.sql("delete from `tabSingles` where doctype=%s and field=%s", (doctype, field))
+	frappe.db.sql(
+		"insert into `tabSingles` (`doctype`, `field`, `value`) values (%s, %s, '0')",
+		(doctype, field),
+	)
 
 
 def ensure_invoice_admin() -> None:

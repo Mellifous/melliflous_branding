@@ -46,6 +46,15 @@ def apply_division(doc, method=None):
 		frappe.throw(str(exc))
 
 
+@frappe.whitelist()
+def desk_divisions(company=None) -> dict:
+	"""Divisions for the navbar. Used when boot was cached before Division existed."""
+	if not frappe.session.user or frappe.session.user == "Guest":
+		frappe.throw(_("Please log in."), frappe.PermissionError)
+	company = " ".join(str(company or "").split()) or frappe.defaults.get_user_default("company")
+	return divisions_for_boot(company)
+
+
 def divisions_for_boot(company) -> dict:
 	if not frappe.db.exists("DocType", "Division"):
 		return {"divisions": [], "division": None}
