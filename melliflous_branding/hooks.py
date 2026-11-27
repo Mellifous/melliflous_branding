@@ -71,13 +71,27 @@ doc_events = {
 		"validate": "melliflous_branding.customer_records.validate_customer",
 		"on_update": "melliflous_branding.customer_records.remember_billing_change",
 	},
-	"Sales Invoice": {"validate": "melliflous_branding.customer_records.block_selling"},
+	"Sales Invoice": {
+		"validate": "melliflous_branding.customer_records.block_selling",
+		"before_rename": "melliflous_branding.invoice_admin_records.guard_rename",
+		"after_rename": "melliflous_branding.invoice_admin_records.log_rename",
+		"on_trash": "melliflous_branding.invoice_admin_records.guard_delete",
+	},
+	"Purchase Invoice": {
+		"before_rename": "melliflous_branding.invoice_admin_records.guard_rename",
+		"after_rename": "melliflous_branding.invoice_admin_records.log_rename",
+		"on_trash": "melliflous_branding.invoice_admin_records.guard_delete",
+	},
 	"Sales Order": {"validate": "melliflous_branding.customer_records.block_selling"},
 	"Quotation": {"validate": "melliflous_branding.customer_records.block_selling"},
 	"Delivery Note": {"validate": "melliflous_branding.customer_records.block_selling"},
 }
 
-doctype_js = {"Customer": "public/js/customer.js"}
+doctype_js = {
+	"Customer": "public/js/customer.js",
+	"Sales Invoice": "public/js/invoice_admin.js",
+	"Purchase Invoice": "public/js/invoice_admin.js",
+}
 doctype_list_js = {"Customer": "public/js/customer_list.js"}
 
 fixtures = [
