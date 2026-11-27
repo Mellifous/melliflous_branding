@@ -15,3 +15,4 @@ melliflous_branding.patches.v0_8.ensure_customer_compliance
 melliflous_branding.patches.v0_9.ensure_invoice_admin
 melliflous_branding.patches.v0_10.ensure_divisions
 melliflous_branding.patches.v0_11.clear_gst_auto
+melliflous_branding.patches.v0_12.ensure_invoice_numbers

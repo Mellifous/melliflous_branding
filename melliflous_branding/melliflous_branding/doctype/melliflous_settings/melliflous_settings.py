@@ -2,10 +2,18 @@
 # License: MIT. See license.txt
 
 import frappe
+from frappe import _
 from frappe.model.document import Document
 
 
 class MelliflousSettings(Document):
+	def validate(self):
+		from melliflous_branding.invoice_number import validate_series_settings
+
+		errors = validate_series_settings(self.get("sales_invoice_series") or [])
+		if errors:
+			frappe.throw(_(errors[0]))
+
 	def on_update(self):
 		if getattr(frappe.flags, "melliflous_settings_sync", None):
 			return

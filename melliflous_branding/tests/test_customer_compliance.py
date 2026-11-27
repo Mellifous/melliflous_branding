@@ -51,7 +51,8 @@ class TestDocuments(unittest.TestCase):
 		self.assertIn("custom_billing_status", names)
 		self.assertIn("custom_customer_documents", names)
 		fixture = json.loads((PACKAGE / "fixtures" / "custom_field.json").read_text())
-		self.assertEqual({row["fieldname"] for row in fixture}, names)
+		customer_rows = [row for row in fixture if row.get("dt") == "Customer"]
+		self.assertEqual({row["fieldname"] for row in customer_rows}, names)
 		child = json.loads(
 			(PACKAGE / "melliflous_branding" / "doctype" / "customer_document" / "customer_document.json").read_text()
 		)

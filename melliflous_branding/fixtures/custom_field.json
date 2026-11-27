@@ -68,5 +68,20 @@
   "insert_after": "custom_documents_tab",
   "module": "Melliflous Branding",
   "name": "Customer-custom_customer_documents"
+ },
+ {
+  "doctype": "Custom Field",
+  "dt": "Sales Invoice",
+  "fieldname": "custom_invoice_no",
+  "fieldtype": "Data",
+  "label": "Invoice No",
+  "insert_after": "customer_section",
+  "bold": 1,
+  "length": 16,
+  "no_copy": 1,
+  "translatable": 0,
+  "description": "This is the invoice number on the bill and on GST. Letters, numbers, / and - only, up to 16 characters.",
+  "module": "Melliflous Branding",
+  "name": "Sales Invoice-custom_invoice_no"
  }
 ]
