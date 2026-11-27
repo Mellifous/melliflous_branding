@@ -19,6 +19,10 @@ COMPLAINT_STATUSES = ("Open", "In Progress", "Resolved", "Closed")
 OPEN_COMPLAINTS = frozenset({"Open", "In Progress"})
 EDIT_ROLES = frozenset({"System Manager", "Sales Manager"})
 TILE_ROLES = frozenset({"System Manager", "Sales Manager", "Sales User"})
+DISTRIBUTOR_360_APP = "distributor_360"
+DISTRIBUTOR_360_ROUTE = "/desk/distributor-360"
+DISTRIBUTOR_360_LOGO = "/assets/melliflous_branding/images/distributor_360.svg"
+DISTRIBUTOR_360_SEQUENCE = 13
 READ_PTYPES = frozenset({"read", "report", "export", "print", "email", "select"})
 WRITE_PTYPES = frozenset({"read", "write", "create", "report", "export", "print", "email", "select"})
 VISIT_IDENTITY = ("owner", "salesman")
@@ -437,6 +441,40 @@ def can_open_distributor_360(user, roles) -> bool:
 	if user == "Administrator":
 		return True
 	return bool(set(roles or []).intersection(TILE_ROLES))
+
+
+def distributor_360_boot_app() -> dict:
+	"""One apps-screen row. The desk grid reads this shape from boot.app_data."""
+	return {
+		"on_apps_screen": True,
+		"sequence_id": DISTRIBUTOR_360_SEQUENCE,
+		"app_name": DISTRIBUTOR_360_APP,
+		"app_title": "Distributor 360",
+		"app_route": DISTRIBUTOR_360_ROUTE,
+		"desk_route": "",
+		"app_logo_url": DISTRIBUTOR_360_LOGO,
+		"dock": [],
+	}
+
+
+def place_distributor_360_app(app_data, user, roles) -> list:
+	"""Return the apps-screen list with one Distributor 360 row, or without it.
+
+	Frappe's boot copies only the first add_to_apps_screen entry of each installed
+	app into app_data. Quick Actions is that first entry for this app, so a second
+	hook entry never becomes a grid icon. This list is what the desktop draws.
+	Calling it again does not add a second copy. A user who cannot open the page
+	does not get the row.
+	"""
+	kept = []
+	for row in app_data or []:
+		name = row.get("app_name") if isinstance(row, dict) else None
+		if name == DISTRIBUTOR_360_APP:
+			continue
+		kept.append(row)
+	if can_open_distributor_360(user, roles):
+		kept.append(distributor_360_boot_app())
+	return kept
 
 
 def is_manager(viewer) -> bool:

@@ -74,6 +74,8 @@ Colours key off the English label. A translated tile title will not match, and t
 
 A **Quick Actions** tile on the desk home, a **Distributor 360** tile beside it, a **Quick Actions** workspace, and a sidebar named Melliflous Branding. v16 opens desk pages at `/desk/...`. The old `/app/...` address redirects there. Distributor 360 is its own apps-screen icon (`/desk/distributor-360`) for System Manager, Sales Manager, and Sales User. Everyone else who can use the desk still sees Quick Actions.
 
+The grid on `/desk` is not one icon per `add_to_apps_screen` entry. Frappe's boot (`get_app_data`) copies **only the first** entry of each installed app into `boot.app_data`, and the desktop draws that list. Quick Actions is that first entry for this app, which is why it shows and a second hook entry does not. Distributor 360 is added to `boot.app_data` on every desk boot, including a cached one, with the same fields the grid reads: title, `/desk/distributor-360`, and the SVG logo. It has an empty dock, so the icon opens that page instead of the first module of this app. No Desktop Icon row is created. A site on the Apps screen never reads those rows. Migrate does not have to insert anything for this tile. After the bench is deployed, hard-refresh `/desk`.
+
 | Screen | Route | Who |
 | --- | --- | --- |
 | Add Team Member | `/desk/add-team-member` | System Manager only |
@@ -191,9 +193,9 @@ Hooks:
 
 | Hook | What it does |
 | --- | --- |
-| `add_to_apps_screen` | Quick Actions for every desk user, and Distributor 360 for System Manager, Sales Manager, and Sales User. |
+| `add_to_apps_screen` | Quick Actions, the first entry, is the one the apps grid copies for this app. The Distributor 360 entry is declared here and is not what places that icon. |
+| `extend_bootinfo` and `boot_session` | Companies, the current default, whether to show the picker, the tone map, and the Distributor 360 row on `boot.app_data` for System Manager, Sales Manager, and Sales User. |
 | `app_include_css` / `app_include_js` | Switcher, title, and tile colours inside the desk. |
-| `extend_bootinfo` and `boot_session` | Companies, the current default, whether to show the picker, and the tone map. |
 | `after_request` | Apple touch icon, manifest link, and `apple-mobile-web-app-title` on `/desk` HTML. |
 | `after_install` / `after_migrate` | Create Home/Team Files if it is missing. On migrate, grant Raven User to enabled desk users when that role exists, add the target links to Selling and CRM when those modules exist, and put the distributor links back on Quick Actions and the Melliflous Branding sidebar if they are missing. |
 | `doc_events` File `before_validate` | A file saved into Team Files is forced private. |
