@@ -1,0 +1,236 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-11-27 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "customer",
+  "customer_name",
+  "company",
+  "column_break_owner",
+  "account_manager",
+  "sales_person",
+  "salesman",
+  "coverage_section",
+  "territory",
+  "area",
+  "counters",
+  "column_break_coverage",
+  "visit_frequency",
+  "last_visit_date",
+  "next_visit_due",
+  "is_active",
+  "notes_section",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer",
+   "options": "Customer",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "search_index": 1,
+   "unique": 1
+  },
+  {
+   "fetch_from": "customer.customer_name",
+   "fieldname": "customer_name",
+   "fieldtype": "Data",
+   "label": "Customer Name",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "column_break_owner",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "account_manager",
+   "fieldtype": "Link",
+   "label": "Account Manager",
+   "options": "User",
+   "in_standard_filter": 1,
+   "search_index": 1,
+   "description": "The desk user who looks after this distributor."
+  },
+  {
+   "fieldname": "sales_person",
+   "fieldtype": "Link",
+   "label": "Sales Person",
+   "options": "Sales Person",
+   "in_standard_filter": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "salesman",
+   "fieldtype": "Link",
+   "label": "Salesman",
+   "options": "User",
+   "description": "The desk user, when the salesman is not a Sales Person record."
+  },
+  {
+   "fieldname": "coverage_section",
+   "fieldtype": "Section Break",
+   "label": "Coverage"
+  },
+  {
+   "fieldname": "territory",
+   "fieldtype": "Link",
+   "label": "Territory",
+   "options": "Territory"
+  },
+  {
+   "fieldname": "area",
+   "fieldtype": "Data",
+   "label": "Area",
+   "in_list_view": 1,
+   "description": "Beat or area, in the salesman's words."
+  },
+  {
+   "fieldname": "counters",
+   "fieldtype": "Int",
+   "label": "Counters Served",
+   "non_negative": 1,
+   "default": "0"
+  },
+  {
+   "fieldname": "column_break_coverage",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "visit_frequency",
+   "fieldtype": "Select",
+   "label": "Visit Frequency",
+   "options": "Weekly\nFortnightly\nMonthly",
+   "reqd": 1,
+   "default": "Monthly",
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "last_visit_date",
+   "fieldtype": "Date",
+   "label": "Last Visit",
+   "read_only": 1,
+   "no_copy": 1,
+   "description": "Set from Distributor Visit. The latest visit date is kept."
+  },
+  {
+   "fieldname": "next_visit_due",
+   "fieldtype": "Date",
+   "label": "Next Visit Due",
+   "read_only": 1,
+   "no_copy": 1,
+   "in_list_view": 1,
+   "description": "Last visit plus the frequency. Weekly adds 7 days, fortnightly adds 14, monthly adds one month. Empty until the first visit."
+  },
+  {
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "label": "Active",
+   "default": "1",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "notes_section",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Notes"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [
+  {
+   "group": "Distributor",
+   "link_doctype": "Distributor Visit",
+   "link_fieldname": "distributor_profile"
+  },
+  {
+   "group": "Distributor",
+   "link_doctype": "Distributor Stock Statement",
+   "link_fieldname": "distributor_profile"
+  },
+  {
+   "group": "Distributor",
+   "link_doctype": "Distributor Complaint",
+   "link_fieldname": "distributor_profile"
+  }
+ ],
+ "modified": "2026-11-27 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Melliflous Branding",
+ "name": "Distributor Profile",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "select": 1,
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales Manager",
+   "select": 1,
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 0,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "import": 0,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales User",
+   "select": 1,
+   "share": 0,
+   "write": 0
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1,
+ "allow_import": 1,
+ "autoname": "field:customer",
+ "naming_rule": "By fieldname",
+ "description": "One record per customer who buys as a distributor. Visits, stock statements, and complaints hang off this.",
+ "search_fields": "customer_name,account_manager,area",
+ "title_field": "customer_name"
+}

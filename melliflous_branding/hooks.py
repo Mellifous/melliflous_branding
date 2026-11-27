@@ -60,8 +60,16 @@ scheduler_events = {
 
 permission_query_conditions = {
 	"Customer Primary Target": "melliflous_branding.target_records.get_permission_query_conditions",
+	"Distributor Profile": "melliflous_branding.distributor_records.profile_permission_query",
+	"Distributor Visit": "melliflous_branding.distributor_records.visit_permission_query",
+	"Distributor Stock Statement": "melliflous_branding.distributor_records.statement_permission_query",
+	"Distributor Complaint": "melliflous_branding.distributor_records.complaint_permission_query",
 }
 
 has_permission = {
 	"Customer Primary Target": "melliflous_branding.target_records.has_target_permission",
+	"Distributor Profile": "melliflous_branding.distributor_records.has_profile_permission",
+	"Distributor Visit": "melliflous_branding.distributor_records.has_visit_permission",
+	"Distributor Stock Statement": "melliflous_branding.distributor_records.has_statement_permission",
+	"Distributor Complaint": "melliflous_branding.distributor_records.has_complaint_permission",
 }
