@@ -16,4 +16,5 @@ melliflous_branding.patches.v0_9.ensure_invoice_admin
 melliflous_branding.patches.v0_10.ensure_divisions
 melliflous_branding.patches.v0_11.clear_gst_auto
 melliflous_branding.patches.v0_12.remove_quick_actions_workspace
+melliflous_branding.patches.v0_12.ensure_invoice_numbers
 melliflous_branding.patches.v0_12.ensure_recipes

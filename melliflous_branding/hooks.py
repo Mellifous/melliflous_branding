@@ -69,10 +69,14 @@ doc_events = {
 		"on_update": "melliflous_branding.customer_records.remember_billing_change",
 	},
 	"Sales Invoice": {
+		"before_insert": "melliflous_branding.invoice_number_records.prepare_invoice_number",
+		"autoname": "melliflous_branding.invoice_number_records.assign_invoice_number",
 		"validate": [
 			"melliflous_branding.customer_records.block_selling",
 			"melliflous_branding.division_records.apply_division",
+			"melliflous_branding.invoice_number_records.validate_invoice_number",
 		],
+		"on_update": "melliflous_branding.invoice_number_records.sync_invoice_number",
 		"before_rename": "melliflous_branding.invoice_admin_records.guard_rename",
 		"after_rename": "melliflous_branding.invoice_admin_records.log_rename",
 		"on_trash": "melliflous_branding.invoice_admin_records.guard_delete",
@@ -111,7 +115,10 @@ doc_events = {
 
 doctype_js = {
 	"Customer": "public/js/customer.js",
-	"Sales Invoice": "public/js/invoice_admin.js",
+	"Sales Invoice": [
+		"public/js/invoice_admin.js",
+		"public/js/invoice_number.js",
+	],
 	"Purchase Invoice": "public/js/invoice_admin.js",
 }
 doctype_list_js = {"Customer": "public/js/customer_list.js"}
@@ -126,6 +133,7 @@ fixtures = [
 			"Customer-custom_blocked_on",
 			"Customer-custom_documents_tab",
 			"Customer-custom_customer_documents",
+			"Sales Invoice-custom_invoice_no",
 		]]],
 	}
 ]

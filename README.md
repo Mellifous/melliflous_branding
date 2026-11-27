@@ -114,6 +114,23 @@ New Sales Invoice, Quotation, and Payment Entry forms start on MIMT with today's
 
 The Quick Invoice page is a standard Page. The first deploy that runs migrate imports it. Until that migrate, the button is on screen and the address answers only after **Update Now**.
 
+## Sales Invoice numbers
+
+The **Invoice No** field is the first field on the Sales Invoice Details tab, including on a phone. That value is the document name, so it is the number GST and e-invoice use. It can be at most 16 characters: a letter or digit first, then letters, digits, `/` and `-`.
+
+A new invoice is filled with the next serial after the highest number already saved for that company and prefix. Drafts and cancelled invoices count, so a number is not issued twice. If you type a number that is already used, saving is refused: `Invoice no X is already used. Please change it (next free number: Y).` The next invoice then continues from the highest serial, including one you typed by hand.
+
+Numbers follow posting date. An earlier date cannot get a higher serial than a later date in the same series, and a later date cannot get a lower one. A back-dated invoice is offered a free number between the invoice before it and the invoice after it. If nothing fits, the form asks you to change the date. Cancelled invoices do not set that order, but their numbers stay taken. Drafts do set the order. Two people saving at once are serialized on that company and prefix; the second save is asked to change the number.
+
+**Configure the series.** Open Melliflous Settings → Invoice numbers. Add one row per company.
+
+- **Prefix.** The start of the number, such as `MIMT/26-27/`. Leave it blank to keep using the Sales Invoice naming series. `ACC-SINV-.YYYY.-` becomes `ACC-SINV-2026-`, and the serial is shortened so the full number stays within 16 characters (`ACC-SINV-2026-01` up to `ACC-SINV-2026-99`). Set a shorter prefix when that book is too small.
+- **Starting number.** The first number to issue when nothing higher is saved yet. If the old billing software stopped at 150, enter **151**. Leave 0 to start at 1. Once an invoice uses a higher serial, the next one is one past that serial.
+
+Credit notes use the same prefix, so a credit note cannot collide with a tax invoice. Submitted invoices stay on the number they were saved with. An Invoice Admin can still rename those from the menu. A draft can be changed from Invoice No; that renames the document.
+
+The field is created on migrate (`ensure_invoice_numbers`). Until that migrate, new invoices keep ERPNext's own naming series.
+
 ## Simple desk
 
 Melliflous Simple Mode is on unless an admin turns it off. Nothing is deleted and no core file is edited. A hidden page still opens from its address.
@@ -274,11 +291,13 @@ To remove it: on the site, uninstall `melliflous_branding`, then remove the app 
 ## Develop
 
 ```bash
-python -m unittest melliflous_branding.tests.test_branding melliflous_branding.tests.test_quick melliflous_branding.tests.test_files melliflous_branding.tests.test_targets melliflous_branding.tests.test_distributors melliflous_branding.tests.test_desk
+python -m unittest melliflous_branding.tests.test_branding melliflous_branding.tests.test_quick melliflous_branding.tests.test_files melliflous_branding.tests.test_targets melliflous_branding.tests.test_distributors melliflous_branding.tests.test_desk melliflous_branding.tests.test_invoice_number melliflous_branding.tests.test_invoice_admin
 node --check melliflous_branding/public/js/melliflous_branding.js
 node --check melliflous_branding/public/js/quick_actions.js
 node --check melliflous_branding/public/js/desk_tiles.js
 node --check melliflous_branding/public/js/desk_theme.js
+node --check melliflous_branding/public/js/invoice_admin.js
+node --check melliflous_branding/public/js/invoice_number.js
 node --check melliflous_branding/melliflous_branding/page/team_files/team_files.js
 node --check melliflous_branding/melliflous_branding/page/distributor_360/distributor_360.js
 node --check melliflous_branding/melliflous_branding/page/quick_invoice/quick_invoice.js

@@ -87,6 +87,15 @@ def guard_delete(doc, method=None):
 def guard_rename(doc, method=None, old=None, new=None, merge=False):
 	if doc.doctype not in INVOICE_DOCTYPES:
 		return
+	# Invoice No on a draft, including the save that submits it. The flag is set
+	# only for that rename. A submitted invoice with an IRN still needs an Invoice Admin.
+	if (
+		doc.doctype == "Sales Invoice"
+		and int(doc.get("docstatus") or 0) in (0, 1)
+		and getattr(frappe.flags, "melliflous_invoice_no_edit", None)
+		and not _irn(doc)
+	):
+		return
 	reason = getattr(frappe.flags, "invoice_rename_reason", None)
 	message = rename_block(
 		getattr(frappe.session, "user", None),

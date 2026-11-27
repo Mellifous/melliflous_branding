@@ -11,6 +11,9 @@
   "invoice_admin_users",
   "allow_auto_einvoice",
   "invoice_help",
+  "invoice_number_section",
+  "sales_invoice_series",
+  "invoice_number_help",
   "workspace_restore"
  ],
  "fields": [
@@ -51,6 +54,23 @@
    "options": "<p>Generate e-Invoice and Generate e-Waybill stay on submitted Sales Invoices for an Invoice Admin or a System Manager. Other users do not see those buttons, and they cannot rename or delete an invoice.</p>"
   },
   {
+   "fieldname": "invoice_number_section",
+   "fieldtype": "Section Break",
+   "label": "Invoice numbers"
+  },
+  {
+   "description": "One row per company. The next Sales Invoice uses the next serial after the highest number already saved for that prefix, including drafts and cancelled invoices. Numbers stay in posting-date order.",
+   "fieldname": "sales_invoice_series",
+   "fieldtype": "Table",
+   "label": "Sales Invoice series",
+   "options": "Sales Invoice Series"
+  },
+  {
+   "fieldname": "invoice_number_help",
+   "fieldtype": "HTML",
+   "options": "<p>Leave the prefix blank to keep using the Sales Invoice naming series. A prefix such as <b>MIMT/26-27/</b> continues that bill book. If the old software stopped at 150, set the starting number to <b>151</b>. The invoice number is the document name, so it is the number GST and e-invoice use. It can be at most 16 characters: letters, numbers, / and -.</p><p>A back-dated invoice takes a free number between the invoices dated before it and the invoices dated after it. Cancelled invoices keep their number (it cannot be reused) but do not set that date order. Drafts do.</p>"
+  },
+  {
    "fieldname": "workspace_restore",
    "fieldtype": "Long Text",
    "hidden": 1,
@@ -60,7 +80,7 @@
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-11-27 12:00:00.000000",
+ "modified": "2026-11-27 18:00:00.000000",
  "modified_by": "Administrator",
  "module": "Melliflous Branding",
  "name": "Melliflous Settings",
