@@ -257,6 +257,31 @@ The recipe stores the company and the division. The BOM and the stock entry get 
 
 No real blend is loaded with the app. Items, warehouses, and recipes are entered on the site.
 
+## HSN and GST checks
+
+Open **HSN Audit** at `/desk/hsn-audit`, or the HSN Audit report on Item. The page lists every enabled item whose HSN or item tax template looks wrong, with the suggested code. Tick the rows and **Apply selected**. Only a System Manager can apply them, and nothing is written until that button is pressed. Ambiguous rows start unticked. Migrate fills **HSN Category Map** and does not change Item.
+
+Saving an Item, Sales Invoice, Purchase Invoice, Quotation, Sales Order, or Delivery Note opens one dialog when something looks off. **Apply and save** on an Item writes the suggestion onto the form. **Save anyway** leaves the document as it is. The save is blocked only when a quantity or rate is negative, a GSTIN fails its format or check digit, or an HSN on a selling or purchase document contains letters or an impossible length. A missing HSN is a warning, so a draft can still be saved.
+
+The dialog is one list, with 16px type and 44px buttons, and it uses the full width on a phone. E-invoice and e-way bill stay manual. This check does not turn those automatic flags on. An e-way bill above the limit is a warning only.
+
+What it warns about:
+
+| Check | What it says |
+| --- | --- |
+| HSN | Missing, not 6 or 8 digits, not in the GST HSN master, or not the code for that product. 6 digits are the minimum above Rs 5 crore turnover (Notification 78/2020-Central Tax). |
+| Tax template | The item tax rate is not the GST rate for that HSN. |
+| Tax type | IGST on a supply inside the company's state, or CGST/SGST on a supply to another state. A Bihar to Bihar supply is CGST and SGST. |
+| GSTIN | Missing on a registered or company customer, wrong check digit, or the state code does not match the billing address. |
+| Rate | Zero, below valuation, or more than 20% under the price list rate. |
+| Quantity | Zero, or the same item on two rows. Negative quantity or rate blocks the save. |
+| Date | In the future, or in an earlier GST month (monthly GSTR-1 is due on the 11th). |
+| E-way bill | Total above Rs 50,000, or above Rs 1,00,000 when the supply starts and ends in Bihar, and no e-way bill number. Quotation and Sales Order are not checked. |
+| Address | No billing address, or no place of supply. |
+| UOM | Row UOM differs from the stock UOM and the conversion is missing or 1. |
+
+Rates are from Notification 9/2025-Central Tax (Rate) and Notification 10/2025-Central Tax (Rate), both dated 17 September 2025, effective 22 September 2025. Spice headings 0904 to 0910, pasta and vermicelli (1902), sauces (2103), soya bari (21061000) and soya flour (12081000) are 5%. Besan, sattu and atta are 5% when pre-packaged and labelled, and nil when sold loose. Garam masala is suggested as ground spice mixture 09109100. Sunkeera products are suggested as food supplements 21069099, not pan masala 21069020. Kitchen king, curry powder, and other wellness names that are not Sunkeera stay ambiguous. Every suggestion, including these two, is written onto an item only when someone ticks the row and presses Apply.
+
 ## v16 details that shaped this
 
 - The home header title is hidden on a wide desk and shown only on the phone tab-bar layout. The company name is shown in that header on a wide desk as well, because otherwise the replacement would only be visible on a phone and in the tab.
@@ -291,13 +316,16 @@ To remove it: on the site, uninstall `melliflous_branding`, then remove the app 
 ## Develop
 
 ```bash
-python -m unittest melliflous_branding.tests.test_branding melliflous_branding.tests.test_quick melliflous_branding.tests.test_files melliflous_branding.tests.test_targets melliflous_branding.tests.test_distributors melliflous_branding.tests.test_desk melliflous_branding.tests.test_invoice_number melliflous_branding.tests.test_invoice_admin
+python -m unittest melliflous_branding.tests.test_branding melliflous_branding.tests.test_quick melliflous_branding.tests.test_files melliflous_branding.tests.test_targets melliflous_branding.tests.test_distributors melliflous_branding.tests.test_desk melliflous_branding.tests.test_invoice_number melliflous_branding.tests.test_invoice_admin melliflous_branding.tests.test_hsn_guard melliflous_branding.tests.test_recipes
 node --check melliflous_branding/public/js/melliflous_branding.js
 node --check melliflous_branding/public/js/quick_actions.js
 node --check melliflous_branding/public/js/desk_tiles.js
 node --check melliflous_branding/public/js/desk_theme.js
 node --check melliflous_branding/public/js/invoice_admin.js
 node --check melliflous_branding/public/js/invoice_number.js
+node --check melliflous_branding/public/js/hsn_guard.js
+node --check melliflous_branding/melliflous_branding/page/hsn_audit/hsn_audit.js
+node --check melliflous_branding/melliflous_branding/report/hsn_audit/hsn_audit.js
 node --check melliflous_branding/melliflous_branding/page/team_files/team_files.js
 node --check melliflous_branding/melliflous_branding/page/distributor_360/distributor_360.js
 node --check melliflous_branding/melliflous_branding/page/quick_invoice/quick_invoice.js
@@ -325,9 +353,10 @@ Hooks:
 | --- | --- |
 | `add_to_apps_screen` | Distributor 360 is the only entry. The apps grid copies that first entry. Quick Actions is not declared. |
 | `extend_bootinfo` and `boot_session` | Companies, the current default, whether to show the picker, the tone map, the Distributor 360 row, and the simple-desk filter on `boot.app_data`, the sidebar, and the dock. Simple mode stays on when Melliflous Settings does not exist yet. |
-| `app_include_css` / `app_include_js` | Switcher, title, tile colours, and `desk_theme.js`. The theme script injects `<style id="melliflous-desk-theme">` so a cached stylesheet still updates. Asset URLs carry a version query. |
+| `app_include_css` / `app_include_js` | Switcher, title, tile colours, `desk_theme.js`, recipe styles, and `hsn_guard.js`. The theme script injects `<style id="melliflous-desk-theme">` so a cached stylesheet still updates. Asset URLs carry a version query (`20261127e` for the desk theme, `20261127hsn` for the HSN script). |
 | `after_request` | Apple touch icon, manifest link, and `apple-mobile-web-app-title` on `/desk` HTML. |
-| `after_install` / `after_migrate` | Create Home/Team Files if it is missing. On migrate, grant Raven User to enabled desk users when that role exists, add the target links to Selling and CRM when those modules exist, and put the distributor links back on the Melliflous Branding sidebar if they are missing. Migrate also deletes the Quick Actions workspace this app created, and adds the recipe fields plus the Recipes sidebar links. |
+| `after_install` / `after_migrate` | Create Home/Team Files if it is missing. On migrate, grant Raven User to enabled desk users when that role exists, add the target links to Selling and CRM when those modules exist, and put the distributor links back on the Melliflous Branding sidebar if they are missing. Migrate also deletes the Quick Actions workspace this app created, creates the invoice-number series and the HSN Category Map, and adds the recipe fields plus the Recipes sidebar links. |
+| `doc_events` Sales Invoice | Assigns the invoice number, checks it is free and in date order, and warns when the HSN or GST treatment looks wrong. The same HSN check runs on Purchase Invoice, Quotation, Sales Order, Delivery Note, and Item. |
 | `doc_events` Stock Entry `validate` | A submitted recipe conversion is refused when stock is short, unless a Manufacturing Manager or System Manager has confirmed. |
 | `doc_events` File `before_validate` | A file saved into Team Files is forced private. |
 | `scheduler_events` daily | Refresh achieved amount, gap, percent, and status on every Customer Primary Target. |
