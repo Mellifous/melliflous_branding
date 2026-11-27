@@ -370,10 +370,79 @@ body.desktop-page .module-folder-app[data-melliflous-tone="brand"] .module-folde
 	}
 }
 
-/* Distributor 360. Wider than the phone forms, still one column of cards. */
+/* Distributor 360. Light desk theme, cards stack on a phone. */
 .melliflous-quick.melliflous-360 {
-	max-width: 72rem;
+	max-width: 76rem;
+	color: #1c1917;
 }
+.melliflous-360 .toolbar {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 12px;
+	margin-top: 8px;
+}
+.melliflous-360 .growth-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 12px;
+	margin-top: 8px;
+}
+.melliflous-360 .growth-row .form-control {
+	max-width: 8rem;
+}
+.melliflous-360 .pill {
+	border: 0;
+	border-radius: 999px;
+	min-height: 44px;
+	padding: 0 16px;
+	color: #fff;
+	font-weight: 700;
+	cursor: pointer;
+}
+.melliflous-360 .pill.visit { background: #2f6fdb; }
+.melliflous-360 .pill.stock { background: #0e8f8a; }
+.melliflous-360 .pill.complaint { background: #c0392b; }
+.melliflous-360 .pill.target { background: #1f9d55; }
+.melliflous-360 .band {
+	margin-top: 16px;
+	padding: 20px 22px;
+	border-radius: 18px;
+	background: linear-gradient(120deg, #c0392b 0%, #6b1d2a 100%);
+	color: #fff;
+}
+.melliflous-360 .band-title {
+	font-size: 1.6rem;
+	font-weight: 800;
+	line-height: 1.2;
+}
+.melliflous-360 .band-people {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 16px;
+	margin-top: 12px;
+}
+.melliflous-360 .person-label {
+	display: block;
+	font-size: 0.75rem;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	opacity: 0.85;
+}
+.melliflous-360 .person-value {
+	font-weight: 700;
+}
+.melliflous-360 .status-pill {
+	display: inline-block;
+	margin-top: 14px;
+	padding: 4px 12px;
+	border-radius: 999px;
+	background: rgba(255, 255, 255, 0.18);
+	font-weight: 700;
+}
+.melliflous-360 .status-pill.is-off { background: rgba(0, 0, 0, 0.25); }
+.melliflous-360 .band-note { margin: 10px 0 0; }
+.melliflous-360 .band .pill { margin-top: 12px; }
 .melliflous-360 .kpi-grid {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
@@ -382,9 +451,152 @@ body.desktop-page .module-folder-app[data-melliflous-tone="brand"] .module-folde
 }
 .melliflous-360 .kpi {
 	padding: 12px;
-	border: 1px solid var(--border-color, #e5e7eb);
+	border: 1px solid #eadfd8;
+	border-radius: 14px;
+	background: #fff;
+	border-top: 4px solid #d6d3d1;
+}
+.melliflous-360 .kpi.tone-green { border-top-color: #1f9d55; background: #f3fbf6; }
+.melliflous-360 .kpi.tone-amber { border-top-color: #e07a1f; background: #fff8ef; }
+.melliflous-360 .kpi.tone-red { border-top-color: #c0392b; background: #fdf4f3; }
+.melliflous-360 .kpi.tone-teal { border-top-color: #0e8f8a; background: #f3fbfa; }
+.melliflous-360 .kpi-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+.melliflous-360 .kpi-icon {
+	display: inline-flex;
+	width: 28px;
+	height: 28px;
+	align-items: center;
+	justify-content: center;
+	border-radius: 8px;
+	background: #f4f1ee;
+	color: #6b1d2a;
+}
+.melliflous-360 .kpi-icon svg { width: 18px; height: 18px; }
+.melliflous-360 .kpi .detail {
+	margin-top: 4px;
+	color: #57534e;
+	font-size: 0.85rem;
+}
+.melliflous-360 .progress {
+	height: 8px;
+	margin-top: 10px;
+	border-radius: 999px;
+	background: #efe7e2;
+	overflow: hidden;
+}
+.melliflous-360 .progress-bar {
+	display: block;
+	height: 100%;
+	border-radius: 999px;
+	background: #a8a29e;
+}
+.melliflous-360 .progress-bar.tone-green { background: #1f9d55; }
+.melliflous-360 .progress-bar.tone-amber { background: #e07a1f; }
+.melliflous-360 .progress-bar.tone-red { background: #c0392b; }
+.melliflous-360 .panel {
+	margin-top: 16px;
+	padding: 14px 16px;
+	border: 1px solid #eadfd8;
+	border-radius: 16px;
+	background: #fff;
+}
+.melliflous-360 .spark {
+	display: flex;
+	align-items: flex-end;
+	gap: 8px;
+	height: 88px;
+	margin-top: 12px;
+}
+.melliflous-360 .spark-col {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	height: 100%;
+	justify-content: flex-end;
+}
+.melliflous-360 .spark-bar {
+	display: block;
+	width: 100%;
+	max-width: 28px;
+	border-radius: 6px 6px 2px 2px;
+	background: #c0392b;
+}
+.melliflous-360 .spark-label {
+	margin-top: 4px;
+	font-size: 0.75rem;
+	color: #57534e;
+}
+.melliflous-360 .badge {
+	display: inline-block;
+	padding: 2px 8px;
+	border-radius: 999px;
+	font-size: 0.8rem;
+	font-weight: 700;
+}
+.melliflous-360 .badge.pace-fast { background: #e7f6ee; color: #135c36; }
+.melliflous-360 .badge.pace-slow { background: #fff4e5; color: #9a4d00; }
+.melliflous-360 .badge.pace-no-movement { background: #fde8e8; color: #8d1d1d; }
+.melliflous-360 .timeline { display: flex; flex-direction: column; gap: 8px; }
+.melliflous-360 .event {
+	display: flex;
+	gap: 10px;
+	align-items: flex-start;
+	padding: 10px 12px;
+	border: 1px solid #eadfd8;
 	border-radius: 12px;
-	background: var(--surface-base, #fff);
+	background: #fff;
+}
+.melliflous-360 .event-mark {
+	flex: 0 0 auto;
+	width: 28px;
+	height: 28px;
+	border-radius: 999px;
+	color: #fff;
+	font-weight: 800;
+	line-height: 28px;
+	text-align: center;
+}
+.melliflous-360 .kind-visit .event-mark { background: #2f6fdb; }
+.melliflous-360 .kind-invoice .event-mark { background: #1f9d55; }
+.melliflous-360 .kind-complaint .event-mark { background: #c0392b; }
+.melliflous-360 .kind-credit .event-mark { background: #7a45c4; }
+.melliflous-360 .legend-box {
+	margin-top: 20px;
+	padding: 12px 14px;
+	border-radius: 14px;
+	background: #faf7f5;
+}
+.melliflous-360 .legend-row {
+	display: flex;
+	gap: 8px;
+	align-items: flex-start;
+	margin-top: 6px;
+}
+.melliflous-360 .legend-dot {
+	flex: 0 0 auto;
+	width: 12px;
+	height: 12px;
+	margin-top: 4px;
+	border-radius: 999px;
+	background: #a8a29e;
+}
+.melliflous-360 .legend-dot.tone-green,
+.melliflous-360 .legend-dot.tone-fast { background: #1f9d55; }
+.melliflous-360 .legend-dot.tone-amber,
+.melliflous-360 .legend-dot.tone-slow { background: #e07a1f; }
+.melliflous-360 .legend-dot.tone-red,
+.melliflous-360 .legend-dot.tone-still { background: #c0392b; }
+@media (max-width: 720px) {
+	.melliflous-360 .toolbar,
+	.melliflous-360 .kpi-grid {
+		grid-template-columns: 1fr;
+	}
+	.melliflous-360 .band-title { font-size: 1.35rem; }
 }
 .melliflous-360 .kpi .label {
 	color: var(--ink-gray-7, #4b5563);

@@ -11,8 +11,10 @@ from melliflous_branding.distributors import (
 	DISTRIBUTOR_LINKS,
 	DistributorError,
 	achievement_for_month,
+	achievement_tone,
 	add_months,
 	apply_statement_line,
+	billing_tone,
 	build_dashboard,
 	can_file,
 	can_open_distributor_360,
@@ -21,6 +23,8 @@ from melliflous_branding.distributors import (
 	clean_days,
 	clean_growth,
 	clean_visit,
+	cover_tone,
+	days_of_cover,
 	find_duplicate_statement,
 	follow_up_rows,
 	merge_distributor_workspace,
@@ -30,10 +34,12 @@ from melliflous_branding.distributors import (
 	place_distributor_360_app,
 	prefill_rows,
 	prepare_profile_values,
+	product_pace,
 	received_by_item,
 	statement_period,
 	target_suggestion,
 	trailing_months,
+	visit_tone,
 )
 
 PACKAGE = Path(__file__).resolve().parents[1]
@@ -289,11 +295,57 @@ class TestDashboard(unittest.TestCase):
 		self.assertEqual(suggestion["amount"], round(suggestion["average"] * 1.1, 2))
 		self.assertEqual(built["products"][0]["item"], "Turmeric")
 		self.assertEqual(built["products"][0]["share"], 80)
+		self.assertEqual(built["products"][0]["pace"], "fast")
+		self.assertTrue(built["signals"]["no_submitted_invoices"] is False)
+		self.assertEqual(built["signals"]["billing_tone"], "green")
+		self.assertEqual(built["signals"]["cover_days"], 60.0)
+		self.assertEqual(built["signals"]["cover_tone"], "red")
 		self.assertEqual(built["buying"]["order_count"], 5)
 		self.assertEqual(built["tabs"]["credit_notes"][0]["name"], "CN-NOV")
 		self.assertEqual(built["tabs"]["credit_notes"][0]["amount"], -1000)
 		self.assertEqual(built["tabs"]["payments"][0]["doctype"], "Payment Entry")
 		self.assertEqual(len(built["chart"]), 12)
+
+	def test_colour_bands_for_the_page_and_the_follow_up_report(self):
+		self.assertEqual(achievement_tone(100), "green")
+		self.assertEqual(achievement_tone(70), "amber")
+		self.assertEqual(achievement_tone(69.99), "red")
+		self.assertEqual(achievement_tone(None), "neutral")
+		self.assertEqual(cover_tone(0), "red")
+		self.assertEqual(cover_tone(6), "amber")
+		self.assertEqual(cover_tone(7), "green")
+		self.assertEqual(cover_tone(30), "green")
+		self.assertEqual(cover_tone(45), "amber")
+		self.assertEqual(cover_tone(46), "red")
+		self.assertEqual(days_of_cover(12, 6, 30), 60.0)
+		self.assertIsNone(days_of_cover(None, 6, 30))
+		self.assertEqual(billing_tone(None), "red")
+		self.assertEqual(billing_tone(7), "green")
+		self.assertEqual(billing_tone(8), "amber")
+		self.assertEqual(billing_tone(16), "red")
+		self.assertEqual(visit_tone("2026-11-26", TODAY), "red")
+		self.assertEqual(visit_tone(TODAY, TODAY), "amber")
+		self.assertEqual(visit_tone("2026-12-01", TODAY), "green")
+		self.assertEqual(product_pace(0, 10), "no-movement")
+		self.assertEqual(product_pace(12, 10), "fast")
+		self.assertEqual(product_pace(4, 10), "slow")
+		built = build_dashboard(
+			{"customer": "New", "company": "Foods", "currency": "INR", "invoices": [], "lines": []},
+			TODAY,
+		)
+		self.assertTrue(built["signals"]["no_submitted_invoices"])
+		self.assertEqual(built["primary_mtd"], 0)
+		with_target = build_dashboard(
+			{
+				"customer": "AJ Traders",
+				"company": "Foods",
+				"current_target": {"name": "CPT-1", "target_amount": 20000},
+				"invoices": [{"name": "SI-1", "posting_date": "2026-11-10", "amount": 10000, "is_return": 0, "company": "Foods"}],
+			},
+			TODAY,
+		)
+		self.assertEqual(with_target["signals"]["achievement_pct"], 50)
+		self.assertEqual(with_target["signals"]["primary_tone"], "red")
 
 	def test_growth_changes_only_the_suggestion(self):
 		chart = [{"label": "Sep", "year": 2026, "primary": 100}, {"label": "Oct", "year": 2026, "primary": 100}, {"label": "Nov", "year": 2026, "primary": 100}]
@@ -493,6 +545,8 @@ class TestDesk(unittest.TestCase):
 		self.assertIn("The distributor could not be loaded.", script)
 		self.assertIn("Create Target", script)
 		self.assertIn("is-error", script)
+		self.assertIn("₹0 — no submitted invoices yet", script)
+		self.assertIn("tone-green", (PACKAGE / "public" / "css" / "melliflous_branding.css").read_text())
 
 		workspace = json.loads((PACKAGE / "melliflous_branding" / "workspace" / "quick_actions" / "quick_actions.json").read_text())
 		labels = [row["label"] for row in workspace["shortcuts"]]

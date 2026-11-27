@@ -615,6 +615,106 @@ def _recent(rows, limit=RECENT_LIMIT) -> list:
 	return sorted(rows or [], key=key, reverse=True)[:limit]
 
 
+def achievement_tone(pct) -> str:
+	"""Green at 100% or more, amber from 70, red below that. No target stays neutral."""
+	if pct is None or pct == "":
+		return "neutral"
+	shown = float(pct)
+	if shown >= 100:
+		return "green"
+	if shown >= 70:
+		return "amber"
+	return "red"
+
+
+def cover_tone(days) -> str:
+	"""Days of stock cover. Green is 7 to 30. Amber is under 7 or 30 to 45. Red is 0 or over 45."""
+	if days is None or days == "":
+		return "neutral"
+	shown = float(days)
+	if shown <= 0 or shown > 45:
+		return "red"
+	if shown < 7 or shown > 30:
+		return "amber"
+	return "green"
+
+
+def billing_tone(days) -> str:
+	"""How long since the last submitted invoice. No invoice is red."""
+	if days is None or days == "":
+		return "red"
+	shown = int(days)
+	if shown <= 7:
+		return "green"
+	if shown <= 15:
+		return "amber"
+	return "red"
+
+
+def visit_tone(due, today) -> str:
+	"""Red when the visit is overdue or not scheduled, amber on the due day, green after that."""
+	due_day = as_date(due)
+	today_day = as_date(today)
+	if not due_day or not today_day:
+		return "red"
+	delta = (due_day - today_day).days
+	if delta < 0:
+		return "red"
+	if delta == 0:
+		return "amber"
+	return "green"
+
+
+def overdue_tone(amount) -> str:
+	return "red" if float(amount or 0) > 0 else "green"
+
+
+def days_of_cover(closing_qty, secondary_qty, period_days) -> float | None:
+	"""Closing stock divided by the daily secondary rate. No statement returns None."""
+	if closing_qty is None or secondary_qty is None:
+		return None
+	closing = float(closing_qty)
+	secondary = float(secondary_qty)
+	if closing <= 0:
+		return 0.0
+	if secondary <= 0:
+		return 999.0
+	span = int(period_days or 0)
+	if span < 1:
+		span = 30
+	return round(closing / (secondary / span), 1)
+
+
+def product_pace(recent, prior) -> str:
+	"""Fast when recent sales hold up, slow when they fall, no-movement when nothing sold lately."""
+	if float(recent or 0) <= 0:
+		return "no-movement"
+	if float(prior or 0) <= 0 or float(recent) >= float(prior):
+		return "fast"
+	return "slow"
+
+
+def worst_tone(*tones) -> str:
+	rank = {"neutral": 0, "green": 1, "amber": 2, "red": 3}
+	chosen = "neutral"
+	for tone in tones:
+		if rank.get(tone, 0) >= rank.get(chosen, 0):
+			chosen = tone or "neutral"
+	return chosen
+
+
+def month_target_progress(primary_mtd, target) -> dict:
+	"""This month's primary against the whole-customer target, when one is set."""
+	target = target or {}
+	name = clean_text(target.get("name")) or None
+	raw = target.get("target_amount")
+	if raw in (None, "") or float(raw or 0) <= 0:
+		return {"name": name, "target_amount": None, "achievement_pct": None, "tone": "neutral"}
+	amount = money(raw)
+	pct = round(float(primary_mtd or 0) / amount * 100, 2) if amount else None
+	return {"name": name, "target_amount": amount, "achievement_pct": pct, "tone": achievement_tone(pct)}
+
+
 def build_dashboard(bundle, today, growth_pct=GROWTH_DEFAULT) -> dict:
 	"""KPIs, the 12-month chart, the buying pattern, and the lists for Distributor 360."""
 	bundle = bundle or {}
@@ -727,8 +827,12 @@ def build_dashboard(bundle, today, growth_pct=GROWTH_DEFAULT) -> dict:
 		key=lambda row: (-row["amount"], row["item"]),
 	)
 	line_total = sum(row["amount"] for row in ranked) or 0
+	recent_keys = [(start.year, start.month) for start in months[-3:]]
+	prior_keys = [(start.year, start.month) for start in months[-6:-3]]
 	product_rows = []
 	for row in ranked[:TOP_PRODUCTS]:
+		recent_amount = sum(row["months"].get(key, 0) for key in recent_keys)
+		prior_amount = sum(row["months"].get(key, 0) for key in prior_keys)
 		product_rows.append(
 			{
 				"item": row["item"],
@@ -736,6 +840,9 @@ def build_dashboard(bundle, today, growth_pct=GROWTH_DEFAULT) -> dict:
 				"qty": qty(row["qty"]),
 				"amount": money(row["amount"]),
 				"share": round(row["amount"] / line_total * 100, 2) if line_total else 0.0,
+				"recent_amount": money(recent_amount),
+				"prior_amount": money(prior_amount),
+				"pace": product_pace(recent_amount, prior_amount),
 			}
 		)
 	mix_items = []
@@ -772,6 +879,33 @@ def build_dashboard(bundle, today, growth_pct=GROWTH_DEFAULT) -> dict:
 
 	currency = clean_text(bundle.get("currency"))
 	statement_row = latest_statement[1] if latest_statement else None
+	period_days = None
+	if statement_row and statement_row.get("from_date") and statement_row.get("to_date"):
+		period_days = (as_date(statement_row.get("to_date")) - as_date(statement_row.get("from_date"))).days + 1
+	cover = None
+	if statement_row is not None:
+		cover = days_of_cover(
+			statement_row.get("total_closing_qty"),
+			statement_row.get("total_secondary_qty"),
+			period_days,
+		)
+	primary_mtd = chart[-1]["primary"] if chart else 0.0
+	target_progress = month_target_progress(primary_mtd, bundle.get("current_target"))
+	no_submitted = last_sale is None and money(sum(row["primary"] for row in chart)) == 0
+	signals = {
+		"primary_mtd": primary_mtd,
+		"primary_tone": target_progress["tone"],
+		"target_amount": target_progress["target_amount"],
+		"target_name": target_progress["name"],
+		"achievement_pct": target_progress["achievement_pct"],
+		"secondary_mtd": None if not chart else chart[-1]["secondary"],
+		"cover_days": cover,
+		"cover_tone": cover_tone(cover),
+		"billing_tone": billing_tone(None if not last_sale else (today - as_date(last_sale.get("posting_date"))).days),
+		"visit_tone": visit_tone(profile.get("next_visit_due") if profile else None, today),
+		"overdue_tone": overdue_tone(overdue_amount),
+		"no_submitted_invoices": no_submitted,
+	}
 	return {
 		"customer": customer,
 		"customer_name": clean_text(bundle.get("customer_name")) or customer,
@@ -785,7 +919,8 @@ def build_dashboard(bundle, today, growth_pct=GROWTH_DEFAULT) -> dict:
 			"posting_date": as_date(last_sale.get("posting_date")),
 			"amount": money(signed_amount(last_sale.get("amount"), 0)),
 		},
-		"primary_mtd": chart[-1]["primary"] if chart else 0.0,
+		"primary_mtd": primary_mtd,
+		"signals": signals,
 		"primary_3m": money(sum(row["primary"] for row in chart[-3:])),
 		"primary_12m": money(sum(row["primary"] for row in chart)),
 		"secondary_sales": None if not statement_row else money(statement_row.get("total_secondary_value")),
@@ -975,6 +1110,13 @@ def follow_up_rows(profiles, facts_by_customer, filters, viewer, today) -> dict:
 		if not reasons:
 			continue
 		last_order = as_date(facts.get("last_order_date"))
+		days_since = None if not last_order else (today - last_order).days
+		pct = None if facts.get("achievement_pct") is None else round(float(facts.get("achievement_pct") or 0), 2)
+		due = as_date(profile.get("next_visit_due"))
+		achievement_colour = "neutral" if pct is None else achievement_tone(pct)
+		order_colour = billing_tone(days_since)
+		visit_colour = visit_tone(due, today)
+		money_colour = overdue_tone(facts.get("overdue_amount"))
 		rows.append(
 			{
 				"distributor": customer,
@@ -986,11 +1128,14 @@ def follow_up_rows(profiles, facts_by_customer, filters, viewer, today) -> dict:
 				"territory": clean_text(profile.get("territory")),
 				"area": clean_text(profile.get("area")),
 				"last_visit": as_date(profile.get("last_visit_date")),
-				"next_visit_due": as_date(profile.get("next_visit_due")),
-				"days_since_order": None if not last_order else (today - last_order).days,
-				"achievement_pct": None
-				if facts.get("achievement_pct") is None
-				else round(float(facts.get("achievement_pct") or 0), 2),
+				"next_visit_due": due,
+				"days_since_order": days_since,
+				"achievement_pct": pct,
+				"achievement_tone": achievement_colour,
+				"order_tone": order_colour,
+				"visit_tone": visit_colour,
+				"overdue_tone": money_colour,
+				"row_tone": worst_tone(achievement_colour, order_colour, visit_colour, money_colour),
 				"open_complaints": int(facts.get("open_complaints") or 0),
 				"overdue_amount": money(facts.get("overdue_amount")),
 				"reasons": " · ".join(reason["label"] for reason in reasons),
