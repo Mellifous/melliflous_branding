@@ -58,7 +58,7 @@
 	margin-top: 16px;
 	padding: 20px 22px;
 	border-radius: 18px;
-	background: linear-gradient(120deg, #c0392b 0%, #6b1d2a 100%);
+	background: linear-gradient(120deg, #C8102E 0%, #7A0019 100%);
 	color: #fff;
 }
 .melliflous-360 .band-title {

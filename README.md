@@ -70,6 +70,84 @@ Module tiles are on screen in two cases:
 
 Colours key off the English label. A translated tile title will not match, and the tile stays neutral. The logo artwork is not recoloured. A ring and a light pad sit behind it.
 
+## Desk theme
+
+The whole desk uses the SK Gourmet Spices red `#C8102E` and maroon `#7A0019`. Primary buttons are that red. Cards are rounded with a soft shadow. The navbar has a red accent strip, and the sidebar is lightly tinted with the active item in maroon. List and form text is a step larger. Empty lists get a short friendly line. On `/desk` a greeting says good morning, good afternoon, or good evening, plus the person's first name and today's date. Hover on a button or a shortcut lifts it slightly, and that motion is turned off when the browser asks for reduced motion.
+
+Workspace number cards and shortcuts get a coloured left edge for the module you are in: Selling green, Buying blue, Stock teal, Accounting purple, HR orange, CRM pink, Manufacturing amber.
+
+The same red and maroon are the Distributor 360 header. The rest of that page is unchanged.
+
+### Status colour key
+
+List pills, form badges, and a Status column in a report use one meaning:
+
+| Status | Colour |
+| --- | --- |
+| Draft | Grey |
+| Submitted, To Deliver, To Receive, Open | Blue |
+| Unpaid, Pending, To Bill, Partly Paid | Amber |
+| Overdue, Cancelled, Lost, Expired, Rejected | Red |
+| Paid, Completed, Ordered, Delivered, Active | Green |
+| Return, Credit Note, Debit Note | Purple |
+
+A status that is not in this list keeps the colour ERPNext already gave it. The words on the pill and the list filter do not change. Sales Invoice, Quotation, Sales Order, Payment Entry, Delivery Note, Purchase Invoice, Purchase Order, Customer, Lead, Opportunity, Item, and Stock Entry are the lists this applies to.
+
+`desk_theme.js` injects a `<style id="melliflous-desk-theme">` tag on load and again on every route change, using `frappe.dom.set_style` when Frappe provides it. The same rules live in `public/css/desk_theme.css`. The asset URLs carry `?v=20261127a`. No bench build is required for the colours to show. Hard-refresh `/desk` after the deploy.
+
+## Quick Invoice
+
+`/desk/quick-invoice` writes a **draft** for Melliflous International Multi Trade Pvt Ltd. It does not submit.
+
+Pick a customer, then a price list. The customer's own price list is selected when they have one. The list always offers Classic Distributor, Classic Retailer, Classic MRP, and Standard Selling. Add items with the big search and a quantity. The rate comes from the price list. Classic lists store a GST-inclusive price at 5 percent, so the draft rate is that price divided by 1.05 when the item's tax template is `GST 5% - MIMT`. Any other tax rate is left as the price-list rate. The batch starts as the last one used on a sales line. The page shows taxable value, CGST, SGST, and the grand total while you type.
+
+**Save as Draft** creates a Sales Invoice and opens it. **Save as Draft Quotation** does the same for a Quotation. If every item uses `GST 5% - MIMT`, the taxes template is `Output GST 5% In-state - MIMT`. Otherwise the company's default selling template is used. A missing customer, price list, item, or quantity is explained on the page.
+
+On `/desk` and on the Selling workspace, six large buttons sit under the greeting: New Quick Invoice, New Quotation, Payment Received (a new Payment Entry of type Receive), New Sales Order, Stock Balance, and Distributor 360.
+
+New Sales Invoice, Quotation, and Payment Entry forms start on MIMT with today's date, and a new Sales Invoice leaves Update Stock off. Sections people rarely touch (address, terms, print settings, accounting dimensions, and the like) start collapsed. Every field is still there. Open the section to use it.
+
+The Quick Invoice page is a standard Page. The first deploy that runs migrate imports it. Until that migrate, the button is on screen and the address answers only after **Update Now**.
+
+## Simple desk
+
+Melliflous Simple Mode is on unless an admin turns it off. Nothing is deleted and no core file is edited. A hidden page still opens from its address.
+
+Kept on the sidebar and the apps grid: Home, Selling, Buying, Stock, Accounting, CRM, Distributor 360, Quick Actions, India Compliance, Raven, and Drive. HR stays, and it sits lower than the selling modules, for attendance. Recruitment is not in the hide list, so it stays where HRMS put it.
+
+Hidden while simple mode is on:
+
+| Hidden | What it covers |
+| --- | --- |
+| Manufacturing | Workspace, dock, and sidebar |
+| Projects | Workspace, dock, and sidebar |
+| Assets | Workspace, dock, and sidebar |
+| Quality, Quality Management | Workspace, dock, and sidebar |
+| Support | Workspace, dock, and sidebar |
+| Website | Workspace and the Website app tile |
+| Tools | Workspace, dock, and sidebar |
+| Build, Integrations | Workspace and the Framework app tile |
+| ERPNext Settings | Workspace |
+| Subcontracting | Workspace |
+| Loans, Loan Management | Workspace, plus Loan, Loan Application, Loan Product, Loan Type, Loan Disbursement, Loan Repayment |
+| Payroll | Workspace, plus Salary Slip, Salary Structure, Salary Structure Assignment, Payroll Entry, Salary Component |
+| Frappe Framework | Taken off the apps grid. The app stays in the boot payload so the desk can still name it |
+
+Selling, Stock, Buying, and Accounting keep their documents. The simple desk only shows these shortcuts. The others are still in the workspace; they are hidden, not removed.
+
+| Workspace | Shortcuts left on screen |
+| --- | --- |
+| Selling | Quick Invoice, Quotation, Sales Order, Sales Invoice, Payment Entry, Customer, Distributor 360 |
+| Stock | Item, Stock Entry, Stock Balance, Delivery Note |
+| Buying | Supplier, Purchase Order, Purchase Invoice |
+| Accounting | Payment Entry, Journal Entry, General Ledger, Accounts Receivable |
+
+Boot filters `app_data`, the sidebar payload, and the dock on every desk load, including a cached boot. That works on a pull that did not migrate. The desk script hides the same names again in case the sidebar was drawn from an older payload.
+
+**Full desk**, on the navbar, is for System Manager and Administrator. It shows every module for that person and leaves simple mode on for everyone else. Melliflous Settings → **Melliflous Simple Mode** is the site-wide switch. Untick it and the full desk comes back for the team. The workspaces this app had hidden return to the visibility they had before. A workspace that was already hidden stays hidden.
+
+One step needs migrate. **Update Now** (or `bench migrate`) imports the Melliflous Settings DocType and the Quick Invoice page, and sets `Workspace.is_hidden` for the hidden list. A plain pull that does not migrate still hides those modules through boot and the desk script. The Settings page and `/desk/quick-invoice` appear after that migrate. Turning the site-wide switch off, and writing `is_hidden` back, also waits for that migrate because the previous visibility is stored on Melliflous Settings.
+
 ## Quick Actions
 
 A **Quick Actions** tile on the desk home, a **Distributor 360** tile beside it, a **Quick Actions** workspace, and a sidebar named Melliflous Branding. v16 opens desk pages at `/desk/...`. The old `/app/...` address redirects there. Distributor 360 is its own apps-screen icon (`/desk/distributor-360`) for System Manager, Sales Manager, and Sales User. Everyone else who can use the desk still sees Quick Actions.
@@ -170,12 +248,14 @@ To remove it: on the site, uninstall `melliflous_branding`, then remove the app 
 ## Develop
 
 ```bash
-python -m unittest melliflous_branding.tests.test_branding melliflous_branding.tests.test_quick melliflous_branding.tests.test_files melliflous_branding.tests.test_targets melliflous_branding.tests.test_distributors
+python -m unittest melliflous_branding.tests.test_branding melliflous_branding.tests.test_quick melliflous_branding.tests.test_files melliflous_branding.tests.test_targets melliflous_branding.tests.test_distributors melliflous_branding.tests.test_desk
 node --check melliflous_branding/public/js/melliflous_branding.js
 node --check melliflous_branding/public/js/quick_actions.js
 node --check melliflous_branding/public/js/desk_tiles.js
+node --check melliflous_branding/public/js/desk_theme.js
 node --check melliflous_branding/melliflous_branding/page/team_files/team_files.js
 node --check melliflous_branding/melliflous_branding/page/distributor_360/distributor_360.js
+node --check melliflous_branding/melliflous_branding/page/quick_invoice/quick_invoice.js
 node --check melliflous_branding/melliflous_branding/doctype/customer_primary_target/customer_primary_target.js
 node --check melliflous_branding/melliflous_branding/doctype/customer_primary_target/customer_primary_target_list.js
 node --check melliflous_branding/melliflous_branding/doctype/distributor_profile/distributor_profile.js
@@ -194,8 +274,8 @@ Hooks:
 | Hook | What it does |
 | --- | --- |
 | `add_to_apps_screen` | Quick Actions, the first entry, is the one the apps grid copies for this app. The Distributor 360 entry is declared here and is not what places that icon. |
-| `extend_bootinfo` and `boot_session` | Companies, the current default, whether to show the picker, the tone map, and the Distributor 360 row on `boot.app_data` for System Manager, Sales Manager, and Sales User. |
-| `app_include_css` / `app_include_js` | Switcher, title, and tile colours inside the desk. |
+| `extend_bootinfo` and `boot_session` | Companies, the current default, whether to show the picker, the tone map, the Distributor 360 row, and the simple-desk filter on `boot.app_data`, the sidebar, and the dock. Simple mode stays on when Melliflous Settings does not exist yet. |
+| `app_include_css` / `app_include_js` | Switcher, title, tile colours, and `desk_theme.js`. The theme script injects `<style id="melliflous-desk-theme">` so a cached stylesheet still updates. Asset URLs carry a version query. |
 | `after_request` | Apple touch icon, manifest link, and `apple-mobile-web-app-title` on `/desk` HTML. |
 | `after_install` / `after_migrate` | Create Home/Team Files if it is missing. On migrate, grant Raven User to enabled desk users when that role exists, add the target links to Selling and CRM when those modules exist, and put the distributor links back on Quick Actions and the Melliflous Branding sidebar if they are missing. |
 | `doc_events` File `before_validate` | A file saved into Team Files is forced private. |

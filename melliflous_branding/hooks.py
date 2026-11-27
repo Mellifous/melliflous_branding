@@ -31,11 +31,19 @@ add_to_apps_screen = [
 
 # Includes in <head> of desk.html (styles in head, script at the end of body).
 # desk_tiles.js is its own file so a cached quick_actions.js cannot hide the tiles.
-app_include_css = "/assets/melliflous_branding/css/melliflous_branding.css"
+# The query is bumped when the desk theme changes. The theme is also injected
+# from desk_theme.js, because a cached app_include_css file has shipped stale
+# rules after a deploy. No bench build is required.
+DESK_ASSET_VERSION = "20261127a"
+app_include_css = [
+	f"/assets/melliflous_branding/css/melliflous_branding.css?v={DESK_ASSET_VERSION}",
+	f"/assets/melliflous_branding/css/desk_theme.css?v={DESK_ASSET_VERSION}",
+]
 app_include_js = [
-	"/assets/melliflous_branding/js/melliflous_branding.js",
-	"/assets/melliflous_branding/js/quick_actions.js",
-	"/assets/melliflous_branding/js/desk_tiles.js",
+	f"/assets/melliflous_branding/js/melliflous_branding.js?v={DESK_ASSET_VERSION}",
+	f"/assets/melliflous_branding/js/quick_actions.js?v={DESK_ASSET_VERSION}",
+	f"/assets/melliflous_branding/js/desk_tiles.js?v={DESK_ASSET_VERSION}",
+	f"/assets/melliflous_branding/js/desk_theme.js?v={DESK_ASSET_VERSION}",
 ]
 
 # Desk boot. sessions.get calls extend_bootinfo on every boot, including a

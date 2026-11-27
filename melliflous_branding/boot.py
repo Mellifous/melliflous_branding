@@ -20,6 +20,7 @@ from melliflous_branding.branding import (
 )
 from melliflous_branding.companies import get_permitted_companies
 from melliflous_branding.distributors import place_distributor_360_app
+from melliflous_branding.simple_records import apply_simple_boot
 
 
 def boot_session(bootinfo):
@@ -46,6 +47,12 @@ def boot_session(bootinfo):
 		bootinfo.app_data = place_distributor_360_app(getattr(bootinfo, "app_data", None), user, roles)
 	except Exception:
 		frappe.logger("melliflous_branding").exception("Could not add Distributor 360 to the apps screen")
+	# Simple mode filters the grid and the sidebars on every boot, including a
+	# cached one, so a pull that did not migrate still hides the extra modules.
+	try:
+		apply_simple_boot(bootinfo)
+	except Exception:
+		frappe.logger("melliflous_branding").exception("Could not apply the simple desk")
 
 
 def branding_boot() -> dict:
