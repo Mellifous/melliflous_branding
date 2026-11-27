@@ -27,6 +27,7 @@ from melliflous_branding.distributors import (
 	missing_sidebar_links,
 	next_visit_due,
 	normalize_lines,
+	place_distributor_360_app,
 	prefill_rows,
 	prepare_profile_values,
 	received_by_item,
@@ -545,6 +546,31 @@ class TestDesk(unittest.TestCase):
 		self.assertFalse(can_open_distributor_360("accounts@example.com", ["Accounts User"]))
 		self.assertFalse(can_open_distributor_360("Guest", ["Guest"]))
 		self.assertFalse(can_open_distributor_360("", ["Sales User"]))
+
+	def test_boot_adds_one_grid_row_beside_quick_actions(self):
+		quick_actions = {
+			"on_apps_screen": True,
+			"sequence_id": 12,
+			"app_name": "melliflous_branding",
+			"app_title": "Quick Actions",
+			"app_route": "/desk/quick-actions",
+			"app_logo_url": "/assets/melliflous_branding/images/melliflous_icon_512.png",
+			"dock": [],
+		}
+		placed = place_distributor_360_app([quick_actions], "priya@example.com", ["Sales User"])
+		self.assertEqual(placed[0]["app_title"], "Quick Actions")
+		tile = placed[1]
+		self.assertEqual(tile["app_name"], "distributor_360")
+		self.assertEqual(tile["app_title"], "Distributor 360")
+		self.assertEqual(tile["app_route"], "/desk/distributor-360")
+		self.assertEqual(tile["app_logo_url"], "/assets/melliflous_branding/images/distributor_360.svg")
+		self.assertTrue(tile["on_apps_screen"])
+		self.assertEqual(tile["dock"], [])
+		again = place_distributor_360_app(placed, "priya@example.com", ["Sales User"])
+		self.assertEqual(len(again), 2)
+		hidden = place_distributor_360_app(placed, "accounts@example.com", ["Accounts User"])
+		self.assertEqual([row["app_title"] for row in hidden], ["Quick Actions"])
+		self.assertIn("place_distributor_360_app", (PACKAGE / "boot.py").read_text())
 
 
 if __name__ == "__main__":

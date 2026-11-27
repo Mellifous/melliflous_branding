@@ -19,6 +19,7 @@ from melliflous_branding.branding import (
 	picker_visible,
 )
 from melliflous_branding.companies import get_permitted_companies
+from melliflous_branding.distributors import place_distributor_360_app
 
 
 def boot_session(bootinfo):
@@ -33,6 +34,18 @@ def boot_session(bootinfo):
 	except Exception:
 		frappe.logger("melliflous_branding").exception("Could not build the branding boot payload")
 		bootinfo.melliflous_branding = _empty_boot()
+	# The apps grid is boot.app_data, and Frappe fills that from the first
+	# add_to_apps_screen entry of each installed app. Quick Actions is that entry.
+	# Distributor 360 is added here, on every boot including a cached one.
+	try:
+		user = getattr(frappe.session, "user", None)
+		try:
+			roles = frappe.get_roles(user) if user else []
+		except Exception:
+			roles = []
+		bootinfo.app_data = place_distributor_360_app(getattr(bootinfo, "app_data", None), user, roles)
+	except Exception:
+		frappe.logger("melliflous_branding").exception("Could not add Distributor 360 to the apps screen")
 
 
 def branding_boot() -> dict:

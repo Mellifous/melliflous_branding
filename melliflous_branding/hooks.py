@@ -7,7 +7,9 @@ app_license = "MIT"
 
 required_apps = ["frappe"]
 
-# Tiles on the v16 apps screen. /app/... redirects to /desk/...
+# Tiles declared for the v16 apps screen. Boot copies only the first entry of an
+# installed app into the grid (that is Quick Actions). Distributor 360 is placed
+# on the same grid from boot_session, because a second entry here is ignored.
 add_to_apps_screen = [
 	{
 		"name": "melliflous_branding",
