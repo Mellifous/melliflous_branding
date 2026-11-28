@@ -70,15 +70,15 @@ function suggestInvoiceNumber(frm) {
 		.then((response) => {
 			if (ticket !== frm._suggest_ticket || frm._invoice_no_edited) return;
 			const message = (response && response.message) || {};
+			if (message.warning && frm._invoice_warning !== message.warning) {
+				frm._invoice_warning = message.warning;
+				frappe.msgprint({ title: __("Invoice number"), message: message.warning, indicator: "orange" });
+			}
+			if (!message.warning) frm._invoice_warning = null;
 			if (!message.invoice_no) {
-				if (message.warning && frm._invoice_warning !== message.warning) {
-					frm._invoice_warning = message.warning;
-					frappe.msgprint({ title: __("Invoice number"), message: message.warning, indicator: "orange" });
-				}
 				if ((frm.doc.custom_invoice_no || "").trim()) setInvoiceNumber(frm, "");
 				return;
 			}
-			frm._invoice_warning = null;
 			setInvoiceNumber(frm, message.invoice_no);
 		});
 }

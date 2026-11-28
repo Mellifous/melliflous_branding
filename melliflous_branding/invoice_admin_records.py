@@ -18,12 +18,18 @@ from melliflous_branding.invoice_admin import (
 	INVOICE_DOCTYPES,
 	ROLE_NAME,
 	SEED_OWNER_EMAIL,
+	DELETION_LOG_DOCTYPE,
+	DELETION_LOG_LABEL,
+	DELETE_DENIED,
+	DELETE_NEEDS_REASON,
 	audit_entry,
 	can_generate_einvoice,
 	can_manage_invoices,
 	can_delete_invoices,
 	delete_block,
 	delete_permission_updates,
+	deletion_log_entry,
+	deletion_log_shortcut,
 	gst_flags_to_clear,
 	rename_block,
 	role_keeps_invoice_delete,
@@ -78,6 +84,7 @@ def apply_invoice_boot(bootinfo) -> None:
 	except Exception:
 		frappe.logger("melliflous_branding").exception("Could not read Invoice Admin users")
 	bootinfo.melliflous_invoice_admin = 1 if can_manage_invoices(user, listed) else 0
+	# Same people as the settings list. A role by itself does not set this.
 	bootinfo.melliflous_can_delete_invoice = 1 if can_delete_invoices(user, listed, roles) else 0
 	bootinfo.melliflous_can_einvoice = 1 if can_generate_einvoice(user, listed, roles) else 0
 	keep_einvoice_manual()
@@ -86,17 +93,67 @@ def apply_invoice_boot(bootinfo) -> None:
 def guard_delete(doc, method=None):
 	if doc.doctype not in INVOICE_DOCTYPES:
 		return
+	reason = getattr(frappe.flags, "invoice_delete_reason", None)
 	message = delete_block(
 		getattr(frappe.session, "user", None),
 		listed_invoice_admins(),
 		doc.get("docstatus"),
 		_irn(doc),
 		_roles(),
+		reason,
+		require_reason=doc.doctype == "Sales Invoice",
 	)
 	if message:
 		frappe.throw(_(message), frappe.PermissionError)
-	_write_audit(doc, "Delete", doc.name, "")
-	_comment_party(doc, "Delete", doc.name, "")
+	if doc.doctype == "Sales Invoice":
+		_write_deletion_log(doc, reason)
+	_write_audit(doc, "Delete", doc.name, "", reason or "")
+	_comment_party(doc, "Delete", doc.name, "", reason or "")
+	frappe.flags.invoice_delete_reason = None
+
+
+@frappe.whitelist()
+def delete_sales_invoices(names, reason=None):
+	"""Delete draft or cancelled Sales Invoices. A reason is required.
+
+	Only Administrator and users on the Invoice Admin list may call this.
+	The standard Delete permission is off, so this runs with ignore_permissions
+	after the list check.
+	"""
+	reason = " ".join(str(reason or "").split())
+	if not reason:
+		frappe.throw(_(DELETE_NEEDS_REASON))
+	if isinstance(names, str):
+		names = frappe.parse_json(names)
+	chosen = [" ".join(str(name or "").split()) for name in (names or []) if " ".join(str(name or "").split())]
+	if not chosen:
+		frappe.throw(_("Select an invoice first."))
+	if not can_manage_invoices(getattr(frappe.session, "user", None), listed_invoice_admins()):
+		frappe.throw(_(DELETE_DENIED), frappe.PermissionError)
+	deleted = []
+	for name in chosen:
+		_delete_one_sales_invoice(name, reason)
+		deleted.append(name)
+	return {"deleted": deleted}
+
+
+def _delete_one_sales_invoice(name, reason) -> None:
+	if not frappe.db.exists("Sales Invoice", name):
+		frappe.throw(_("Invoice {0} was not found.").format(name))
+	doc = frappe.get_doc("Sales Invoice", name)
+	message = delete_block(
+		getattr(frappe.session, "user", None),
+		listed_invoice_admins(),
+		doc.docstatus,
+		_irn(doc),
+		_roles(),
+		reason,
+		require_reason=True,
+	)
+	if message:
+		frappe.throw(_(message), frappe.PermissionError)
+	frappe.flags.invoice_delete_reason = reason
+	frappe.delete_doc("Sales Invoice", name, ignore_permissions=True)
 
 
 def guard_rename(doc, method=None, old=None, new=None, merge=False):
@@ -227,6 +284,28 @@ def ensure_invoice_admin() -> None:
 			_restrict_delete(doctype)
 	_seed_users()
 	keep_einvoice_manual()
+	ensure_deletion_log_link()
+
+
+def revoke_sales_invoice_delete() -> None:
+	"""Turn level-0 Delete off on Sales Invoice, including a tick set by hand.
+
+	Accounts Manager was ticked on the site. System Manager and Invoice Admin
+	are cleared too, so a role alone cannot delete.
+	"""
+	if not frappe.db.exists("DocType", "Sales Invoice"):
+		return
+	for table in ("Custom DocPerm", "DocPerm"):
+		if not frappe.db.table_exists(table):
+			continue
+		rows = frappe.get_all(
+			table,
+			filters={"parent": "Sales Invoice"},
+			fields=["name", "role", "permlevel", "delete"],
+		)
+		for change in delete_permission_updates(rows, "Sales Invoice"):
+			frappe.db.set_value(table, change["name"], "delete", change["delete"], update_modified=False)
+	frappe.clear_cache(doctype="Sales Invoice")
 
 
 def _ensure_role() -> None:
@@ -271,17 +350,15 @@ def _restrict_delete(doctype) -> None:
 			copied["parent"] = doctype
 			copied["parenttype"] = "DocType"
 			copied["parentfield"] = "permissions"
-			if cint(copied.get("permlevel")) == 0 and not role_keeps_invoice_delete(copied.get("role")):
-				copied["delete"] = 0
-			elif cint(copied.get("permlevel")) == 0 and role_keeps_invoice_delete(copied.get("role")):
-				copied["delete"] = 1
+			if cint(copied.get("permlevel")) == 0:
+				copied["delete"] = 1 if role_keeps_invoice_delete(copied.get("role"), doctype) else 0
 			frappe.get_doc(copied).insert(ignore_permissions=True)
 		custom_rows = frappe.get_all(
 			"Custom DocPerm",
 			filters={"parent": doctype},
 			fields=["name", "role", "permlevel", "delete"],
 		)
-	for change in delete_permission_updates(custom_rows):
+	for change in delete_permission_updates(custom_rows, doctype):
 		frappe.db.set_value("Custom DocPerm", change["name"], "delete", change["delete"], update_modified=False)
 	if any(row.role == ROLE_NAME and cint(row.permlevel) == 0 for row in custom_rows):
 		return
@@ -302,7 +379,7 @@ def _restrict_delete(doctype) -> None:
 			"read": 1,
 			"write": 1,
 			"create": cint(template.get("create", 1)),
-			"delete": 1,
+			"delete": 0 if doctype == "Sales Invoice" else 1,
 			"submit": cint(template.get("submit", 1)),
 			"cancel": cint(template.get("cancel", 1)),
 			"amend": cint(template.get("amend", 1)),
@@ -380,6 +457,98 @@ def _irn(doc) -> str:
 
 def _party(doc) -> str:
 	return " ".join(str(doc.get("customer") or doc.get("supplier") or "").split())
+
+
+def _write_deletion_log(doc, reason) -> None:
+	"""Permanent row. A failure here stops the delete so the number is not lost."""
+	if not frappe.db.table_exists(DELETION_LOG_DOCTYPE):
+		frappe.throw(_("The invoice deletion log is not ready. Update the site, then delete the invoice."))
+	number = " ".join(str(doc.get("custom_invoice_no") or doc.name or "").split())
+	entry = deletion_log_entry(
+		doc.name,
+		number,
+		doc.get("company"),
+		doc.get("customer"),
+		doc.get("posting_date"),
+		doc.get("grand_total"),
+		doc.get("docstatus"),
+		reason,
+		getattr(frappe.session, "user", None),
+		now_datetime(),
+	)
+	frappe.get_doc({"doctype": DELETION_LOG_DOCTYPE, **entry}).insert(ignore_permissions=True)
+
+
+def ensure_deletion_log_link() -> None:
+	"""Show the log on the Selling workspace and the Melliflous sidebar."""
+	_ensure_deletion_sidebar()
+	_ensure_selling_shortcut()
+
+
+def _ensure_deletion_sidebar() -> None:
+	if not frappe.db.exists("Sidebar", "Melliflous Branding"):
+		return
+	doc = frappe.get_doc("Sidebar", "Melliflous Branding")
+	have = {(row.link_type, row.link_to) for row in (doc.items or [])}
+	if ("DocType", DELETION_LOG_DOCTYPE) in have:
+		return
+	doc.append(
+		"items",
+		{
+			"type": "Link",
+			"label": DELETION_LOG_LABEL,
+			"link_type": "DocType",
+			"link_to": DELETION_LOG_DOCTYPE,
+			"icon": "trash-2",
+			"hidden": 0,
+		},
+	)
+	doc.flags.ignore_permissions = True
+	doc.save(ignore_permissions=True)
+
+
+def _ensure_selling_shortcut() -> None:
+	if not frappe.db.table_exists("Workspace") or not frappe.db.exists("Workspace", "Selling"):
+		return
+	doc = frappe.get_doc("Workspace", "Selling")
+	original = doc.modified
+	if any(" ".join(str(row.label or "").split()) == DELETION_LOG_LABEL for row in (doc.shortcuts or [])):
+		return
+	doc.append("shortcuts", deletion_log_shortcut())
+	try:
+		content = frappe.parse_json(doc.content) if doc.content else []
+	except Exception:
+		content = []
+	if isinstance(content, list):
+		content.append(
+			{
+				"id": "mb-invoice-deletion-log",
+				"type": "shortcut",
+				"data": {"shortcut_name": DELETION_LOG_LABEL, "col": 3},
+			}
+		)
+		doc.content = frappe.as_json(content)
+	link_labels = {" ".join(str(row.label or "").split()) for row in (doc.links or [])}
+	if DELETION_LOG_LABEL not in link_labels:
+		doc.append(
+			"links",
+			{
+				"type": "Link",
+				"label": DELETION_LOG_LABEL,
+				"link_type": "DocType",
+				"link_to": DELETION_LOG_DOCTYPE,
+				"hidden": 0,
+				"is_query_report": 0,
+				"link_count": 0,
+				"onboard": 0,
+			},
+		)
+	doc.flags.ignore_permissions = True
+	doc.flags.ignore_links = True
+	doc.flags.ignore_mandatory = True
+	doc.save(ignore_permissions=True)
+	if original:
+		frappe.db.sql("update `tabWorkspace` set modified=%s where name=%s", (original, "Selling"))
 
 
 def _write_audit(doc, action, old, new, reason="") -> None:

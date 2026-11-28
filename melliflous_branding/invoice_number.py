@@ -6,6 +6,8 @@ The document name is the invoice number GST and e-invoice use. It is at most
 16 characters: a letter or digit first, then letters, digits, / and -.
 Cancelled invoices keep their number so it cannot be reused, and they do not
 take part in posting-date order. Drafts and submitted invoices do.
+A number on the deletion log is offered again, lowest free gap first, unless
+that reuse would put an earlier date on a higher number than a later date.
 """
 
 from __future__ import annotations
@@ -280,12 +282,19 @@ def plan_invoice(
 	digits=None,
 	current_name=None,
 	chosen=None,
+	deleted=None,
 ) -> dict:
 	"""Suggest the next number, and say why `chosen` cannot be saved.
 
 	`rows` are existing invoices for one company and this prefix. Each row has
 	name, posting_date, and docstatus. Drafts (0) and submitted (1) set the
 	date order. Cancelled (2) only block the serial.
+
+	`deleted` is invoice names from the deletion log for this company and
+	prefix. The lowest one that no current invoice uses is suggested first.
+	Once that number is saved again it is in `rows`, so it is not offered.
+	If that gap would break posting-date order, the warning says so and the
+	suggestion falls back to the next serial after the highest one still stored.
 
 	A back-dated invoice is one with an active invoice on a later posting date.
 	Its suggestion is a free serial between those neighbours. The latest date
@@ -297,15 +306,29 @@ def plan_invoice(
 	width = _width(widths, digits, prefix)
 	start = _starting(starting_number)
 	suggested_serial = _suggest_serial(used, floor_row, ceiling_row, same_max, start)
+	gap_serial, gap_name = _lowest_free_deleted(deleted, prefix, used)
+	exact = None
+	rejected = None
+	if gap_serial is not None:
+		if _order_clash(gap_serial, floor_row, ceiling_row) is None:
+			suggested_serial = gap_serial
+			exact = gap_name
+		else:
+			rejected = (gap_serial, gap_name)
 	suggested = None
 	warning = None
 	if suggested_serial is None:
 		warning = _no_fit_warning(day, floor_row, ceiling_row)
+	elif exact:
+		suggested = exact
 	else:
 		try:
 			suggested = render_number(prefix, suggested_serial, width)
 		except InvoiceNumberError as exc:
 			warning = str(exc)
+			suggested_serial = None
+	if rejected:
+		warning = _gap_order_warning(rejected[0], rejected[1], day, floor_row, ceiling_row, suggested)
 	result = {"suggested": suggested, "warning": warning, "error": None}
 	if not chosen:
 		return result
@@ -474,6 +497,41 @@ def _suggest_serial(used, floor_row, ceiling_row, same_max, starting):
 			return number
 		number -= 1
 	return None
+
+
+def _lowest_free_deleted(deleted, prefix, used) -> tuple[int | None, str | None]:
+	"""Lowest deleted serial for this prefix that no current invoice still uses."""
+	lowest = None
+	name = None
+	for item in deleted or []:
+		text = clean_invoice_no(item.get("name") if isinstance(item, dict) else item)
+		split = split_serial(text, prefix)
+		if not split:
+			continue
+		serial = split[0]
+		if serial in used:
+			continue
+		if lowest is None or serial < lowest:
+			lowest = serial
+			name = text
+	return lowest, name
+
+
+def _gap_order_warning(serial, deleted_no, day, floor_row, ceiling_row, fallback) -> str:
+	when = format_dmy(day) or "this date"
+	clash = _order_clash(serial, floor_row, ceiling_row)
+	if clash:
+		other, direction = clash
+		reason = (
+			f"invoice {other['name']} dated {format_dmy(other['posting_date'])} "
+			f"already uses a {direction} number"
+		)
+	else:
+		reason = "it is out of order for this date"
+	text = f"Deleted invoice number {deleted_no} is free, but it cannot be reused on {when}: {reason}."
+	if fallback:
+		return text + f" The next number {fallback} is suggested instead."
+	return text + " Please change the date."
 
 
 def _name_or_serial_used(chosen, serial, parsed) -> bool:

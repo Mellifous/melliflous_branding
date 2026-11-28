@@ -80,6 +80,7 @@ ESSENTIAL_SHORTCUTS: dict[str, tuple[str, ...]] = {
 		"Sales Order",
 		"New Sales Order",
 		"Sales Invoice",
+		"Invoice Deletion Log",
 		"Payment Entry",
 		"Payment Received",
 		"Customer",

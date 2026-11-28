@@ -11,13 +11,18 @@ from __future__ import annotations
 INVOICE_DOCTYPES = ("Sales Invoice", "Purchase Invoice")
 ROLE_NAME = "Invoice Admin"
 SEED_OWNER_EMAIL = "akash@skgourmetspices.com"
-# These roles keep Delete on Sales Invoice and Purchase Invoice. Other roles lose it.
-DELETE_ROLES = frozenset({"Invoice Admin", "Accounts Manager", "System Manager"})
+DELETION_LOG_LABEL = "Invoice Deletion Log"
+DELETION_LOG_DOCTYPE = "Invoice Deletion Log"
+# Sales Invoice Delete is not a role grant. Purchase Invoice still keeps it
+# only on the Invoice Admin role; the server still requires the settings list.
+PURCHASE_DELETE_ROLE = "Invoice Admin"
 
 DELETE_DENIED = "Only an Invoice Admin can rename or delete invoices."
 CANCEL_FIRST = "Cancel this invoice before deleting it."
 IRN_BLOCKS_DELETE = "This invoice has an IRN. Cancel the e-invoice before deleting it."
+DELETE_NEEDS_REASON = "Enter a reason for deletion."
 RENAME_NEEDS_REASON = "Enter a reason for renaming this invoice."
+LOG_LOCKED = "Only Administrator can change an invoice deletion log."
 GST_DELETE_WARNING = (
 	"Deleting a submitted or cancelled invoice can break the GST invoice series, "
 	"GSTR-1, and any e-invoice or e-way bill. Continue only if GST has been handled."
@@ -54,24 +59,27 @@ def can_manage_invoices(user, listed_users) -> bool:
 def can_delete_invoices(user, listed_users, roles=None) -> bool:
 	"""Who may delete a draft or a cancelled invoice.
 
-	Invoice Admin, Accounts Manager, and System Manager count by role. A user
-	saved on Melliflous Settings counts as well. Submitted invoices are still
-	refused by delete_block.
+	Administrator, or a user saved on Melliflous Settings. A role on its own,
+	including Invoice Admin, Accounts Manager, and System Manager, does not.
+	`roles` is accepted so older callers keep working and is ignored.
+	Submitted invoices are still refused by delete_block.
 	"""
-	if can_manage_invoices(user, listed_users):
-		return True
-	return bool(DELETE_ROLES.intersection({clean(role) for role in roles or [] if clean(role)}))
+	del roles
+	return can_manage_invoices(user, listed_users)
 
 
-def role_keeps_invoice_delete(role) -> bool:
-	return clean(role) in DELETE_ROLES
+def role_keeps_invoice_delete(role, doctype="Sales Invoice") -> bool:
+	"""Sales Invoice Delete is never kept on a role. Purchase Invoice keeps it on Invoice Admin."""
+	if clean(doctype) == "Sales Invoice":
+		return False
+	return clean(role) == PURCHASE_DELETE_ROLE
 
 
-def delete_permission_updates(rows) -> list:
+def delete_permission_updates(rows, doctype="Sales Invoice") -> list:
 	"""Level-0 permission rows whose Delete tick should change.
 
-	Invoice Admin, Accounts Manager, and System Manager are set to 1. Every
-	other role at level 0 is set to 0. Higher permlevels are left alone.
+	Sales Invoice is set to 0 for every role, including Accounts Manager.
+	Purchase Invoice stays 1 only for Invoice Admin. Higher permlevels are left alone.
 	"""
 	updates = []
 	for row in rows or []:
@@ -79,7 +87,7 @@ def delete_permission_updates(rows) -> list:
 			continue
 		if int(row.get("permlevel") or 0) != 0:
 			continue
-		wanted = 1 if role_keeps_invoice_delete(row.get("role")) else 0
+		wanted = 1 if role_keeps_invoice_delete(row.get("role"), doctype) else 0
 		current = 1 if int(row.get("delete") or 0) else 0
 		if current == wanted or not row.get("name"):
 			continue
@@ -94,7 +102,7 @@ def can_generate_einvoice(user, listed_users, roles) -> bool:
 	return "System Manager" in set(roles or [])
 
 
-def delete_block(user, listed_users, docstatus, irn, roles=None) -> str | None:
+def delete_block(user, listed_users, docstatus, irn, roles=None, reason=None, require_reason=False) -> str | None:
 	"""None means the delete may proceed. A string is the error to throw."""
 	if not can_delete_invoices(user, listed_users, roles):
 		return DELETE_DENIED
@@ -103,7 +111,67 @@ def delete_block(user, listed_users, docstatus, irn, roles=None) -> str | None:
 		return CANCEL_FIRST
 	if clean(irn):
 		return IRN_BLOCKS_DELETE
+	if require_reason and not clean(reason):
+		return DELETE_NEEDS_REASON
 	return None
+
+
+def deletion_status(docstatus) -> str:
+	status = int(docstatus or 0)
+	if status == 2:
+		return "Cancelled"
+	if status == 1:
+		return "Submitted"
+	return "Draft"
+
+
+def deletion_log_entry(invoice_name, invoice_no, company, customer, posting_date, grand_total, docstatus, reason, user, deleted_on) -> dict:
+	"""One permanent row. The invoice number stored here can be offered again."""
+	name = clean(invoice_name)
+	return {
+		"invoice_name": name,
+		"invoice_no": clean(invoice_no) or name,
+		"company": clean(company),
+		"customer": clean(customer),
+		"posting_date": posting_date,
+		"grand_total": grand_total,
+		"status": deletion_status(docstatus),
+		"reason": clean(reason),
+		"deleted_by": clean(user),
+		"deleted_on": deleted_on,
+	}
+
+
+def deletion_log_block(user, is_new=False, deleting=False) -> str | None:
+	"""None when this change is allowed. A new row can be inserted. Later edits and deletes cannot."""
+	if is_new and not deleting:
+		return None
+	if clean(user) == "Administrator":
+		return None
+	return LOG_LOCKED
+
+
+def deletion_log_shortcut() -> dict:
+	return {
+		"label": DELETION_LOG_LABEL,
+		"link_to": DELETION_LOG_DOCTYPE,
+		"type": "DocType",
+		"icon": "trash-2",
+		"color": "",
+		"url": "",
+		"stats_filter": "",
+		"format": "",
+		"doc_view": "List",
+	}
+
+
+def with_deletion_log_shortcut(shortcuts) -> list:
+	"""Selling shortcuts plus the deletion log, without a second copy."""
+	rows = [dict(row) for row in shortcuts or [] if isinstance(row, dict)]
+	if any(clean(row.get("label")) == DELETION_LOG_LABEL for row in rows):
+		return rows
+	rows.append(deletion_log_shortcut())
+	return rows
 
 
 def rename_block(user, listed_users, docstatus, reason) -> str | None:

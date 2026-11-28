@@ -135,7 +135,10 @@ doctype_js = {
 	],
 	"Purchase Invoice": "public/js/invoice_admin.js",
 }
-doctype_list_js = {"Customer": "public/js/customer_list.js"}
+doctype_list_js = {
+	"Customer": "public/js/customer_list.js",
+	"Sales Invoice": "public/js/invoice_admin_list.js",
+}
 
 fixtures = [
 	{
