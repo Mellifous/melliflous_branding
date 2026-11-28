@@ -203,6 +203,56 @@ def needs_gst_warning(docstatus) -> bool:
 	return int(docstatus or 0) in (1, 2)
 
 
+def dedupe_admin_users(names) -> list:
+	"""First non-empty name of each user, ignoring case. Blanks are dropped."""
+	kept = []
+	seen = set()
+	for name in names or []:
+		cleaned = clean(name)
+		if not cleaned:
+			continue
+		key = cleaned.casefold()
+		if key in seen:
+			continue
+		seen.add(key)
+		kept.append(cleaned)
+	return kept
+
+
+def invoice_admin_row_plan(rows, required) -> dict:
+	"""Which child rows to delete, which users to keep, and who still must be added.
+
+	`rows` are the saved Invoice Admin User rows (name, user, idx). Duplicates and
+	blank users are deleted. `required` names are added once when missing. Running
+	the plan again on the kept rows adds nothing and deletes nothing.
+	"""
+	ordered = sorted(
+		[row for row in rows or [] if isinstance(row, dict)],
+		key=lambda row: (int(row.get("idx") or 0), str(row.get("name") or "")),
+	)
+	seen = set()
+	keep = []
+	delete = []
+	for row in ordered:
+		user = clean(row.get("user"))
+		key = user.casefold()
+		if not user or key in seen:
+			if row.get("name"):
+				delete.append(row["name"])
+			continue
+		seen.add(key)
+		keep.append(user)
+	add = []
+	for name in required or []:
+		cleaned = clean(name)
+		if not cleaned or cleaned.casefold() in seen:
+			continue
+		seen.add(cleaned.casefold())
+		add.append(cleaned)
+		keep.append(cleaned)
+	return {"keep": keep, "delete": delete, "add": add}
+
+
 def seed_admin_names(administrator_name, users_by_email, roles_by_user=None) -> list:
 	"""Administrator, plus akash when that User record exists.
 

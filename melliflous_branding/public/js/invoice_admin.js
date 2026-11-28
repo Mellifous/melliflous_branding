@@ -3,64 +3,83 @@
 const GST_DELETE_WARNING =
 	"Deleting a submitted or cancelled invoice can break the GST invoice series, GSTR-1, and any e-invoice or e-way bill. Continue only if GST has been handled.";
 
-function salesInvoiceMenuDelete() {
-	const boot = (window.frappe && frappe.boot) || {};
-	const roles = (window.frappe && frappe.user_roles) || [];
-	const deletable = (boot.user && boot.user.can_delete) || [];
-	// The standard ⋯ item exists only when Sales Invoice is in can_delete.
-	// That list is filled from the Invoice Admin role's Delete tick. The
-	// settings list shows the item as well. Accounts Manager and System
-	// Manager do not.
-	return !!(
-		boot.melliflous_invoice_admin ||
-		roles.indexOf("Invoice Admin") !== -1 ||
-		deletable.indexOf("Sales Invoice") !== -1
-	);
-}
-
 function melliflousInvoiceAdmin(frm) {
 	const boot = window.frappe && frappe.boot;
 	const manage = !!(boot && boot.melliflous_invoice_admin);
 	const einvoice = !!(boot && boot.melliflous_can_einvoice);
 	const sales = frm.doc && frm.doc.doctype === "Sales Invoice";
-	const canDelete = sales ? salesInvoiceMenuDelete() : manage;
-	if (!canDelete && frm.perm && frm.perm[0]) {
+	if (!sales && !manage && frm.perm && frm.perm[0]) {
 		frm.perm[0].delete = 0;
 	}
 	setTimeout(() => {
-		hideInvoiceMenus(manage, canDelete);
+		hideInvoiceMenus(manage, sales);
 		if (!einvoice) hideEInvoiceButtons(frm);
-		// Frappe draws Delete from boot.user.can_delete before this script runs.
-		// If that list is still empty, add the item here. A second "Delete"
-		// with the same label is ignored, and the click calls frm.savetrash,
-		// which this script wraps so a reason is required.
-		if (sales && canDelete && cint(frm.doc.docstatus) !== 1 && frm.page && frm.page.add_menu_item) {
-			frm.page.add_menu_item(__("Delete"), () => confirmInvoiceDelete(frm), true);
-		}
+		if (sales) showDeleteInvoiceButton(frm);
 	}, 0);
-	if (!frm._melliflous_invoice_wrapped && (manage || canDelete)) {
+	if (sales && !frm._melliflous_sales_delete_wrapped && frm.savetrash) {
+		frm._melliflous_sales_delete_wrapped = true;
+		frm.savetrash = () => deleteSalesInvoiceWithReason(frm);
+	}
+	if (!sales && manage && !frm._melliflous_invoice_wrapped) {
 		frm._melliflous_invoice_wrapped = true;
 		const originalTrash = frm.savetrash && frm.savetrash.bind(frm);
 		const originalRename = frm.rename && frm.rename.bind(frm);
-		if (canDelete && originalTrash) {
-			frm.savetrash = () => confirmInvoiceDelete(frm, originalTrash);
-		}
-		if (manage && originalRename) {
-			frm.rename = () => renameInvoiceWithReason(frm, originalRename);
-		}
+		if (originalTrash) frm.savetrash = () => confirmInvoiceDelete(frm, originalTrash);
+		if (originalRename) frm.rename = () => renameInvoiceWithReason(frm, originalRename);
+	}
+	if (sales && manage && !frm._melliflous_rename_wrapped && frm.rename) {
+		frm._melliflous_rename_wrapped = true;
+		const originalRename = frm.rename.bind(frm);
+		frm.rename = () => renameInvoiceWithReason(frm, originalRename);
 	}
 }
 
-function hideInvoiceMenus(manage, canDelete) {
-	if (manage && canDelete) return;
-	document.querySelectorAll(".dropdown-menu .dropdown-item, .dropdown-menu li a, .menu-item-label").forEach((node) => {
-		const text = (node.textContent || "").replace(/\s+/g, " ").trim();
+function showDeleteInvoiceButton(frm) {
+	// A saved draft or a cancelled invoice. The server, not boot, decides who sees it.
+	if (!frm.doc || frm.is_new()) return;
+	const status = cint(frm.doc.docstatus);
+	if (status !== 0 && status !== 2) return;
+	const ticket = (frm._delete_invoice_ticket || 0) + 1;
+	frm._delete_invoice_ticket = ticket;
+	frappe
+		.call({ method: "melliflous_branding.invoice_admin_records.may_delete_sales_invoice" })
+		.then((response) => {
+			if (ticket !== frm._delete_invoice_ticket) return;
+			if (!frm.doc || cint(frm.doc.docstatus) !== status) return;
+			const allowed = response && response.message && cint(response.message.allowed);
+			if (!allowed) return;
+			const button = frm.add_custom_button(__("Delete Invoice"), () => deleteSalesInvoiceWithReason(frm));
+			if (button) button.addClass("btn-danger");
+		});
+}
+
+function deleteSalesInvoiceWithReason(frm) {
+	const irn = ((frm.doc && frm.doc.irn) || "").trim();
+	if (irn) {
+		frappe.msgprint(__("This invoice has an IRN. Cancel the e-invoice before deleting it."));
+		return;
+	}
+	if (cint(frm.doc.docstatus) === 1) {
+		frappe.msgprint(__("Cancel this invoice before deleting it."));
+		return;
+	}
+	const ask = () => askDeletionReason([frm.doc.name], () => frappe.set_route("List", "Sales Invoice"));
+	if (cint(frm.doc.docstatus) === 2) {
+		frappe.confirm(__(GST_DELETE_WARNING), ask);
+		return;
+	}
+	ask();
+}
+
+function hideInvoiceMenus(manage, sales) {
+	// Only an item whose whole label is Rename or Delete. "Delete Invoice" and
+	// "Delete with reason" stay. Sales Invoice Delete is the custom button.
+	document.querySelectorAll(".dropdown-menu li, .dropdown-menu .dropdown-item").forEach((item) => {
+		const text = (item.textContent || "").replace(/\s+/g, " ").trim();
+		if (text === "Delete Invoice" || text === "Delete with reason") return;
 		const hideRename = text === "Rename" && !manage;
-		const hideDelete = text === "Delete" && !canDelete;
-		if (hideRename || hideDelete) {
-			const item = node.closest("li") || node.closest(".dropdown-item") || node;
-			item.remove();
-		}
+		const hideDelete = text === "Delete" && !sales && !manage;
+		if (hideRename || hideDelete) item.remove();
 	});
 }
 
@@ -74,6 +93,7 @@ function hideEInvoiceButtons(frm) {
 	}
 	document.querySelectorAll(".custom-actions .btn, .inner-group-button .dropdown-item, .page-actions .btn").forEach((node) => {
 		const text = (node.textContent || "").replace(/\s+/g, " ").trim();
+		if (text === "Delete Invoice" || text === "Delete with reason") return;
 		if (/^Generate e-Invoice$/i.test(text) || /^Generate e-Waybill$/i.test(text) || /^Generate e-Way Bill$/i.test(text)) {
 			const item = node.closest("li") || node;
 			item.remove();
