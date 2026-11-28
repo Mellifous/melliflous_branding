@@ -13,9 +13,6 @@ ROLE_NAME = "Invoice Admin"
 SEED_OWNER_EMAIL = "akash@skgourmetspices.com"
 DELETION_LOG_LABEL = "Invoice Deletion Log"
 DELETION_LOG_DOCTYPE = "Invoice Deletion Log"
-# Sales Invoice Delete is not a role grant. Purchase Invoice still keeps it
-# only on the Invoice Admin role; the server still requires the settings list.
-PURCHASE_DELETE_ROLE = "Invoice Admin"
 
 DELETE_DENIED = "Only an Invoice Admin can rename or delete invoices."
 CANCEL_FIRST = "Cancel this invoice before deleting it."
@@ -68,18 +65,36 @@ def can_delete_invoices(user, listed_users, roles=None) -> bool:
 	return can_manage_invoices(user, listed_users)
 
 
+def sales_invoice_menu_shows_delete(user, listed_users, roles=None, deletable_doctypes=None) -> bool:
+	"""Whether the desk should draw Delete.
+
+	Frappe only draws the standard item when the Invoice Admin role has Delete,
+	which puts Sales Invoice on boot.user.can_delete. The settings list and that
+	role both show the item. Accounts Manager and System Manager do not.
+	The server still refuses anyone who is not on the list.
+	"""
+	if can_manage_invoices(user, listed_users):
+		return True
+	role_names = {clean(role) for role in roles or [] if clean(role)}
+	if ROLE_NAME in role_names:
+		return True
+	return "Sales Invoice" in {clean(name) for name in deletable_doctypes or [] if clean(name)}
+
+
 def role_keeps_invoice_delete(role, doctype="Sales Invoice") -> bool:
-	"""Sales Invoice Delete is never kept on a role. Purchase Invoice keeps it on Invoice Admin."""
-	if clean(doctype) == "Sales Invoice":
-		return False
-	return clean(role) == PURCHASE_DELETE_ROLE
+	"""Level-0 Delete stays on only for the Invoice Admin role.
+
+	That is what puts Sales Invoice into the user's can_delete list, so the
+	standard menu item exists. Accounts Manager and System Manager stay off.
+	"""
+	return clean(role) == ROLE_NAME and clean(doctype) in {"Sales Invoice", "Purchase Invoice"}
 
 
 def delete_permission_updates(rows, doctype="Sales Invoice") -> list:
 	"""Level-0 permission rows whose Delete tick should change.
 
-	Sales Invoice is set to 0 for every role, including Accounts Manager.
-	Purchase Invoice stays 1 only for Invoice Admin. Higher permlevels are left alone.
+	Invoice Admin is set to 1. Every other role at level 0 is set to 0.
+	Higher permlevels are left alone.
 	"""
 	updates = []
 	for row in rows or []:
@@ -188,22 +203,25 @@ def needs_gst_warning(docstatus) -> bool:
 	return int(docstatus or 0) in (1, 2)
 
 
-def seed_admin_names(administrator_name, users_by_email, roles_by_user) -> list:
-	"""Administrator, plus the owner when that user exists and is a System Manager.
+def seed_admin_names(administrator_name, users_by_email, roles_by_user=None) -> list:
+	"""Administrator, plus akash when that User record exists.
 
-	users_by_email maps an email address to the User name. The email does not
-	grant access until this name is stored on Melliflous Settings.
+	users_by_email maps an email address or the User name to the User name.
+	The email does not grant access until this name is stored on Melliflous
+	Settings. System Manager is not required: a migrate that cannot see roles
+	must still put him on the list. `roles_by_user` is kept for older callers.
 	"""
+	del roles_by_user
 	names = []
 	admin = clean(administrator_name)
 	if admin:
 		names.append(admin)
 	for email, name in (users_by_email or {}).items():
-		if clean(email).lower() != SEED_OWNER_EMAIL:
-			continue
+		key = clean(email).lower()
 		user_name = clean(name)
-		roles = set(roles_by_user.get(user_name) or []) if user_name else set()
-		if user_name and "System Manager" in roles and user_name not in names:
+		if key != SEED_OWNER_EMAIL and user_name.lower() != SEED_OWNER_EMAIL:
+			continue
+		if user_name and user_name not in names:
 			names.append(user_name)
 	return names
 
