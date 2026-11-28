@@ -118,7 +118,7 @@ The Quick Invoice page is a standard Page. The first deploy that runs migrate im
 
 The **Invoice No** field is the first field on the Sales Invoice Details tab, including on a phone, above Company. That value is the document name, so it is the number GST and e-invoice use. It can be at most 16 characters: a letter or digit first, then letters, digits, `/` and `-`. It stays on screen when Melliflous Settings has no prefix yet, and the number then comes from the Sales Invoice series.
 
-A new invoice is filled with the next serial after the highest number already saved for that company and prefix. Drafts and cancelled invoices count, so a number is not issued twice. If you type a number that is already used, saving is refused: `Invoice no X is already used. Please change it (next free number: Y).` The next invoice then continues from the highest serial, including one you typed by hand.
+A new invoice is filled with the lowest deleted number for that company and prefix that no invoice still uses. If none is free, it is the next serial after the highest number already saved. Drafts and cancelled invoices count as saved, so a cancelled number is not issued twice. If you type a number that is already used, saving is refused: `Invoice no X is already used. Please change it (next free number: Y).` The next invoice then continues from the highest serial, including one you typed by hand, unless a deleted number is free.
 
 Numbers follow posting date. An earlier date cannot get a higher serial than a later date in the same series, and a later date cannot get a lower one. A back-dated invoice is offered a free number between the invoice before it and the invoice after it. If nothing fits, the form asks you to change the date. Cancelled invoices do not set that order, but their numbers stay taken. Drafts do set the order. Two people saving at once are serialized on that company and prefix; the second save is asked to change the number.
 
@@ -129,7 +129,9 @@ Numbers follow posting date. An earlier date cannot get a higher serial than a l
 
 Credit notes use the same prefix, so a credit note cannot collide with a tax invoice. Submitted invoices stay on the number they were saved with. An Invoice Admin can still rename those from the menu. A draft can be changed from Invoice No; that renames the document.
 
-Draft and cancelled Sales Invoices can be deleted from the ⋯ menu, and from the list Actions menu, by Invoice Admin, Accounts Manager, and System Manager. A submitted invoice has to be cancelled first. Cancelling keeps the number taken. Deleting removes the invoice, so that number is no longer stored and can be suggested again if it is the next free serial. The next number is always one past the highest invoice that still exists.
+Draft and cancelled Sales Invoices can be deleted from the ⋯ menu, and from the list Actions menu, only by Administrator and by users on Melliflous Settings → Invoice Admin. Accounts Manager, System Manager, and the Invoice Admin role do not grant Delete on their own. A submitted invoice has to be cancelled first. Delete asks for a reason. The reason is stored on Invoice Deletion Log (invoice, company, customer, date, total, status, who, and when). That log is on the Selling workspace. Only Administrator can change or delete a log row.
+
+Cancelling keeps the number taken. Deleting writes the number on the log. The next new Sales Invoice for that company and prefix is offered the lowest deleted number that no invoice still uses. Saving that number consumes it. If that number would put an earlier date on a higher serial than a later date, the form warns you and suggests the next serial after the highest invoice that still exists instead.
 
 The field is created on migrate (`ensure_invoice_numbers`). Until that migrate, new invoices keep ERPNext's own naming series.
 

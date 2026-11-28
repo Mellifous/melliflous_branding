@@ -143,6 +143,42 @@ class TestInvoiceNumber(unittest.TestCase):
 			plan_invoice(PREFIX, [row("MIMT/0050", "2026-11-01", 2)], "2026-11-20")["suggested"],
 			"MIMT/0051",
 		)
+		# A deleted number is offered again, lowest free gap first, even when it is not the highest.
+		reused_gap = plan_invoice(
+			PREFIX,
+			[row("MIMT/0004", "2026-11-20", 1)],
+			"2026-11-05",
+			deleted=["MIMT/0003", "MIMT/0001"],
+		)
+		self.assertEqual(reused_gap["suggested"], "MIMT/0001")
+		self.assertIsNone(reused_gap["warning"])
+		consumed = plan_invoice(
+			PREFIX,
+			[row("MIMT/0001", "2026-11-01", 1), row("MIMT/0004", "2026-11-20", 1)],
+			"2026-11-10",
+			deleted=["MIMT/0001", "MIMT/0003"],
+		)
+		self.assertEqual(consumed["suggested"], "MIMT/0003")
+		self.assertIsNone(consumed["warning"])
+		# The gap is a lower number than an earlier invoice, so it is not reused.
+		out_of_order = plan_invoice(
+			PREFIX,
+			[row("MIMT/0001", "2026-11-01", 1), row("MIMT/0004", "2026-11-10", 1)],
+			"2026-11-20",
+			deleted=["MIMT/0002"],
+		)
+		self.assertEqual(out_of_order["suggested"], "MIMT/0005")
+		self.assertIn("Deleted invoice number MIMT/0002 is free", out_of_order["warning"])
+		self.assertIn("MIMT/0004", out_of_order["warning"])
+		self.assertIn("The next number MIMT/0005 is suggested instead.", out_of_order["warning"])
+		between = plan_invoice(
+			PREFIX,
+			[row("MIMT/0001", "2026-11-01", 1), row("MIMT/0004", "2026-11-10", 1)],
+			"2026-11-05",
+			deleted=["MIMT/0002"],
+		)
+		self.assertEqual(between["suggested"], "MIMT/0002")
+		self.assertIsNone(between["warning"])
 		# A draft does.
 		draft_blocks = plan_invoice(PREFIX, [row("MIMT/0010", "2026-11-20", 0)], "2026-11-01", chosen="MIMT/0011")
 		self.assertIn("lower number", draft_blocks["error"])
@@ -172,11 +208,13 @@ class TestInvoiceNumber(unittest.TestCase):
 		self.assertIn("Sales Invoice-custom_invoice_no", hooks)
 		self.assertIn("melliflous_branding.patches.v0_12.ensure_invoice_numbers", (PACKAGE / "patches.txt").read_text())
 		self.assertIn("ensure_invoice_numbers", (PACKAGE / "install.py").read_text())
-		self.assertEqual((PACKAGE / "__init__.py").read_text().strip(), '__version__ = "0.8.2"')
+		self.assertEqual((PACKAGE / "__init__.py").read_text().strip(), '__version__ = "0.8.3"')
 		self.assertIn("melliflous_branding.patches.v0_13.show_invoice_number", (PACKAGE / "patches.txt").read_text())
 		records = (PACKAGE / "invoice_number_records.py").read_text()
 		self.assertIn("for update", records)
 		self.assertIn("tabSales Invoice", records)
+		self.assertIn("_deleted_numbers", records)
+		self.assertIn("Invoice Deletion Log", records)
 		self.assertNotIn("docstatus=", records)
 		self.assertIn("melliflous_invoice_no_edit", (PACKAGE / "invoice_admin_records.py").read_text())
 		script = (PACKAGE / "public" / "js" / "invoice_number.js").read_text()

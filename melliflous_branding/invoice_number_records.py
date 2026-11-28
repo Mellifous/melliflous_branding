@@ -3,10 +3,11 @@
 """Editable Sales Invoice numbers.
 
 The number the user sees is the document name, which is what GST and e-invoice
-send. The next number is the next serial after the highest one already stored
-for that company and prefix, including drafts and cancelled invoices. Posting
-dates stay in the same order as the serials. Cancelled invoices do not set
-that order, but their numbers stay taken.
+send. The next number is the lowest deleted number for that company and prefix that
+no current invoice still uses. If that gap would break posting-date order, the
+suggestion is the next serial after the highest one still stored, including
+drafts and cancelled invoices. Cancelled invoices do not set date order, but
+their numbers stay taken.
 
 Two people saving at once share a row lock on `tabSeries` for that company and
 prefix. The lock is held until the request commits or rolls back, so the second
@@ -184,6 +185,7 @@ def suggest_invoice_no(company=None, posting_date=None, naming_series=None, is_r
 		when,
 		starting_number=starting,
 		digits=digits,
+		deleted=_deleted_numbers(company, prefix),
 	)
 	return {"invoice_no": plan.get("suggested"), "warning": plan.get("warning"), "prefix": prefix}
 
@@ -208,6 +210,7 @@ def check_invoice_no(invoice_no=None, company=None, posting_date=None, current=N
 		digits=digits,
 		current_name=clean_invoice_no(current) or None,
 		chosen=number,
+		deleted=_deleted_numbers(company, prefix),
 	)
 	plan = _apply_global_name(number, current, plan)
 	if plan.get("error"):
@@ -277,6 +280,7 @@ def _plan(doc, chosen, current_name):
 		digits=digits,
 		current_name=current_name,
 		chosen=chosen,
+		deleted=_deleted_numbers(company, prefix),
 	)
 	return _apply_global_name(chosen, current_name, plan)
 
@@ -344,6 +348,35 @@ def _naming_options() -> list[str]:
 	except Exception:
 		options = ""
 	return [clean(line) for line in str(options or "").split("\n") if clean(line)]
+
+
+def _deleted_numbers(company, prefix) -> list:
+	"""Invoice names on the deletion log for this company and prefix.
+
+	A number that is saved again is no longer free, because the live invoice
+	row blocks that serial. The log row stays.
+	"""
+	if not company or not frappe.db.table_exists("Invoice Deletion Log"):
+		return []
+	rows = frappe.get_all(
+		"Invoice Deletion Log",
+		filters={"company": company},
+		fields=["invoice_name", "invoice_no"],
+	)
+	names = []
+	seen = set()
+	for row in rows or []:
+		for key in ("invoice_name", "invoice_no"):
+			name = clean_invoice_no(row.get(key))
+			if not name or not split_serial(name, prefix):
+				continue
+			folded = name.casefold()
+			if folded in seen:
+				continue
+			seen.add(folded)
+			names.append(name)
+			break
+	return names
 
 
 def _series_rows(company, prefix) -> list:

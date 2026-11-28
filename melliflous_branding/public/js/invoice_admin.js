@@ -6,17 +6,23 @@ const GST_DELETE_WARNING =
 function melliflousInvoiceAdmin(frm) {
 	const boot = window.frappe && frappe.boot;
 	const manage = !!(boot && boot.melliflous_invoice_admin);
-	const canDelete = manage || !!(boot && boot.melliflous_can_delete_invoice);
+	// Delete follows the Invoice Admin list, not a role. Accounts Manager and
+	// System Manager do not see Delete unless they are on that list.
+	const canDelete = manage;
 	const einvoice = !!(boot && boot.melliflous_can_einvoice);
-	// Draft and cancelled invoices keep the standard Delete item for Invoice
-	// Admin, Accounts Manager, and System Manager. Submitted invoices never
-	// get that item from Frappe, because docstatus is 1.
+	const sales = frm.doc && frm.doc.doctype === "Sales Invoice";
 	if (!canDelete && frm.perm && frm.perm[0]) {
 		frm.perm[0].delete = 0;
 	}
 	setTimeout(() => {
 		hideInvoiceMenus(manage, canDelete);
 		if (!einvoice) hideEInvoiceButtons(frm);
+		if (sales && canDelete && cint(frm.doc.docstatus) !== 1) {
+			const already = frm.perm && frm.perm[0] && frm.perm[0].delete;
+			if (!already && frm.page && frm.page.add_menu_item) {
+				frm.page.add_menu_item(__("Delete"), () => confirmInvoiceDelete(frm), true);
+			}
+		}
 	}, 0);
 	if (!frm._melliflous_invoice_wrapped && (manage || canDelete)) {
 		frm._melliflous_invoice_wrapped = true;
@@ -71,11 +77,52 @@ function confirmInvoiceDelete(frm, originalTrash) {
 		frappe.msgprint(__("Cancel this invoice before deleting it."));
 		return;
 	}
+	const run = () => {
+		if (frm.doc.doctype === "Sales Invoice") {
+			askDeletionReason([frm.doc.name], () => frappe.set_route("List", "Sales Invoice"));
+			return;
+		}
+		if (originalTrash) originalTrash();
+	};
 	if (cint(frm.doc.docstatus) === 2) {
-		frappe.confirm(__(GST_DELETE_WARNING), () => originalTrash());
+		frappe.confirm(__(GST_DELETE_WARNING), run);
 		return;
 	}
-	originalTrash();
+	run();
+}
+
+function askDeletionReason(names, done) {
+	const dialog = new frappe.ui.Dialog({
+		title: __("Delete"),
+		fields: [
+			{
+				fieldname: "reason",
+				fieldtype: "Small Text",
+				label: __("Reason for deletion"),
+				reqd: 1,
+			},
+		],
+		primary_action_label: __("Delete"),
+		primary_action(values) {
+			const reason = ((values && values.reason) || "").replace(/\s+/g, " ").trim();
+			if (!reason) {
+				frappe.msgprint(__("Enter a reason for deletion."));
+				return;
+			}
+			dialog.disable_primary_action();
+			frappe
+				.call({
+					method: "melliflous_branding.invoice_admin_records.delete_sales_invoices",
+					args: { names, reason },
+				})
+				.then(() => {
+					dialog.hide();
+					if (done) done();
+				})
+				.catch(() => dialog.enable_primary_action());
+		},
+	});
+	dialog.show();
 }
 
 function renameInvoiceWithReason(frm, originalRename) {
