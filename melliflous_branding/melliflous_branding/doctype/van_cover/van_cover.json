@@ -1,0 +1,20 @@
+{
+ "actions": [],
+ "creation": "2026-11-28 04:40:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": ["coverage", "sales_person", "from_date", "to_date", "note"],
+ "fields": [
+  {"fieldname": "coverage", "fieldtype": "Select", "label": "Coverage", "options": "Dedicated\nJoint\nSubstitute", "reqd": 1, "in_list_view": 1},
+  {"fieldname": "sales_person", "fieldtype": "Link", "label": "Sales Person", "options": "Sales Person", "reqd": 1, "in_list_view": 1},
+  {"fieldname": "from_date", "fieldtype": "Date", "label": "From Date", "in_list_view": 1},
+  {"fieldname": "to_date", "fieldtype": "Date", "label": "To Date", "in_list_view": 1},
+  {"fieldname": "note", "fieldtype": "Small Text", "label": "Note"}
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-11-28 04:40:00.000000",
+ "module": "Melliflous Branding",
+ "name": "Van Cover",
+ "permissions": []
+}

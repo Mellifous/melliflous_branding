@@ -1,0 +1,42 @@
+{
+ "actions": [],
+ "autoname": "field:code",
+ "creation": "2026-11-28 04:40:00.000000",
+ "description": "A distributor van or a company van. Company vans keep stock in a warehouse.",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": ["code", "area", "van_type", "status", "column_break_main", "company", "division", "distributor", "warehouse", "team_section", "dedicated_sr", "sales_officer", "daily_target", "covers_section", "covers"],
+ "fields": [
+  {"fieldname": "code", "fieldtype": "Data", "label": "Code", "reqd": 1, "unique": 1, "in_list_view": 1, "search_index": 1},
+  {"fieldname": "area", "fieldtype": "Data", "label": "Area", "in_list_view": 1, "search_index": 1},
+  {"fieldname": "van_type", "fieldtype": "Select", "label": "Van Type", "options": "Distributor Van\nCompany Van", "default": "Distributor Van", "reqd": 1, "in_list_view": 1},
+  {"fieldname": "status", "fieldtype": "Select", "label": "Status", "options": "Live\nIdle\nPipeline", "default": "Live", "in_list_view": 1, "search_index": 1},
+  {"fieldname": "column_break_main", "fieldtype": "Column Break"},
+  {"fieldname": "company", "fieldtype": "Link", "label": "Company", "options": "Company", "search_index": 1},
+  {"fieldname": "division", "fieldtype": "Link", "label": "Division", "options": "Division", "search_index": 1},
+  {"fieldname": "distributor", "fieldtype": "Link", "label": "Distributor", "options": "Customer", "depends_on": "eval:doc.van_type=='Distributor Van'"},
+  {"fieldname": "warehouse", "fieldtype": "Link", "label": "Warehouse", "options": "Warehouse", "depends_on": "eval:doc.van_type=='Company Van'"},
+  {"fieldname": "team_section", "fieldtype": "Section Break", "label": "Team"},
+  {"fieldname": "dedicated_sr", "fieldtype": "Link", "label": "Dedicated SR", "options": "Sales Person", "in_list_view": 1},
+  {"fieldname": "sales_officer", "fieldtype": "Link", "label": "SO", "options": "Sales Person"},
+  {"fieldname": "daily_target", "fieldtype": "Currency", "label": "Daily Target", "default": "0"},
+  {"fieldname": "covers_section", "fieldtype": "Section Break", "label": "Substitute and joint cover"},
+  {"fieldname": "covers", "fieldtype": "Table", "label": "Cover", "options": "Van Cover"}
+ ],
+ "links": [],
+ "modified": "2026-11-28 04:40:00.000000",
+ "module": "Melliflous Branding",
+ "name": "Van",
+ "naming_rule": "By fieldname",
+ "permissions": [
+  {"role": "Van Manager", "read": 1, "write": 1, "create": 1, "delete": 1, "report": 1, "export": 1, "print": 1, "share": 1, "email": 1},
+  {"role": "Van Editor", "read": 1, "write": 1, "create": 1, "delete": 0, "report": 1, "export": 1, "print": 1},
+  {"role": "Van Reader", "read": 1, "write": 0, "create": 0, "delete": 0, "report": 1, "export": 1, "print": 1},
+  {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 0, "report": 1, "export": 1, "print": 1},
+  {"role": "Sales Manager", "read": 1, "write": 1, "create": 1, "delete": 0, "report": 1, "export": 1, "print": 1},
+  {"role": "Sales User", "read": 1, "write": 0, "create": 0, "delete": 0, "report": 1, "export": 1, "print": 1}
+ ],
+ "sort_field": "code",
+ "sort_order": "ASC",
+ "track_changes": 1
+}

@@ -128,6 +128,9 @@ doc_events = {
 	"CRM Lead": {"validate": "melliflous_branding.division_records.apply_division"},
 	"CRM Deal": {"validate": "melliflous_branding.division_records.apply_division"},
 	"Stock Entry": {"validate": "melliflous_branding.recipe_records.guard_recipe_stock"},
+	"Van Daily Report": {
+		"validate": "melliflous_branding.van_records.prepare_report",
+	},
 }
 
 doctype_js = {
@@ -176,6 +179,10 @@ permission_query_conditions = {
 	"Distributor Stock Statement": "melliflous_branding.distributor_records.statement_permission_query",
 	"Distributor Complaint": "melliflous_branding.distributor_records.complaint_permission_query",
 	"Distributor Benefit": "melliflous_branding.distributor_records.benefit_permission_query",
+	"Van": "melliflous_branding.van_records.van_permission_query",
+	"Van Daily Report": "melliflous_branding.van_records.report_permission_query",
+	"Cash Transfer": "melliflous_branding.van_records.cash_permission_query",
+	"Van Beat": "melliflous_branding.van_records.beat_permission_query",
 }
 
 has_permission = {
@@ -185,4 +192,8 @@ has_permission = {
 	"Distributor Stock Statement": "melliflous_branding.distributor_records.has_statement_permission",
 	"Distributor Complaint": "melliflous_branding.distributor_records.has_complaint_permission",
 	"Distributor Benefit": "melliflous_branding.distributor_records.has_benefit_permission",
+	"Van": "melliflous_branding.van_records.has_van_permission",
+	"Van Daily Report": "melliflous_branding.van_records.has_van_permission",
+	"Cash Transfer": "melliflous_branding.van_records.has_van_permission",
+	"Van Beat": "melliflous_branding.van_records.has_van_permission",
 }

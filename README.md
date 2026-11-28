@@ -135,6 +135,14 @@ Cancelling keeps the number taken. Deleting writes the number on the log. The ne
 
 The field is created on migrate (`ensure_invoice_numbers`). Until that migrate, new invoices keep ERPNext's own naming series.
 
+## Vans 360
+
+`/desk/vans-360` sits beside Distributor 360 on the apps screen and on the home cards. It follows the company and division already selected. The page loads one summary for the period: sales against target, run rate, who logged today, strike, missed van-days, mismatches, new outlets, the SR leaderboard, collections, beats, exceptions, reported sales against invoices, and cash in hand.
+
+A distributor van's SKU report increases secondary sales on the distributor stock statement and does not post a ledger. A company van posts a Material Issue from the van warehouse. An amount-only report does not move stock until SKU lines are added. FieldAssist uploads match SKUs through FieldAssist Item Map. V04 to V09 are not created. The seeded vans are V01 Motihari, V02 Ara, V03 Lucknow, V10 Madhepura, V11 Saharsa, V12 Semrahi/Supaul, and V13 Supaul.
+
+Administrator and akash can delete van records. Priti can create and edit them. Sasank can read SK Gourmet only. Excel and PDF downloads are on the page and in the Van Register report.
+
 ## Simple desk
 
 Melliflous Simple Mode is on unless an admin turns it off. Nothing is deleted and no core file is edited. A hidden page still opens from its address.

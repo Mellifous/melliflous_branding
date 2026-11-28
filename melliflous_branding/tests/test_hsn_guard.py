@@ -367,4 +367,4 @@ class TestWiring(unittest.TestCase):
 		self.assertIn("System Manager", script)
 		fixture = json.loads((PACKAGE / "fixtures" / "hsn_category_map.json").read_text())
 		self.assertEqual(fixture, fixture_records())
-		self.assertEqual((PACKAGE / "__init__.py").read_text().strip(), '__version__ = "0.8.6"')
+		self.assertEqual((PACKAGE / "__init__.py").read_text().strip(), '__version__ = "0.9.0"')

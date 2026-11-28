@@ -46,6 +46,9 @@ def boot_session(bootinfo):
 		except Exception:
 			roles = []
 		bootinfo.app_data = place_distributor_360_app(getattr(bootinfo, "app_data", None), user, roles)
+		from melliflous_branding.van_records import place_vans_boot
+
+		bootinfo.app_data = place_vans_boot(bootinfo.app_data, user)
 	except Exception:
 		frappe.logger("melliflous_branding").exception("Could not add Distributor 360 to the apps screen")
 	# Simple mode filters the grid and the sidebars on every boot, including a
