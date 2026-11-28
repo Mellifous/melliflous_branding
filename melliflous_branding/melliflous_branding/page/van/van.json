@@ -1,0 +1,18 @@
+{
+ "doctype": "Page",
+ "icon": "truck",
+ "module": "Melliflous Branding",
+ "name": "van",
+ "page_name": "van",
+ "roles": [
+  {"role": "System Manager"},
+  {"role": "Sales Manager"},
+  {"role": "Sales User"},
+  {"role": "Van Manager"},
+  {"role": "Van Editor"},
+  {"role": "Van Reader"}
+ ],
+ "standard": "Yes",
+ "system_page": 1,
+ "title": "Van"
+}

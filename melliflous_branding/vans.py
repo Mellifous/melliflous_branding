@@ -466,9 +466,11 @@ def fleet_overview(vans, reports, today, start, end) -> dict:
 			mismatch_count += 1
 		new_outlets += whole(row.get("new_outlets"))
 		if clean(row.get("worked")) != "No":
-			worked_days.add((clean(row.get("van")), as_date(row.get("date")).isoformat()))
-			if as_date(row.get("date")) == today_d:
-				logged_today.add(clean(row.get("van")))
+			worked_day = as_date(row.get("date"))
+			if worked_day:
+				worked_days.add((clean(row.get("van")), worked_day.isoformat()))
+				if worked_day == today_d:
+					logged_today.add(clean(row.get("van")))
 		keyed = clean(row.get("modified"))
 		if keyed > last_keyed:
 			last_keyed = keyed
@@ -702,6 +704,65 @@ def rows_to_csv(columns, data) -> str:
 	for row in data:
 		writer.writerow(row)
 	return buffer.getvalue()
+
+
+def plain_row(row) -> dict:
+	"""Copy a row without calling a missing method.
+
+	Frappe's `_dict` answers any missing attribute with None, so hasattr(row, "as_dict")
+	is true and row.as_dict() raises TypeError. A real Document as_dict is callable.
+	"""
+	if isinstance(row, dict):
+		return dict(row)
+	as_dict = getattr(row, "as_dict", None)
+	if callable(as_dict):
+		return as_dict()
+	return {}
+
+
+def empty_dashboard() -> dict:
+	return {
+		"overview": {
+			"sales": 0.0,
+			"target": 0.0,
+			"percent": 0.0,
+			"run_rate": None,
+			"days_left": 0,
+			"vans_logged_today": 0,
+			"strike": 0.0,
+			"missed_van_days": 0,
+			"mismatches": 0,
+			"new_outlets": 0,
+			"last_keyed": "",
+		},
+		"vans": [],
+		"leaderboard": [],
+		"collections": {"cash": 0.0, "online": 0.0, "credit": 0.0, "discount": 0.0, "total_collected": 0.0},
+		"beats": [],
+		"exceptions": [],
+		"reported_vs_invoiced": [],
+		"cash": {"balances": [], "transfers": []},
+		"stock": [],
+	}
+
+
+def assemble_dashboard(vans, reports, invoices, beats, transfers, today, start, end) -> dict:
+	"""Dashboard for any period, including a fleet with no daily reports yet."""
+	vans = [plain_row(row) for row in vans or []]
+	reports = [plain_row(row) for row in reports or []]
+	invoices = [plain_row(row) for row in invoices or []]
+	beats = [plain_row(row) for row in beats or []]
+	transfers = [plain_row(row) for row in transfers or []]
+	payload = empty_dashboard()
+	payload["overview"] = fleet_overview(vans, reports, today, start, end)
+	payload["vans"] = vans
+	payload["leaderboard"] = sr_leaderboard(reports, start, end)
+	payload["collections"] = collections_summary(reports, start, end)
+	payload["beats"] = beat_status(beats, reports, today)
+	payload["exceptions"] = exceptions(vans, reports, start, end)
+	payload["reported_vs_invoiced"] = reported_vs_invoiced(reports, invoices, start, end)
+	payload["cash"] = {"balances": cash_balances(reports, transfers), "transfers": transfers[:20]}
+	return payload
 
 
 def rows_to_html(title, columns, data) -> str:

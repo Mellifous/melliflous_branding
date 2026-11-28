@@ -436,6 +436,7 @@
 		},
 		{ label: "Distributor 360", tone: "tone-maroon", href: "/desk/distributor-360" },
 		{ label: "Vans 360", tone: "tone-van", href: "/desk/vans-360" },
+		{ label: "Vans", tone: "tone-van", href: "/desk/melliflous-branding/van" },
 	];
 
 	const SHORTCUT_ICONS = {

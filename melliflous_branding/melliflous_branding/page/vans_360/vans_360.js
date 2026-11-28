@@ -28,6 +28,12 @@ frappe.pages["vans-360"].on_page_load = function (wrapper) {
 	const body = $('<div class="vans-360"></div>').appendTo(page.main);
 	page.add_inner_button(__("Excel"), () => download("csv"));
 	page.add_inner_button(__("PDF"), () => download("html"));
+	page.add_inner_button(__("Van list"), () => {
+		window.location.href = "/desk/melliflous-branding/van";
+	});
+	page.add_inner_button(__("Daily reports"), () => {
+		window.location.href = "/desk/melliflous-branding/van-daily-report";
+	});
 
 	function load() {
 		frappe.call({
@@ -75,7 +81,7 @@ frappe.pages["vans-360"].on_page_load = function (wrapper) {
 function render(host, data) {
 	const overview = data.overview || {};
 	const cards = ["sales", "target", "percent", "run_rate", "vans_logged_today", "strike", "missed_van_days", "mismatches", "new_outlets"]
-		.map((key) => `<div><strong>${frappe.utils.escape_html(key.replaceAll("_", " "))}</strong><div>${frappe.utils.escape_html(String(overview[key] ?? ""))}</div></div>`)
+		.map((key) => `<div><strong>${frappe.utils.escape_html(key.split("_").join(" "))}</strong><div>${frappe.utils.escape_html(String(overview[key] == null ? "" : overview[key]))}</div></div>`)
 		.join("");
 	host.html(
 		`<section class="vans-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px">${cards}</section>` +

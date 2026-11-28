@@ -29,6 +29,8 @@ from melliflous_branding.vans import (
 	parse_fa_xlsx,
 	period_bounds,
 	place_vans_360_app,
+	plain_row,
+	assemble_dashboard,
 	report_figures,
 	report_name,
 	report_table,
@@ -294,26 +296,35 @@ def place_vans_boot(app_data, user) -> list:
 
 @frappe.whitelist()
 def vans_dashboard(company=None, division=None, preset="MTD", start=None, end=None, van=None):
-	"""One payload for the page. Reports in the period are loaded once."""
+	"""One payload for the page. An empty fleet still returns zeros, not an error."""
 	_require_reader()
-	start_d, end_d = period_bounds(preset, today(), start, end)
-	vans = _vans(company, division, van)
-	codes = [row.code for row in vans]
+	day = today() if callable(today) else None
+	start_d, end_d = period_bounds(preset or "MTD", day, start, end)
+	vans = [plain_row(row) for row in _vans(company, division, van)]
+	codes = [clean_code(row) for row in vans if clean_code(row)]
 	reports = _reports(codes, start_d, end_d) if codes else []
 	invoices = _invoices(codes, start_d, end_d) if codes else []
 	beats = _beats(codes) if codes else []
 	transfers = _transfers(company, division)
-	return {
-		"overview": fleet_overview(vans, reports, today(), start_d, end_d),
-		"vans": [row.as_dict() if hasattr(row, "as_dict") else row for row in vans],
-		"leaderboard": sr_leaderboard(reports, start_d, end_d),
-		"collections": collections_summary(reports, start_d, end_d),
-		"beats": beat_status(beats, reports, today()),
-		"exceptions": exceptions(vans, reports, start_d, end_d),
-		"reported_vs_invoiced": reported_vs_invoiced(reports, invoices, start_d, end_d),
-		"cash": {"balances": cash_balances(reports, transfers), "transfers": transfers[:20]},
-		"stock": _stock(vans),
-	}
+	payload = assemble_dashboard(vans, reports, invoices, beats, transfers, day, start_d, end_d)
+	payload["stock"] = _stock(vans)
+	return payload
+
+
+def row_code(row) -> str:
+	return clean_code(row)
+
+
+def clean_code(row) -> str:
+	return " ".join(str((row or {}).get("code") or (row or {}).get("name") or "").split())
+
+
+def _iso(value) -> str:
+	if value is None or value == "":
+		return ""
+	if hasattr(value, "isoformat") and callable(value.isoformat):
+		return value.isoformat()[:10]
+	return str(value)[:10]
 
 
 def _require_reader() -> None:
@@ -346,7 +357,11 @@ def _reports(vans, start, end):
 		return []
 	return frappe.get_all(
 		"Van Daily Report",
-		filters={"van": ["in", vans], "date": ["between", [start, end]], "docstatus": ["!=", 2]},
+		filters={
+			"van": ["in", list(vans)],
+			"date": ["between", [_iso(start), _iso(end)]],
+			"docstatus": ["in", [0, 1]],
+		},
 		fields=[
 			"name", "date", "van", "worked", "reason", "worked_by", "sales", "target", "cash", "online",
 			"credit", "discount", "mismatch", "counters_visited", "productive_counters", "new_outlets",
@@ -361,7 +376,7 @@ def _invoices(vans, start, end):
 		return []
 	return frappe.get_all(
 		"Sales Invoice",
-		filters={"custom_van": ["in", vans], "posting_date": ["between", [start, end]], "docstatus": 1},
+		filters={"custom_van": ["in", list(vans)], "posting_date": ["between", [_iso(start), _iso(end)]], "docstatus": 1},
 		fields=["name", "custom_van as van", "posting_date", "grand_total", "docstatus"],
 		limit=5000,
 	)
@@ -400,7 +415,7 @@ def _stock(vans):
 	company_vans = [row for row in vans if row.get("van_type") == "Company Van" and row.get("warehouse")]
 	if not company_vans or not frappe.db.table_exists("Bin"):
 		return rows
-	warehouses = [row.warehouse for row in company_vans]
+	warehouses = [row.get("warehouse") for row in company_vans]
 	bins = frappe.get_all(
 		"Bin",
 		filters={"warehouse": ["in", warehouses]},
@@ -411,7 +426,7 @@ def _stock(vans):
 	for row in bins:
 		by_warehouse.setdefault(row.warehouse, []).append({"item": row.item_code, "qty": row.actual_qty})
 	for van in company_vans:
-		rows.append({"van": van.code, "warehouse": van.warehouse, "items": by_warehouse.get(van.warehouse, [])[:30]})
+		rows.append({"van": row_code(van), "warehouse": van.get("warehouse"), "items": by_warehouse.get(van.get("warehouse"), [])[:30]})
 	return rows
 
 
