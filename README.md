@@ -129,6 +129,8 @@ Numbers follow posting date. An earlier date cannot get a higher serial than a l
 
 Credit notes use the same prefix, so a credit note cannot collide with a tax invoice. Submitted invoices stay on the number they were saved with. An Invoice Admin can still rename those from the menu. A draft can be changed from Invoice No; that renames the document.
 
+Draft and cancelled Sales Invoices can be deleted from the ⋯ menu, and from the list Actions menu, by Invoice Admin, Accounts Manager, and System Manager. A submitted invoice has to be cancelled first. Cancelling keeps the number taken. Deleting removes the invoice, so that number is no longer stored and can be suggested again if it is the next free serial. The next number is always one past the highest invoice that still exists.
+
 The field is created on migrate (`ensure_invoice_numbers`). Until that migrate, new invoices keep ERPNext's own naming series.
 
 ## Simple desk

@@ -4,33 +4,40 @@ const GST_DELETE_WARNING =
 	"Deleting a submitted or cancelled invoice can break the GST invoice series, GSTR-1, and any e-invoice or e-way bill. Continue only if GST has been handled.";
 
 function melliflousInvoiceAdmin(frm) {
-	const manage = !!(window.frappe && frappe.boot && frappe.boot.melliflous_invoice_admin);
-	const einvoice = !!(window.frappe && frappe.boot && frappe.boot.melliflous_can_einvoice);
-	if (!manage && frm.perm && frm.perm[0]) {
+	const boot = window.frappe && frappe.boot;
+	const manage = !!(boot && boot.melliflous_invoice_admin);
+	const canDelete = manage || !!(boot && boot.melliflous_can_delete_invoice);
+	const einvoice = !!(boot && boot.melliflous_can_einvoice);
+	// Draft and cancelled invoices keep the standard Delete item for Invoice
+	// Admin, Accounts Manager, and System Manager. Submitted invoices never
+	// get that item from Frappe, because docstatus is 1.
+	if (!canDelete && frm.perm && frm.perm[0]) {
 		frm.perm[0].delete = 0;
 	}
 	setTimeout(() => {
-		hideInvoiceMenus(manage);
+		hideInvoiceMenus(manage, canDelete);
 		if (!einvoice) hideEInvoiceButtons(frm);
 	}, 0);
-	if (manage && !frm._melliflous_invoice_wrapped) {
+	if (!frm._melliflous_invoice_wrapped && (manage || canDelete)) {
 		frm._melliflous_invoice_wrapped = true;
 		const originalTrash = frm.savetrash && frm.savetrash.bind(frm);
 		const originalRename = frm.rename && frm.rename.bind(frm);
-		if (originalTrash) {
+		if (canDelete && originalTrash) {
 			frm.savetrash = () => confirmInvoiceDelete(frm, originalTrash);
 		}
-		if (originalRename) {
+		if (manage && originalRename) {
 			frm.rename = () => renameInvoiceWithReason(frm, originalRename);
 		}
 	}
 }
 
-function hideInvoiceMenus(manage) {
-	if (manage) return;
+function hideInvoiceMenus(manage, canDelete) {
+	if (manage && canDelete) return;
 	document.querySelectorAll(".dropdown-menu .dropdown-item, .dropdown-menu li a, .menu-item-label").forEach((node) => {
 		const text = (node.textContent || "").replace(/\s+/g, " ").trim();
-		if (text === "Rename" || text === "Delete") {
+		const hideRename = text === "Rename" && !manage;
+		const hideDelete = text === "Delete" && !canDelete;
+		if (hideRename || hideDelete) {
 			const item = node.closest("li") || node.closest(".dropdown-item") || node;
 			item.remove();
 		}

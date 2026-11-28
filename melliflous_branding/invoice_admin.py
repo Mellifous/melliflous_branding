@@ -11,6 +11,8 @@ from __future__ import annotations
 INVOICE_DOCTYPES = ("Sales Invoice", "Purchase Invoice")
 ROLE_NAME = "Invoice Admin"
 SEED_OWNER_EMAIL = "akash@skgourmetspices.com"
+# These roles keep Delete on Sales Invoice and Purchase Invoice. Other roles lose it.
+DELETE_ROLES = frozenset({"Invoice Admin", "Accounts Manager", "System Manager"})
 
 DELETE_DENIED = "Only an Invoice Admin can rename or delete invoices."
 CANCEL_FIRST = "Cancel this invoice before deleting it."
@@ -49,6 +51,42 @@ def can_manage_invoices(user, listed_users) -> bool:
 	return name in allowed
 
 
+def can_delete_invoices(user, listed_users, roles=None) -> bool:
+	"""Who may delete a draft or a cancelled invoice.
+
+	Invoice Admin, Accounts Manager, and System Manager count by role. A user
+	saved on Melliflous Settings counts as well. Submitted invoices are still
+	refused by delete_block.
+	"""
+	if can_manage_invoices(user, listed_users):
+		return True
+	return bool(DELETE_ROLES.intersection({clean(role) for role in roles or [] if clean(role)}))
+
+
+def role_keeps_invoice_delete(role) -> bool:
+	return clean(role) in DELETE_ROLES
+
+
+def delete_permission_updates(rows) -> list:
+	"""Level-0 permission rows whose Delete tick should change.
+
+	Invoice Admin, Accounts Manager, and System Manager are set to 1. Every
+	other role at level 0 is set to 0. Higher permlevels are left alone.
+	"""
+	updates = []
+	for row in rows or []:
+		if not isinstance(row, dict):
+			continue
+		if int(row.get("permlevel") or 0) != 0:
+			continue
+		wanted = 1 if role_keeps_invoice_delete(row.get("role")) else 0
+		current = 1 if int(row.get("delete") or 0) else 0
+		if current == wanted or not row.get("name"):
+			continue
+		updates.append({"name": row["name"], "delete": wanted})
+	return updates
+
+
 def can_generate_einvoice(user, listed_users, roles) -> bool:
 	"""Invoice Admin, System Manager, or Administrator. Everyone else keeps the buttons hidden."""
 	if can_manage_invoices(user, listed_users):
@@ -56,9 +94,9 @@ def can_generate_einvoice(user, listed_users, roles) -> bool:
 	return "System Manager" in set(roles or [])
 
 
-def delete_block(user, listed_users, docstatus, irn) -> str | None:
+def delete_block(user, listed_users, docstatus, irn, roles=None) -> str | None:
 	"""None means the delete may proceed. A string is the error to throw."""
-	if not can_manage_invoices(user, listed_users):
+	if not can_delete_invoices(user, listed_users, roles):
 		return DELETE_DENIED
 	status = int(docstatus or 0)
 	if status == 1:
