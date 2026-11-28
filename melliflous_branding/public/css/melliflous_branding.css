@@ -68,8 +68,15 @@
 }
 
 body .desktop-navbar .melliflous-context-label,
-body .navbar .melliflous-context-label {
-	color: #f8e7b0;
+body .navbar .melliflous-context-label,
+body .desktop-navbar .melliflous-company-label,
+body .navbar .melliflous-company-label {
+	color: #1c1917;
+}
+
+body .desktop-navbar .melliflous-division-label,
+body .navbar .melliflous-division-label {
+	color: #57534e;
 }
 
 .melliflous-context-pill[hidden] {
@@ -77,16 +84,20 @@ body .navbar .melliflous-context-label {
 }
 
 .melliflous-context-pill {
-	display: inline-block;
-	max-width: 14rem;
-	padding: 2px 10px;
-	border-radius: 999px;
-	color: #fff;
-	font-size: 0.8rem;
-	font-weight: 800;
+	display: inline-flex;
+	align-items: center;
+	max-width: 4.5rem;
+	min-height: 22px;
+	padding: 0 6px;
+	border-radius: 6px;
+	background: #e7e5e4;
+	color: #1c1917;
+	font-size: 11px;
+	font-weight: 700;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+	box-shadow: none;
 }
 
 .melliflous-context .melliflous-company-switch,
@@ -159,15 +170,20 @@ body.desktop-page .melliflous-context:not(.is-compact) .melliflous-division-pill
 	min-width: 0;
 	min-height: 44px;
 	margin: 0;
-	padding: 4px 12px 4px 4px;
-	border: 1px solid #e4c56a;
-	border-radius: 999px;
-	background: #fffaf3;
+	padding: 6px 8px;
+	border: 0;
+	border-radius: 8px;
+	background: transparent;
 	color: #1c1917;
 	text-align: left;
 	cursor: pointer;
 	touch-action: manipulation;
-	box-shadow: 0 6px 16px rgba(92, 0, 18, 0.12);
+	box-shadow: none;
+}
+
+.melliflous-context-chip:focus {
+	outline: 2px solid #44403c;
+	outline-offset: 2px;
 }
 
 .melliflous-chip-pill {
@@ -175,13 +191,14 @@ body.desktop-page .melliflous-context:not(.is-compact) .melliflous-division-pill
 	flex: 0 0 auto;
 	align-items: center;
 	justify-content: center;
-	min-width: 36px;
-	height: 36px;
-	padding: 0 8px;
-	border-radius: 999px;
-	color: #fff;
-	font-size: 12px;
-	font-weight: 800;
+	min-width: 0;
+	height: 22px;
+	padding: 0 6px;
+	border-radius: 6px;
+	background: #e7e5e4;
+	color: #1c1917;
+	font-size: 11px;
+	font-weight: 700;
 	letter-spacing: 0.02em;
 }
 
@@ -202,21 +219,22 @@ body.desktop-page .melliflous-context:not(.is-compact) .melliflous-division-pill
 
 .melliflous-chip-company {
 	font-size: 13px;
-	font-weight: 800;
+	font-weight: 700;
+	color: #1c1917;
 }
 
 .melliflous-chip-division {
 	font-size: 12px;
-	font-weight: 700;
-	color: #7a0019;
+	font-weight: 600;
+	color: #57534e;
 }
 
 .melliflous-chip-caret {
 	flex: 0 0 auto;
-	width: 10px;
-	height: 10px;
-	border-right: 2px solid #7a0019;
-	border-bottom: 2px solid #7a0019;
+	width: 8px;
+	height: 8px;
+	border-right: 2px solid #57534e;
+	border-bottom: 2px solid #57534e;
 	transform: rotate(45deg) translateY(-2px);
 }
 
@@ -1099,17 +1117,41 @@ body.desktop-page .module-folder-app[data-melliflous-tone="brand"] .module-folde
 	color: #C8102E;
 	font-weight: 800;
 }
-[data-theme="dark"] .melliflous-context-chip,
+[data-theme="dark"] .melliflous-context-chip {
+	background: transparent;
+	color: #f5f5f4;
+	border-color: transparent;
+}
+
 [data-theme="dark"] .melliflous-sheet-panel {
-	background: #2a171c;
-	color: #fff5f5;
-	border-color: #e4c56a;
+	background: #1c1917;
+	color: #f5f5f4;
+	border-color: #44403c;
+}
+
+[data-theme="dark"] .melliflous-chip-company,
+[data-theme="dark"] .desktop-navbar .melliflous-company-label,
+[data-theme="dark"] .navbar .melliflous-company-label {
+	color: #f5f5f4;
 }
 
 [data-theme="dark"] .melliflous-chip-division,
+[data-theme="dark"] .melliflous-chip-caret,
+[data-theme="dark"] .desktop-navbar .melliflous-division-label,
+[data-theme="dark"] .navbar .melliflous-division-label {
+	color: #d6d3d1;
+	border-color: #d6d3d1;
+}
+
+[data-theme="dark"] .melliflous-chip-pill,
+[data-theme="dark"] .melliflous-context-pill {
+	background: #44403c;
+	color: #f5f5f4;
+}
+
 [data-theme="dark"] .melliflous-sheet-title,
 [data-theme="dark"] .melliflous-sheet-fields .melliflous-context-label {
-	color: #f6e7c1;
+	color: #f5f5f4;
 }
 
 [data-theme="dark"] .melliflous-sheet-fields .melliflous-company-switch,

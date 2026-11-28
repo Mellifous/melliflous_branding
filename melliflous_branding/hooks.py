@@ -27,7 +27,7 @@ add_to_apps_screen = [
 # The query is bumped when the desk theme changes. The theme is also injected
 # from desk_theme.js, because a cached app_include_css file has shipped stale
 # rules after a deploy. No bench build is required.
-DESK_ASSET_VERSION = "20261128a"
+DESK_ASSET_VERSION = "20261128b"
 app_include_css = [
 	f"/assets/melliflous_branding/css/melliflous_branding.css?v={DESK_ASSET_VERSION}",
 	f"/assets/melliflous_branding/css/desk_theme.css?v={DESK_ASSET_VERSION}",

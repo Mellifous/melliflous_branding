@@ -342,7 +342,7 @@ class TestWiring(unittest.TestCase):
 		self.assertIn("invoice_admin_records.guard_rename", hooks)
 		self.assertIn("invoice_number_records.validate_invoice_number", hooks)
 		self.assertIn("recipe_records.guard_recipe_stock", hooks)
-		self.assertIn("20261128a", hooks)
+		self.assertIn("20261128b", hooks)
 		self.assertIn("20261127hsn", hooks)
 		self.assertIn("hsn_records.validate_item", hooks)
 		self.assertIn("hsn_records.validate_document", hooks)
