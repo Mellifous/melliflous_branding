@@ -6,6 +6,7 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "reference_doctype",
   "invoice_name",
   "invoice_no",
   "company",
@@ -19,6 +20,13 @@
   "deleted_on"
  ],
  "fields": [
+  {
+   "fieldname": "reference_doctype",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Document Type"
+  },
   {
    "fieldname": "invoice_name",
    "fieldtype": "Data",

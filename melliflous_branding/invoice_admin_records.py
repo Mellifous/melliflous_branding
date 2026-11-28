@@ -14,6 +14,12 @@ import frappe
 from frappe import _
 from frappe.utils import cint, now_datetime
 
+from melliflous_branding.cancelled_ledger import (
+	LEDGER_DOCTYPES,
+	ledger_rows_to_remove,
+	live_link_message,
+	uncleared_ledger_message,
+)
 from melliflous_branding.invoice_admin import (
 	INVOICE_DOCTYPES,
 	ROLE_NAME,
@@ -32,6 +38,7 @@ from melliflous_branding.invoice_admin import (
 	invoice_admin_row_plan,
 	deletion_log_shortcut,
 	gst_flags_to_clear,
+	payment_delete_block,
 	rename_block,
 	role_keeps_invoice_delete,
 	seed_admin_names,
@@ -106,21 +113,29 @@ def apply_invoice_boot(bootinfo) -> None:
 
 
 def guard_delete(doc, method=None):
-	if doc.doctype not in INVOICE_DOCTYPES:
+	if doc.doctype not in INVOICE_DOCTYPES and doc.doctype != "Payment Entry":
 		return
 	reason = getattr(frappe.flags, "invoice_delete_reason", None)
-	message = delete_block(
-		getattr(frappe.session, "user", None),
-		listed_invoice_admins(),
-		doc.get("docstatus"),
-		_irn(doc),
-		_roles(),
-		reason,
-		require_reason=doc.doctype == "Sales Invoice",
-	)
+	if doc.doctype == "Payment Entry":
+		message = payment_delete_block(
+			getattr(frappe.session, "user", None),
+			listed_invoice_admins(),
+			doc.get("docstatus"),
+			reason,
+		)
+	else:
+		message = delete_block(
+			getattr(frappe.session, "user", None),
+			listed_invoice_admins(),
+			doc.get("docstatus"),
+			_irn(doc),
+			_roles(),
+			reason,
+			require_reason=doc.doctype == "Sales Invoice",
+		)
 	if message:
 		frappe.throw(_(message), frappe.PermissionError)
-	if doc.doctype == "Sales Invoice":
+	if doc.doctype in ("Sales Invoice", "Payment Entry"):
 		_write_deletion_log(doc, reason)
 	_write_audit(doc, "Delete", doc.name, "", reason or "")
 	_comment_party(doc, "Delete", doc.name, "", reason or "")
@@ -177,8 +192,156 @@ def _delete_one_sales_invoice(name, reason) -> None:
 	)
 	if message:
 		frappe.throw(_(message), frappe.PermissionError)
+	_delete_cancelled_document(doc, reason)
+
+
+@frappe.whitelist()
+def delete_payment_entries(names, reason=None):
+	"""Delete cancelled Payment Entries. A reason is required.
+
+	The same people who may delete a Sales Invoice. Ledger rows for the
+	payment are removed first when they are delinked or cancelled.
+	"""
+	reason = " ".join(str(reason or "").split())
+	if not reason:
+		frappe.throw(_(DELETE_NEEDS_REASON))
+	if isinstance(names, str):
+		names = frappe.parse_json(names)
+	chosen = [" ".join(str(name or "").split()) for name in (names or []) if " ".join(str(name or "").split())]
+	if not chosen:
+		frappe.throw(_("Select a payment first."))
+	if not can_manage_invoices(getattr(frappe.session, "user", None), listed_invoice_admins()):
+		frappe.throw(_(DELETE_DENIED), frappe.PermissionError)
+	deleted = []
+	for name in chosen:
+		if not frappe.db.exists("Payment Entry", name):
+			frappe.throw(_("Payment {0} was not found.").format(name))
+		doc = frappe.get_doc("Payment Entry", name)
+		message = payment_delete_block(
+			getattr(frappe.session, "user", None),
+			listed_invoice_admins(),
+			doc.docstatus,
+			reason,
+		)
+		if message:
+			frappe.throw(_(message), frappe.PermissionError)
+		_delete_cancelled_document(doc, reason)
+		deleted.append(name)
+	return {"deleted": deleted}
+
+
+def _delete_cancelled_document(doc, reason) -> None:
+	"""Clear this voucher's own cancelled ledger rows, then delete it.
+
+	A submitted document that still points here is named and the delete stops.
+	Any other link error is re-raised with its own text.
+	"""
+	if int(doc.docstatus or 0) == 2:
+		rows = _ledger_rows(doc.doctype, doc.name)
+		blocked = uncleared_ledger_message(doc.doctype, doc.name, rows)
+		if blocked:
+			frappe.throw(_(blocked))
+		live = live_link_message(doc.doctype, doc.name, _submitted_links(doc))
+		if live:
+			frappe.throw(_(live))
+		for item in ledger_rows_to_remove(doc.doctype, doc.name, rows):
+			if frappe.db.exists(item["doctype"], item["name"]):
+				frappe.delete_doc(
+					item["doctype"],
+					item["name"],
+					ignore_permissions=True,
+					force=True,
+					delete_permanently=True,
+				)
 	frappe.flags.invoice_delete_reason = reason
-	frappe.delete_doc("Sales Invoice", name, ignore_permissions=True)
+	try:
+		frappe.delete_doc(doc.doctype, doc.name, ignore_permissions=True)
+	except Exception as exc:
+		frappe.throw(_exception_text(exc), exc.__class__)
+
+
+def _exception_text(exc) -> str:
+	text = re.sub(r"<[^>]+>", " ", str(exc or ""))
+	text = " ".join(text.split())
+	return text or exc.__class__.__name__
+
+
+def _ledger_rows(doctype, name) -> list:
+	rows = []
+	for ledger in (
+		"Payment Ledger Entry",
+		"GL Entry",
+		"Stock Ledger Entry",
+		"Repost Item Valuation",
+		"Repost Payment Ledger",
+		"Repost Payment Ledger Items",
+		"Advance Payment Ledger Entry",
+	):
+		rows.extend(_rows_for_ledger(ledger, name))
+	return rows
+
+
+def _rows_for_ledger(ledger, name) -> list:
+	if not frappe.db.table_exists(ledger):
+		return []
+	columns = set(frappe.db.get_table_columns(ledger) or [])
+	if "name" not in columns:
+		return []
+	clauses = []
+	params = []
+	if "voucher_no" in columns:
+		clauses.append("`voucher_no`=%s")
+		params.append(name)
+	against = "against_voucher_no" if "against_voucher_no" in columns else ""
+	if not against and "against_voucher" in columns:
+		against = "against_voucher"
+	if against:
+		clauses.append(f"`{against}`=%s")
+		params.append(name)
+	if not clauses:
+		return []
+	wanted = ["name", "voucher_type", "voucher_no", "against_voucher_type", "against_voucher_no", "against_voucher", "delinked", "is_cancelled", "docstatus", "parent"]
+	select = [column for column in wanted if column in columns]
+	sql = f"select {', '.join(f'`{column}`' for column in select)} from `tab{ledger}` where {' or '.join(clauses)}"
+	out = []
+	for row in frappe.db.sql(sql, tuple(params), as_dict=True):
+		out.append(
+			{
+				"doctype": ledger,
+				"name": row.get("name"),
+				"voucher_type": row.get("voucher_type"),
+				"voucher_no": row.get("voucher_no"),
+				"against_voucher_type": row.get("against_voucher_type"),
+				"against_voucher_no": row.get("against_voucher_no") or row.get("against_voucher"),
+				"delinked": row.get("delinked"),
+				"is_cancelled": row.get("is_cancelled"),
+				"docstatus": row.get("docstatus"),
+				"parent": row.get("parent"),
+			}
+		)
+	return out
+
+
+def _submitted_links(doc) -> list:
+	try:
+		from frappe.model.delete_doc import get_dynamic_linked_docs, get_linked_docs
+
+		links = list(get_linked_docs(doc) or []) + list(get_dynamic_linked_docs(doc) or [])
+	except Exception:
+		frappe.logger("melliflous_branding").exception("Could not read links for %s %s", doc.doctype, doc.name)
+		return []
+	found = []
+	seen = set()
+	for link in links:
+		kind = link.get("reference_doctype")
+		name = link.get("reference_docname")
+		if not kind or not name or kind in LEDGER_DOCTYPES or (kind, name) in seen:
+			continue
+		seen.add((kind, name))
+		if not frappe.db.exists(kind, name):
+			continue
+		found.append({"doctype": kind, "name": name, "docstatus": frappe.db.get_value(kind, name, "docstatus")})
+	return found
 
 
 def guard_rename(doc, method=None, old=None, new=None, merge=False):
@@ -511,18 +674,26 @@ def _write_deletion_log(doc, reason) -> None:
 	"""Permanent row. A failure here stops the delete so the number is not lost."""
 	if not frappe.db.table_exists(DELETION_LOG_DOCTYPE):
 		frappe.throw(_("The invoice deletion log is not ready. Update the site, then delete the invoice."))
-	number = " ".join(str(doc.get("custom_invoice_no") or doc.name or "").split())
+	if doc.doctype == "Payment Entry":
+		number = " ".join(str(doc.name or "").split())
+		party = doc.get("party")
+		total = doc.get("paid_amount")
+	else:
+		number = " ".join(str(doc.get("custom_invoice_no") or doc.name or "").split())
+		party = doc.get("customer")
+		total = doc.get("grand_total")
 	entry = deletion_log_entry(
 		doc.name,
 		number,
 		doc.get("company"),
-		doc.get("customer"),
+		party,
 		doc.get("posting_date"),
-		doc.get("grand_total"),
+		total,
 		doc.get("docstatus"),
 		reason,
 		getattr(frappe.session, "user", None),
 		now_datetime(),
+		reference_doctype=doc.doctype,
 	)
 	frappe.get_doc({"doctype": DELETION_LOG_DOCTYPE, **entry}).insert(ignore_permissions=True)
 

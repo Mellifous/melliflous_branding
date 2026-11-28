@@ -131,6 +131,20 @@ def delete_block(user, listed_users, docstatus, irn, roles=None, reason=None, re
 	return None
 
 
+CANCEL_PAYMENT = "Cancel this payment before deleting it."
+
+
+def payment_delete_block(user, listed_users, docstatus, reason) -> str | None:
+	"""Cancelled payments only. The same people who may delete an invoice."""
+	if not can_delete_invoices(user, listed_users):
+		return DELETE_DENIED
+	if int(docstatus or 0) != 2:
+		return CANCEL_PAYMENT
+	if not clean(reason):
+		return DELETE_NEEDS_REASON
+	return None
+
+
 def deletion_status(docstatus) -> str:
 	status = int(docstatus or 0)
 	if status == 2:
@@ -140,10 +154,23 @@ def deletion_status(docstatus) -> str:
 	return "Draft"
 
 
-def deletion_log_entry(invoice_name, invoice_no, company, customer, posting_date, grand_total, docstatus, reason, user, deleted_on) -> dict:
+def deletion_log_entry(
+	invoice_name,
+	invoice_no,
+	company,
+	customer,
+	posting_date,
+	grand_total,
+	docstatus,
+	reason,
+	user,
+	deleted_on,
+	reference_doctype="Sales Invoice",
+) -> dict:
 	"""One permanent row. The invoice number stored here can be offered again."""
 	name = clean(invoice_name)
 	return {
+		"reference_doctype": clean(reference_doctype) or "Sales Invoice",
 		"invoice_name": name,
 		"invoice_no": clean(invoice_no) or name,
 		"company": clean(company),

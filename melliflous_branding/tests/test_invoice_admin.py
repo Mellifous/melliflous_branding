@@ -5,6 +5,7 @@ import json
 import unittest
 from pathlib import Path
 
+from melliflous_branding.cancelled_ledger import ledger_rows_to_remove, live_link_message, uncleared_ledger_message
 from melliflous_branding.invoice_admin import (
 	DELETE_NEEDS_REASON,
 	SEED_OWNER_EMAIL,
@@ -17,6 +18,7 @@ from melliflous_branding.invoice_admin import (
 	deletion_log_block,
 	deletion_log_entry,
 	needs_gst_warning,
+	payment_delete_block,
 	rename_block,
 	invoice_admin_row_plan,
 	role_keeps_invoice_delete,
@@ -124,6 +126,111 @@ class TestInvoiceAdmin(unittest.TestCase):
 		)
 		self.assertEqual(missing["add"], [SEED_OWNER_EMAIL])
 		self.assertEqual(missing["delete"], [])
+
+	def test_cancelled_invoice_ledger_rows_are_removed_and_a_live_payment_blocks(self):
+		invoice = "MIMT00001"
+		rows = [
+			{
+				"doctype": "Payment Ledger Entry",
+				"name": "PLE-original",
+				"voucher_type": "Sales Invoice",
+				"voucher_no": invoice,
+				"against_voucher_type": "Sales Invoice",
+				"against_voucher_no": invoice,
+				"delinked": 1,
+			},
+			{
+				"doctype": "Payment Ledger Entry",
+				"name": "PLE-reversal",
+				"voucher_type": "Sales Invoice",
+				"voucher_no": invoice,
+				"against_voucher_type": "Sales Invoice",
+				"against_voucher_no": invoice,
+				"delinked": 1,
+			},
+			{
+				"doctype": "GL Entry",
+				"name": "GLE-cancel",
+				"voucher_type": "Sales Invoice",
+				"voucher_no": invoice,
+				"is_cancelled": 1,
+			},
+			{
+				"doctype": "Stock Ledger Entry",
+				"name": "SLE-cancel",
+				"voucher_type": "Sales Invoice",
+				"voucher_no": invoice,
+				"is_cancelled": 1,
+			},
+			{
+				"doctype": "Advance Payment Ledger Entry",
+				"name": "ADV-1",
+				"voucher_type": "Sales Invoice",
+				"voucher_no": invoice,
+				"delinked": 1,
+			},
+			{
+				"doctype": "Repost Item Valuation",
+				"name": "RIV-1",
+				"voucher_type": "Sales Invoice",
+				"voucher_no": invoice,
+				"docstatus": 2,
+			},
+			{
+				"doctype": "Repost Payment Ledger Items",
+				"name": "RPL-item",
+				"voucher_type": "Sales Invoice",
+				"voucher_no": invoice,
+			},
+		]
+		removed = {(row["doctype"], row["name"]) for row in ledger_rows_to_remove("Sales Invoice", invoice, rows)}
+		self.assertEqual(
+			removed,
+			{
+				("Payment Ledger Entry", "PLE-original"),
+				("Payment Ledger Entry", "PLE-reversal"),
+				("GL Entry", "GLE-cancel"),
+				("Stock Ledger Entry", "SLE-cancel"),
+				("Advance Payment Ledger Entry", "ADV-1"),
+				("Repost Item Valuation", "RIV-1"),
+				("Repost Payment Ledger Items", "RPL-item"),
+			},
+		)
+		live_ledger = rows + [
+			{
+				"doctype": "Payment Ledger Entry",
+				"name": "PLE-live",
+				"voucher_type": "Payment Entry",
+				"voucher_no": "PE-0001",
+				"against_voucher_type": "Sales Invoice",
+				"against_voucher_no": invoice,
+				"delinked": 0,
+			}
+		]
+		self.assertNotIn(("Payment Ledger Entry", "PLE-live"), {(row["doctype"], row["name"]) for row in ledger_rows_to_remove("Sales Invoice", invoice, live_ledger)})
+		self.assertIn("PLE-live", uncleared_ledger_message("Sales Invoice", invoice, live_ledger))
+		self.assertIsNone(uncleared_ledger_message("Sales Invoice", invoice, rows))
+		self.assertIn(
+			"Payment Entry PE-0001",
+			live_link_message(
+				"Sales Invoice",
+				invoice,
+				[{"doctype": "Payment Entry", "name": "PE-0001", "docstatus": 1}],
+			),
+		)
+		self.assertIsNone(
+			live_link_message(
+				"Sales Invoice",
+				invoice,
+				[
+					{"doctype": "Payment Entry", "name": "PE-0001", "docstatus": 2},
+					{"doctype": "Payment Ledger Entry", "name": "PLE-original", "docstatus": 0},
+				],
+			)
+		)
+		self.assertIsNone(payment_delete_block("Administrator", [], 2, "Duplicate receipt"))
+		self.assertEqual(payment_delete_block("Administrator", [], 1, "Duplicate receipt"), "Cancel this payment before deleting it.")
+		self.assertEqual(payment_delete_block(SEED_OWNER_EMAIL, [], 2, "Duplicate receipt"), "Only an Invoice Admin can rename or delete invoices.")
 
 	def test_akash_roles_show_the_menu_and_the_list_allows_the_delete(self):
 		"""Akash has System Manager, Accounts Manager, and Invoice Admin.
@@ -245,6 +352,9 @@ class TestInvoiceAdmin(unittest.TestCase):
 		self.assertIn("delete_sales_invoices", script)
 		self.assertIn("Delete Invoice", script)
 		self.assertIn("may_delete_sales_invoice", script)
+		self.assertIn("Delete Payment", script)
+		self.assertIn("serverErrorText", script)
+		self.assertIn("delete_payment_entries", script)
 		self.assertIn('text === "Delete Invoice"', script)
 		self.assertIn('text === "Delete"', script)
 		self.assertNotIn("melliflous_can_delete_invoice", script)
@@ -252,6 +362,13 @@ class TestInvoiceAdmin(unittest.TestCase):
 		self.assertIn("Reason for deletion", listing)
 		self.assertIn("Delete with reason", listing)
 		self.assertIn("may_delete_sales_invoice", listing)
+		self.assertIn("delete_payment_entries", listing)
+		self.assertIn("serverErrorText", listing)
+		self.assertIn('doctype_list_js', (PACKAGE / "hooks.py").read_text())
+		hooks = (PACKAGE / "hooks.py").read_text()
+		self.assertIn('"Payment Entry": "public/js/invoice_admin.js"', hooks)
+		self.assertIn('"Payment Entry": "public/js/invoice_admin_list.js"', hooks)
+		self.assertGreaterEqual(hooks.count("invoice_admin_records.guard_delete"), 3)
 		self.assertNotIn("can_delete = false", listing)
 		self.assertNotIn("melliflous_invoice_admin", listing)
 		self.assertIn("invoice_admin_list.js", (PACKAGE / "hooks.py").read_text())

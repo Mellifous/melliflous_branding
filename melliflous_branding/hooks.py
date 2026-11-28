@@ -114,7 +114,10 @@ doc_events = {
 			"melliflous_branding.hsn_records.validate_document",
 		]
 	},
-	"Payment Entry": {"validate": "melliflous_branding.division_records.apply_division"},
+	"Payment Entry": {
+		"validate": "melliflous_branding.division_records.apply_division",
+		"on_trash": "melliflous_branding.invoice_admin_records.guard_delete",
+	},
 	"Item": {
 		"validate": [
 			"melliflous_branding.division_records.apply_division",
@@ -134,10 +137,12 @@ doctype_js = {
 		"public/js/invoice_number.js",
 	],
 	"Purchase Invoice": "public/js/invoice_admin.js",
+	"Payment Entry": "public/js/invoice_admin.js",
 }
 doctype_list_js = {
 	"Customer": "public/js/customer_list.js",
 	"Sales Invoice": "public/js/invoice_admin_list.js",
+	"Payment Entry": "public/js/invoice_admin_list.js",
 }
 
 fixtures = [
