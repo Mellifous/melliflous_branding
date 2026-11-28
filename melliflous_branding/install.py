@@ -35,9 +35,11 @@ def after_migrate():
 	ensure_divisions()
 	ensure_recipe_places()
 	ensure_hsn_catalog()
+	from melliflous_branding.price_list_records import ensure_priti_price_lists
 	from melliflous_branding.van_records import ensure_vans
 
 	ensure_vans()
+	ensure_priti_price_lists()
 	try:
 		from melliflous_branding.quick_actions_workspace import remove_quick_actions_workspace
 
