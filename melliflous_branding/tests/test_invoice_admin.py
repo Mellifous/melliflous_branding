@@ -8,13 +8,16 @@ from pathlib import Path
 from melliflous_branding.invoice_admin import (
 	SEED_OWNER_EMAIL,
 	auto_fields_to_disable,
+	can_delete_invoices,
 	can_generate_einvoice,
 	can_manage_invoices,
 	delete_block,
+	delete_permission_updates,
 	needs_gst_warning,
 	rename_block,
 	seed_admin_names,
 )
+from melliflous_branding.invoice_number import plan_invoice
 
 PACKAGE = Path(__file__).resolve().parents[1]
 
@@ -35,6 +38,19 @@ class TestInvoiceAdmin(unittest.TestCase):
 		self.assertEqual(delete_block("Administrator", [], 2, "IRN123"), "This invoice has an IRN. Cancel the e-invoice before deleting it.")
 		self.assertIsNone(delete_block("Administrator", [], 2, ""))
 		self.assertIsNone(delete_block("Administrator", [], 0, ""))
+		for role in ("Invoice Admin", "Accounts Manager", "System Manager"):
+			self.assertTrue(can_delete_invoices("akash@skgourmetspices.com", [], [role]))
+			self.assertIsNone(delete_block("akash@skgourmetspices.com", [], 0, "", [role]))
+			self.assertIsNone(delete_block("akash@skgourmetspices.com", [], 2, "", [role]))
+			self.assertEqual(
+				delete_block("akash@skgourmetspices.com", [], 1, "", [role]),
+				"Cancel this invoice before deleting it.",
+			)
+		self.assertFalse(can_delete_invoices("sales@example.com", [], ["Sales User", "Accounts User"]))
+		self.assertEqual(
+			delete_block("sales@example.com", [], 2, "", ["Sales User"]),
+			"Only an Invoice Admin can rename or delete invoices.",
+		)
 		self.assertEqual(rename_block("accounts@example.com", [], 0, "because"), "Only an Invoice Admin can rename or delete invoices.")
 		self.assertEqual(rename_block("Administrator", [], 1, ""), "Enter a reason for renaming this invoice.")
 		self.assertIsNone(rename_block("Administrator", [], 1, "Series was wrong"))
@@ -113,6 +129,43 @@ class TestInvoiceAdmin(unittest.TestCase):
 		self.assertIn("allow_rename", records)
 		self.assertIn(SEED_OWNER_EMAIL, (PACKAGE / "invoice_admin.py").read_text())
 		self.assertNotIn("api_secret", records)
+		self.assertIn("melliflous_can_delete_invoice", records)
+		self.assertIn("delete_permission_updates", records)
+		script = (PACKAGE / "public" / "js" / "invoice_admin.js").read_text()
+		self.assertIn("melliflous_can_delete_invoice", script)
+		self.assertIn("hideDelete", script)
+		updates = delete_permission_updates(
+			[
+				{"name": "perm-admin", "role": "Invoice Admin", "permlevel": 0, "delete": 1},
+				{"name": "perm-accounts", "role": "Accounts Manager", "permlevel": 0, "delete": 0},
+				{"name": "perm-system", "role": "System Manager", "permlevel": 0, "delete": 0},
+				{"name": "perm-sales", "role": "Sales User", "permlevel": 0, "delete": 1},
+				{"name": "perm-level1", "role": "Accounts Manager", "permlevel": 1, "delete": 0},
+			]
+		)
+		self.assertEqual(
+			updates,
+			[
+				{"name": "perm-accounts", "delete": 1},
+				{"name": "perm-system", "delete": 1},
+				{"name": "perm-sales", "delete": 0},
+			],
+		)
+		# A deleted invoice is no longer stored, so it is not a used number.
+		# The next number is one past the highest invoice that still exists.
+		# A cancelled invoice stays in the table, so its number stays taken.
+		self.assertEqual(
+			plan_invoice("MIMT/", [{"name": "MIMT/0002", "posting_date": "2026-11-02", "docstatus": 1}], "2026-11-03")[
+				"suggested"
+			],
+			"MIMT/0003",
+		)
+		self.assertEqual(
+			plan_invoice("MIMT/", [{"name": "MIMT/0001", "posting_date": "2026-11-01", "docstatus": 2}], "2026-11-03")[
+				"suggested"
+			],
+			"MIMT/0002",
+		)
 
 
 if __name__ == "__main__":

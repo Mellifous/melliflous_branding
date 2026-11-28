@@ -21,9 +21,12 @@ from melliflous_branding.invoice_admin import (
 	audit_entry,
 	can_generate_einvoice,
 	can_manage_invoices,
+	can_delete_invoices,
 	delete_block,
+	delete_permission_updates,
 	gst_flags_to_clear,
 	rename_block,
+	role_keeps_invoice_delete,
 	seed_admin_names,
 )
 
@@ -35,6 +38,16 @@ def listed_invoice_admins() -> list:
 	if not frappe.db.table_exists(ADMIN_CHILD) or not frappe.db.table_exists(SETTINGS):
 		return []
 	return frappe.get_all(ADMIN_CHILD, filters={"parent": SETTINGS}, pluck="user") or []
+
+
+def _roles(user=None) -> list:
+	user = user or getattr(frappe.session, "user", None)
+	if not user:
+		return []
+	try:
+		return frappe.get_roles(user)
+	except Exception:
+		return []
 
 
 def is_invoice_admin(user=None) -> bool:
@@ -65,6 +78,7 @@ def apply_invoice_boot(bootinfo) -> None:
 	except Exception:
 		frappe.logger("melliflous_branding").exception("Could not read Invoice Admin users")
 	bootinfo.melliflous_invoice_admin = 1 if can_manage_invoices(user, listed) else 0
+	bootinfo.melliflous_can_delete_invoice = 1 if can_delete_invoices(user, listed, roles) else 0
 	bootinfo.melliflous_can_einvoice = 1 if can_generate_einvoice(user, listed, roles) else 0
 	keep_einvoice_manual()
 
@@ -77,6 +91,7 @@ def guard_delete(doc, method=None):
 		listed_invoice_admins(),
 		doc.get("docstatus"),
 		_irn(doc),
+		_roles(),
 	)
 	if message:
 		frappe.throw(_(message), frappe.PermissionError)
@@ -256,17 +271,18 @@ def _restrict_delete(doctype) -> None:
 			copied["parent"] = doctype
 			copied["parenttype"] = "DocType"
 			copied["parentfield"] = "permissions"
-			if cint(copied.get("permlevel")) == 0 and copied.get("role") != ROLE_NAME:
+			if cint(copied.get("permlevel")) == 0 and not role_keeps_invoice_delete(copied.get("role")):
 				copied["delete"] = 0
+			elif cint(copied.get("permlevel")) == 0 and role_keeps_invoice_delete(copied.get("role")):
+				copied["delete"] = 1
 			frappe.get_doc(copied).insert(ignore_permissions=True)
 		custom_rows = frappe.get_all(
 			"Custom DocPerm",
 			filters={"parent": doctype},
 			fields=["name", "role", "permlevel", "delete"],
 		)
-	for row in custom_rows:
-		if cint(row.permlevel) == 0 and row.role != ROLE_NAME and cint(row.delete):
-			frappe.db.set_value("Custom DocPerm", row.name, "delete", 0, update_modified=False)
+	for change in delete_permission_updates(custom_rows):
+		frappe.db.set_value("Custom DocPerm", change["name"], "delete", change["delete"], update_modified=False)
 	if any(row.role == ROLE_NAME and cint(row.permlevel) == 0 for row in custom_rows):
 		return
 	template = frappe.db.get_value(
