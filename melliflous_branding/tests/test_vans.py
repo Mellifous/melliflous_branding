@@ -3,9 +3,12 @@
 
 import unittest
 from datetime import date
+from pathlib import Path
 
 from melliflous_branding.vans import (
 	FORBIDDEN_CODES,
+	assemble_dashboard,
+	plain_row,
 	add_secondary_qty,
 	beat_status,
 	cash_balances,
@@ -163,6 +166,34 @@ class TestVans(unittest.TestCase):
 		columns, data = report_table("Van summary", reports, vans, [], [], date(2026, 11, 3))
 		self.assertIn("V01", rows_to_csv(columns, data))
 
+	def test_dashboard_with_no_reports_for_every_period(self):
+		class Loose(dict):
+			def __getattr__(self, key):
+				return self.get(key)
+
+		van = Loose({"code": "V01", "name": "V01", "status": "Live", "daily_target": 6500, "area": "Motihari"})
+		self.assertTrue(hasattr(van, "as_dict"))
+		self.assertIsNone(van.as_dict)
+		self.assertEqual(plain_row(van)["code"], "V01")
+		for preset in ("Today", "Week", "MTD", "Custom"):
+			start, end = period_bounds(preset, "2026-11-28", "2026-11-01", "2026-11-28")
+			payload = assemble_dashboard([van], [], [], [], [], "2026-11-28", start, end)
+			self.assertEqual(payload["overview"]["sales"], 0)
+			self.assertEqual(payload["overview"]["vans_logged_today"], 0)
+			self.assertEqual(payload["leaderboard"], [])
+			self.assertEqual(payload["reported_vs_invoiced"], [])
+			self.assertEqual(payload["cash"]["balances"], [])
+			self.assertEqual(payload["vans"][0]["code"], "V01")
+		empty = assemble_dashboard([], None, None, None, None, "2026-11-28", "2026-11-28", "2026-11-28")
+		self.assertEqual(empty["overview"]["sales"], 0)
+		self.assertEqual(empty["vans"], [])
+		package = Path(__file__).resolve().parents[1]
+		records = (package / "van_records.py").read_text()
+		self.assertNotIn('hasattr(row, "as_dict")', records)
+		self.assertIn("plain_row", records)
+		self.assertIn("/desk/melliflous-branding/van", (package / "melliflous_branding/page/vans_360/vans_360.js").read_text())
+		self.assertIn("/desk/melliflous-branding/van", (package / "melliflous_branding/page/van/van.js").read_text())
+
 	def test_tile_sits_once_beside_the_existing_apps(self):
 		placed = place_vans_360_app(
 			[{"app_name": "distributor_360", "app_title": "Distributor 360"}],
@@ -175,8 +206,6 @@ class TestVans(unittest.TestCase):
 		self.assertEqual(len(again), 2)
 		hidden = place_vans_360_app(placed, "accounts@example.com", "", ["Accounts User"])
 		self.assertEqual([row["app_title"] for row in hidden], ["Distributor 360"])
-		from pathlib import Path
-
 		package = Path(__file__).resolve().parents[1]
 		script = (package / "melliflous_branding/page/vans_360/vans_360.js").read_text()
 		self.assertIn("vans_dashboard", script)
