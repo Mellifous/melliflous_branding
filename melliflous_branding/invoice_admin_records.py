@@ -29,6 +29,7 @@ from melliflous_branding.invoice_admin import (
 	delete_block,
 	delete_permission_updates,
 	deletion_log_entry,
+	invoice_admin_row_plan,
 	deletion_log_shortcut,
 	gst_flags_to_clear,
 	rename_block,
@@ -41,9 +42,23 @@ ADMIN_CHILD = "Invoice Admin User"
 
 
 def listed_invoice_admins() -> list:
-	if not frappe.db.table_exists(ADMIN_CHILD) or not frappe.db.table_exists(SETTINGS):
+	"""Saved Invoice Admin users, one row each. The Single's own table is not required."""
+	rows = _invoice_admin_rows()
+	plan = invoice_admin_row_plan(rows, [])
+	return plan["keep"]
+
+
+def _invoice_admin_rows() -> list:
+	if not frappe.db.table_exists(ADMIN_CHILD):
 		return []
-	return frappe.get_all(ADMIN_CHILD, filters={"parent": SETTINGS}, pluck="user") or []
+	return frappe.db.sql(
+		f"""select name, user, idx
+		    from `tab{ADMIN_CHILD}`
+		    where parent=%s
+		    order by idx asc, name asc""",
+		SETTINGS,
+		as_dict=True,
+	)
 
 
 def _roles(user=None) -> list:
@@ -135,6 +150,16 @@ def delete_sales_invoices(names, reason=None):
 		_delete_one_sales_invoice(name, reason)
 		deleted.append(name)
 	return {"deleted": deleted}
+
+
+@frappe.whitelist()
+def may_delete_sales_invoice():
+	"""1 when the signed-in user may delete a draft or cancelled Sales Invoice.
+
+	The form asks this on refresh. Boot is not used. The delete itself checks again.
+	"""
+	allowed = can_manage_invoices(getattr(frappe.session, "user", None), listed_invoice_admins())
+	return {"allowed": 1 if allowed else 0}
 
 
 def _delete_one_sales_invoice(name, reason) -> None:
@@ -282,7 +307,7 @@ def ensure_invoice_admin() -> None:
 		if frappe.db.exists("DocType", doctype):
 			_allow_rename(doctype)
 			_restrict_delete(doctype)
-	_seed_users()
+	sync_invoice_admin_list()
 	keep_einvoice_manual()
 	ensure_deletion_log_link()
 
@@ -393,11 +418,47 @@ def _restrict_delete(doctype) -> None:
 	).insert(ignore_permissions=True)
 
 
-def _seed_users() -> None:
-	if not frappe.db.table_exists(ADMIN_CHILD):
+def sync_invoice_admin_list() -> None:
+	"""Drop duplicate and blank Invoice Admin rows, then add akash once.
+
+	Reads the child table directly and writes only the rows that are missing
+	or repeated. A second run finds one Administrator and one akash and saves
+	nothing. Saving the Settings document is avoided, because that save was
+	appending the same two users again.
+	"""
+	if not frappe.db.table_exists(ADMIN_CHILD) or not frappe.db.exists("DocType", SETTINGS):
 		return
+	if not frappe.db.exists(SETTINGS, SETTINGS):
+		return
+	plan = invoice_admin_row_plan(_invoice_admin_rows(), _required_invoice_admins())
+	for name in plan["delete"]:
+		frappe.db.delete(ADMIN_CHILD, {"name": name})
+	if plan["add"]:
+		existing = _invoice_admin_rows()
+		idx = max([int(row.idx or 0) for row in existing] or [0])
+		have = { " ".join(str(row.user or "").split()).casefold() for row in existing if row.user }
+		for user in plan["add"]:
+			if user.casefold() in have:
+				continue
+			if user != "Administrator" and not frappe.db.exists("User", user):
+				continue
+			idx += 1
+			frappe.get_doc(
+				{
+					"doctype": ADMIN_CHILD,
+					"parent": SETTINGS,
+					"parenttype": SETTINGS,
+					"parentfield": "invoice_admin_users",
+					"user": user,
+					"idx": idx,
+				}
+			).insert(ignore_permissions=True)
+			have.add(user.casefold())
+	_sync_roles(set(listed_invoice_admins()))
+
+
+def _required_invoice_admins() -> list:
 	users_by_email = {}
-	roles_by_user = {}
 	if frappe.db.table_exists("User"):
 		rows = frappe.get_all(
 			"User",
@@ -409,32 +470,7 @@ def _seed_users() -> None:
 		)
 		for row in rows:
 			users_by_email[row.email or row.name] = row.name
-			try:
-				roles_by_user[row.name] = frappe.get_roles(row.name)
-			except Exception:
-				roles_by_user[row.name] = []
-	wanted = seed_admin_names("Administrator", users_by_email, roles_by_user)
-	already = {" ".join(str(name or "").split()).casefold() for name in listed_invoice_admins()}
-	if not frappe.db.exists(SETTINGS, SETTINGS):
-		return
-	doc = frappe.get_doc(SETTINGS)
-	changed = False
-	for name in wanted:
-		if name.casefold() in already:
-			continue
-		if name != "Administrator" and not frappe.db.exists("User", name):
-			continue
-		doc.append("invoice_admin_users", {"user": name})
-		already.add(name.casefold())
-		changed = True
-	if changed:
-		doc.flags.ignore_permissions = True
-		frappe.flags.melliflous_settings_sync = True
-		try:
-			doc.save(ignore_permissions=True)
-		finally:
-			frappe.flags.melliflous_settings_sync = False
-	_sync_roles(set(listed_invoice_admins()))
+	return seed_admin_names("Administrator", users_by_email, {})
 
 
 def sync_invoice_admin_roles() -> None:

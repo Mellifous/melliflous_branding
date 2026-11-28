@@ -18,6 +18,7 @@ from melliflous_branding.invoice_admin import (
 	deletion_log_entry,
 	needs_gst_warning,
 	rename_block,
+	invoice_admin_row_plan,
 	role_keeps_invoice_delete,
 	sales_invoice_menu_shows_delete,
 	seed_admin_names,
@@ -94,6 +95,35 @@ class TestInvoiceAdmin(unittest.TestCase):
 		)
 		self.assertEqual(without_roles, ["Administrator", "akash@skgourmetspices.com"])
 		self.assertEqual(seed_admin_names("Administrator", {}, {}), ["Administrator"])
+
+	def test_invoice_admin_rows_are_deduped_and_adding_akash_is_idempotent(self):
+		rows = []
+		for index in range(10):
+			rows.append({"name": f"admin-{index}", "user": "Administrator", "idx": index * 2 + 1})
+			rows.append({"name": f"akash-{index}", "user": SEED_OWNER_EMAIL, "idx": index * 2 + 2})
+		rows.append({"name": "blank", "user": "  ", "idx": 99})
+		required = ["Administrator", SEED_OWNER_EMAIL]
+		plan = invoice_admin_row_plan(rows, required)
+		self.assertEqual(plan["keep"], ["Administrator", SEED_OWNER_EMAIL])
+		self.assertEqual(plan["add"], [])
+		self.assertEqual(len(plan["delete"]), 19)
+		self.assertIn("blank", plan["delete"])
+		self.assertIn("admin-1", plan["delete"])
+		again = invoice_admin_row_plan(
+			[
+				{"name": "admin-0", "user": "Administrator", "idx": 1},
+				{"name": "akash-0", "user": SEED_OWNER_EMAIL, "idx": 2},
+			],
+			required,
+		)
+		self.assertEqual(again["delete"], [])
+		self.assertEqual(again["add"], [])
+		missing = invoice_admin_row_plan(
+			[{"name": "admin-0", "user": "Administrator", "idx": 1}],
+			required,
+		)
+		self.assertEqual(missing["add"], [SEED_OWNER_EMAIL])
+		self.assertEqual(missing["delete"], [])
 
 	def test_akash_roles_show_the_menu_and_the_list_allows_the_delete(self):
 		"""Akash has System Manager, Accounts Manager, and Invoice Admin.
@@ -206,22 +236,24 @@ class TestInvoiceAdmin(unittest.TestCase):
 		self.assertNotIn("api_secret", records)
 		self.assertIn("melliflous_can_delete_invoice", records)
 		self.assertIn("delete_sales_invoices", records)
+		self.assertIn("may_delete_sales_invoice", records)
+		self.assertIn("sync_invoice_admin_list", records)
 		self.assertIn("revoke_sales_invoice_delete", records)
 		self.assertIn("DELETION_LOG_DOCTYPE", records)
 		script = (PACKAGE / "public" / "js" / "invoice_admin.js").read_text()
 		self.assertIn("Reason for deletion", script)
 		self.assertIn("delete_sales_invoices", script)
-		self.assertIn("hideDelete", script)
-		self.assertIn("salesInvoiceMenuDelete", script)
-		self.assertIn('roles.indexOf("Invoice Admin")', script)
-		self.assertIn("can_delete", script)
+		self.assertIn("Delete Invoice", script)
+		self.assertIn("may_delete_sales_invoice", script)
+		self.assertIn('text === "Delete Invoice"', script)
+		self.assertIn('text === "Delete"', script)
 		self.assertNotIn("melliflous_can_delete_invoice", script)
 		listing = (PACKAGE / "public" / "js" / "invoice_admin_list.js").read_text()
 		self.assertIn("Reason for deletion", listing)
-		self.assertIn("melliflous_invoice_admin", listing)
-		self.assertIn("clear_actions_menu", listing)
-		self.assertIn("set_actions_menu_items", listing)
-		self.assertIn('roles.indexOf("Invoice Admin")', listing)
+		self.assertIn("Delete with reason", listing)
+		self.assertIn("may_delete_sales_invoice", listing)
+		self.assertNotIn("can_delete = false", listing)
+		self.assertNotIn("melliflous_invoice_admin", listing)
 		self.assertIn("invoice_admin_list.js", (PACKAGE / "hooks.py").read_text())
 		self.assertIn(
 			"melliflous_branding.patches.v0_14.restrict_sales_invoice_delete",
@@ -229,6 +261,10 @@ class TestInvoiceAdmin(unittest.TestCase):
 		)
 		self.assertIn(
 			"melliflous_branding.patches.v0_15.restore_invoice_admin_delete",
+			(PACKAGE / "patches.txt").read_text(),
+		)
+		self.assertIn(
+			"melliflous_branding.patches.v0_16.dedupe_invoice_admins",
 			(PACKAGE / "patches.txt").read_text(),
 		)
 		log = json.loads(

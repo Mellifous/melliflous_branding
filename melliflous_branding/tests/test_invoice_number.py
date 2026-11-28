@@ -208,7 +208,7 @@ class TestInvoiceNumber(unittest.TestCase):
 		self.assertIn("Sales Invoice-custom_invoice_no", hooks)
 		self.assertIn("melliflous_branding.patches.v0_12.ensure_invoice_numbers", (PACKAGE / "patches.txt").read_text())
 		self.assertIn("ensure_invoice_numbers", (PACKAGE / "install.py").read_text())
-		self.assertEqual((PACKAGE / "__init__.py").read_text().strip(), '__version__ = "0.8.4"')
+		self.assertEqual((PACKAGE / "__init__.py").read_text().strip(), '__version__ = "0.8.5"')
 		self.assertIn("melliflous_branding.patches.v0_13.show_invoice_number", (PACKAGE / "patches.txt").read_text())
 		records = (PACKAGE / "invoice_number_records.py").read_text()
 		self.assertIn("for update", records)
