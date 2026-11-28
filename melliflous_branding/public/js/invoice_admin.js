@@ -76,7 +76,7 @@ function hideInvoiceMenus(manage, sales) {
 	// "Delete with reason" stay. Sales Invoice Delete is the custom button.
 	document.querySelectorAll(".dropdown-menu li, .dropdown-menu .dropdown-item").forEach((item) => {
 		const text = (item.textContent || "").replace(/\s+/g, " ").trim();
-		if (text === "Delete Invoice" || text === "Delete with reason") return;
+		if (text === "Delete Invoice" || text === "Delete Payment" || text === "Delete with reason") return;
 		const hideRename = text === "Rename" && !manage;
 		const hideDelete = text === "Delete" && !sales && !manage;
 		if (hideRename || hideDelete) item.remove();
@@ -93,7 +93,7 @@ function hideEInvoiceButtons(frm) {
 	}
 	document.querySelectorAll(".custom-actions .btn, .inner-group-button .dropdown-item, .page-actions .btn").forEach((node) => {
 		const text = (node.textContent || "").replace(/\s+/g, " ").trim();
-		if (text === "Delete Invoice" || text === "Delete with reason") return;
+		if (text === "Delete Invoice" || text === "Delete Payment" || text === "Delete with reason") return;
 		if (/^Generate e-Invoice$/i.test(text) || /^Generate e-Waybill$/i.test(text) || /^Generate e-Way Bill$/i.test(text)) {
 			const item = node.closest("li") || node;
 			item.remove();
@@ -135,12 +135,13 @@ function askDeletionReason(names, done) {
 				label: __("Reason for deletion"),
 				reqd: 1,
 			},
+			{ fieldname: "server_error", fieldtype: "HTML" },
 		],
 		primary_action_label: __("Delete"),
 		primary_action(values) {
 			const reason = ((values && values.reason) || "").replace(/\s+/g, " ").trim();
 			if (!reason) {
-				frappe.msgprint(__("Enter a reason for deletion."));
+				showDeletionError(dialog, __("Enter a reason for deletion."));
 				return;
 			}
 			dialog.disable_primary_action();
@@ -153,7 +154,10 @@ function askDeletionReason(names, done) {
 					dialog.hide();
 					if (done) done();
 				})
-				.catch(() => dialog.enable_primary_action());
+				.catch((error) => {
+					dialog.enable_primary_action();
+					showDeletionError(dialog, serverErrorText(error));
+				});
 		},
 	});
 	dialog.show();
@@ -194,5 +198,103 @@ function renameInvoiceWithReason(frm, originalRename) {
 	dialog.show();
 }
 
+function showDeletionError(dialog, text) {
+	const message = (text || "").replace(/\s+/g, " ").trim();
+	if (dialog && dialog.fields_dict && dialog.fields_dict.server_error) {
+		const safe = frappe.utils.escape_html(message);
+		dialog.fields_dict.server_error.$wrapper.html(safe ? `<div class="text-danger">${safe}</div>` : "");
+	}
+	if (message) {
+		frappe.hide_msgprint && frappe.msg_dialog && frappe.msg_dialog.hide();
+		frappe.msgprint({ title: __("Could not delete"), message: message, indicator: "red" });
+	}
+}
+
+function serverErrorText(error) {
+	const response = (error && (error.responseJSON || error)) || {};
+	let raw = response._server_messages || response.exc || response.message || "";
+	if (Array.isArray(raw)) raw = raw.map((row) => (typeof row === "string" ? row : JSON.stringify(row))).join("\n");
+	if (typeof raw !== "string") raw = String(raw || "");
+	let text = raw;
+	try {
+		const parsed = JSON.parse(raw);
+		if (Array.isArray(parsed)) {
+			text = parsed
+				.map((row) => {
+					if (typeof row !== "string") return String(row || "");
+					try {
+						const item = JSON.parse(row);
+						return (item && item.message) || row;
+					} catch (parseError) {
+						return row;
+					}
+				})
+				.join("\n");
+		}
+	} catch (parseError) {
+		text = raw;
+	}
+	const holder = document.createElement("div");
+	holder.innerHTML = text;
+	return (holder.textContent || "").replace(/\s+/g, " ").trim() || __("Could not delete this document.");
+}
+
+function melliflousPaymentDelete(frm) {
+	if (!frm.doc || frm.is_new() || cint(frm.doc.docstatus) !== 2) return;
+	const ticket = (frm._delete_payment_ticket || 0) + 1;
+	frm._delete_payment_ticket = ticket;
+	frappe
+		.call({ method: "melliflous_branding.invoice_admin_records.may_delete_sales_invoice" })
+		.then((response) => {
+			if (ticket !== frm._delete_payment_ticket) return;
+			if (!frm.doc || cint(frm.doc.docstatus) !== 2) return;
+			const allowed = response && response.message && cint(response.message.allowed);
+			if (!allowed) return;
+			const button = frm.add_custom_button(__("Delete Payment"), () => {
+				askPaymentDeletionReason(frm.doc.name, () => frappe.set_route("List", "Payment Entry"));
+			});
+			if (button) button.addClass("btn-danger");
+		});
+}
+
+function askPaymentDeletionReason(name, done) {
+	const dialog = new frappe.ui.Dialog({
+		title: __("Delete Payment"),
+		fields: [
+			{
+				fieldname: "reason",
+				fieldtype: "Small Text",
+				label: __("Reason for deletion"),
+				reqd: 1,
+			},
+			{ fieldname: "server_error", fieldtype: "HTML" },
+		],
+		primary_action_label: __("Delete"),
+		primary_action(values) {
+			const reason = ((values && values.reason) || "").replace(/\s+/g, " ").trim();
+			if (!reason) {
+				showDeletionError(dialog, __("Enter a reason for deletion."));
+				return;
+			}
+			dialog.disable_primary_action();
+			frappe
+				.call({
+					method: "melliflous_branding.invoice_admin_records.delete_payment_entries",
+					args: { names: [name], reason },
+				})
+				.then(() => {
+					dialog.hide();
+					if (done) done();
+				})
+				.catch((error) => {
+					dialog.enable_primary_action();
+					showDeletionError(dialog, serverErrorText(error));
+				});
+		},
+	});
+	dialog.show();
+}
+
 frappe.ui.form.on("Sales Invoice", { refresh: melliflousInvoiceAdmin });
 frappe.ui.form.on("Purchase Invoice", { refresh: melliflousInvoiceAdmin });
+frappe.ui.form.on("Payment Entry", { refresh: melliflousPaymentDelete });
