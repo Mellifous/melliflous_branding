@@ -391,6 +391,7 @@ body .msg-box.no-result {
 	color: #1c1917;
 }
 .melliflous-shortcut.tone-maroon { background: linear-gradient(145deg, #be123c, #4c0519); }
+.melliflous-shortcut.tone-van { background: linear-gradient(145deg, #334155, #0f172a); }
 
 .melliflous-shortcut.tone-amber .melliflous-shortcut-icon {
 	background: rgba(28, 25, 23, 0.1);
@@ -409,7 +410,7 @@ body .msg-box.no-result {
 
 @media (min-width: 1100px) {
 	.melliflous-shortcuts {
-		grid-template-columns: repeat(6, minmax(0, 1fr));
+		grid-template-columns: repeat(7, minmax(0, 1fr));
 	}
 }
 

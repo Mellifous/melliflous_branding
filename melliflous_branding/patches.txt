@@ -24,3 +24,4 @@ melliflous_branding.patches.v0_14.restrict_sales_invoice_delete
 melliflous_branding.patches.v0_15.restore_invoice_admin_delete
 melliflous_branding.patches.v0_16.dedupe_invoice_admins
 melliflous_branding.patches.v0_17.ensure_vans
+melliflous_branding.patches.v0_18.ensure_priti_price_lists
