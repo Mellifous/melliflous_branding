@@ -21,3 +21,4 @@ melliflous_branding.patches.v0_12.ensure_hsn_catalog
 melliflous_branding.patches.v0_12.ensure_recipes
 melliflous_branding.patches.v0_13.show_invoice_number
 melliflous_branding.patches.v0_14.restrict_sales_invoice_delete
+melliflous_branding.patches.v0_15.restore_invoice_admin_delete

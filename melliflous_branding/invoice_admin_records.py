@@ -288,10 +288,11 @@ def ensure_invoice_admin() -> None:
 
 
 def revoke_sales_invoice_delete() -> None:
-	"""Turn level-0 Delete off on Sales Invoice, including a tick set by hand.
+	"""Level-0 Delete on Sales Invoice stays on only for the Invoice Admin role.
 
-	Accounts Manager was ticked on the site. System Manager and Invoice Admin
-	are cleared too, so a role alone cannot delete.
+	Accounts Manager was ticked by hand and is turned off. System Manager is
+	turned off too. Invoice Admin is turned on, so Frappe puts Sales Invoice
+	in that user's can_delete list and draws the standard Delete item.
 	"""
 	if not frappe.db.exists("DocType", "Sales Invoice"):
 		return
@@ -379,7 +380,7 @@ def _restrict_delete(doctype) -> None:
 			"read": 1,
 			"write": 1,
 			"create": cint(template.get("create", 1)),
-			"delete": 0 if doctype == "Sales Invoice" else 1,
+			"delete": 1 if role_keeps_invoice_delete(ROLE_NAME, doctype) else 0,
 			"submit": cint(template.get("submit", 1)),
 			"cancel": cint(template.get("cancel", 1)),
 			"amend": cint(template.get("amend", 1)),
@@ -398,9 +399,20 @@ def _seed_users() -> None:
 	users_by_email = {}
 	roles_by_user = {}
 	if frappe.db.table_exists("User"):
-		for row in frappe.get_all("User", filters={"email": SEED_OWNER_EMAIL}, fields=["name", "email"]):
-			users_by_email[row.email] = row.name
-			roles_by_user[row.name] = frappe.get_roles(row.name)
+		rows = frappe.get_all(
+			"User",
+			or_filters=[
+				["email", "=", SEED_OWNER_EMAIL],
+				["name", "=", SEED_OWNER_EMAIL],
+			],
+			fields=["name", "email"],
+		)
+		for row in rows:
+			users_by_email[row.email or row.name] = row.name
+			try:
+				roles_by_user[row.name] = frappe.get_roles(row.name)
+			except Exception:
+				roles_by_user[row.name] = []
 	wanted = seed_admin_names("Administrator", users_by_email, roles_by_user)
 	already = {" ".join(str(name or "").split()).casefold() for name in listed_invoice_admins()}
 	if not frappe.db.exists(SETTINGS, SETTINGS):

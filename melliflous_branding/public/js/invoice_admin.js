@@ -3,25 +3,39 @@
 const GST_DELETE_WARNING =
 	"Deleting a submitted or cancelled invoice can break the GST invoice series, GSTR-1, and any e-invoice or e-way bill. Continue only if GST has been handled.";
 
+function salesInvoiceMenuDelete() {
+	const boot = (window.frappe && frappe.boot) || {};
+	const roles = (window.frappe && frappe.user_roles) || [];
+	const deletable = (boot.user && boot.user.can_delete) || [];
+	// The standard ⋯ item exists only when Sales Invoice is in can_delete.
+	// That list is filled from the Invoice Admin role's Delete tick. The
+	// settings list shows the item as well. Accounts Manager and System
+	// Manager do not.
+	return !!(
+		boot.melliflous_invoice_admin ||
+		roles.indexOf("Invoice Admin") !== -1 ||
+		deletable.indexOf("Sales Invoice") !== -1
+	);
+}
+
 function melliflousInvoiceAdmin(frm) {
 	const boot = window.frappe && frappe.boot;
 	const manage = !!(boot && boot.melliflous_invoice_admin);
-	// Delete follows the Invoice Admin list, not a role. Accounts Manager and
-	// System Manager do not see Delete unless they are on that list.
-	const canDelete = manage;
 	const einvoice = !!(boot && boot.melliflous_can_einvoice);
 	const sales = frm.doc && frm.doc.doctype === "Sales Invoice";
+	const canDelete = sales ? salesInvoiceMenuDelete() : manage;
 	if (!canDelete && frm.perm && frm.perm[0]) {
 		frm.perm[0].delete = 0;
 	}
 	setTimeout(() => {
 		hideInvoiceMenus(manage, canDelete);
 		if (!einvoice) hideEInvoiceButtons(frm);
-		if (sales && canDelete && cint(frm.doc.docstatus) !== 1) {
-			const already = frm.perm && frm.perm[0] && frm.perm[0].delete;
-			if (!already && frm.page && frm.page.add_menu_item) {
-				frm.page.add_menu_item(__("Delete"), () => confirmInvoiceDelete(frm), true);
-			}
+		// Frappe draws Delete from boot.user.can_delete before this script runs.
+		// If that list is still empty, add the item here. A second "Delete"
+		// with the same label is ignored, and the click calls frm.savetrash,
+		// which this script wraps so a reason is required.
+		if (sales && canDelete && cint(frm.doc.docstatus) !== 1 && frm.page && frm.page.add_menu_item) {
+			frm.page.add_menu_item(__("Delete"), () => confirmInvoiceDelete(frm), true);
 		}
 	}, 0);
 	if (!frm._melliflous_invoice_wrapped && (manage || canDelete)) {

@@ -18,6 +18,8 @@ from melliflous_branding.invoice_admin import (
 	deletion_log_entry,
 	needs_gst_warning,
 	rename_block,
+	role_keeps_invoice_delete,
+	sales_invoice_menu_shows_delete,
 	seed_admin_names,
 	with_deletion_log_shortcut,
 )
@@ -76,20 +78,76 @@ class TestInvoiceAdmin(unittest.TestCase):
 		self.assertTrue(needs_gst_warning(2))
 		self.assertFalse(needs_gst_warning(0))
 
-	def test_the_owner_email_is_only_seeded_for_a_system_manager(self):
+	def test_the_owner_is_seeded_when_the_user_exists(self):
+		roles = ["System Manager", "Accounts Manager", "Invoice Admin"]
 		seeded = seed_admin_names(
 			"Administrator",
 			{SEED_OWNER_EMAIL: "akash@skgourmetspices.com"},
-			{"akash@skgourmetspices.com": ["System Manager", "Sales User"]},
+			{"akash@skgourmetspices.com": roles},
 		)
 		self.assertEqual(seeded, ["Administrator", "akash@skgourmetspices.com"])
-		not_manager = seed_admin_names(
+		# A migrate that cannot see System Manager still puts the User on the list.
+		without_roles = seed_admin_names(
 			"Administrator",
 			{SEED_OWNER_EMAIL: "akash@skgourmetspices.com"},
-			{"akash@skgourmetspices.com": ["Accounts User"]},
+			{},
 		)
-		self.assertEqual(not_manager, ["Administrator"])
+		self.assertEqual(without_roles, ["Administrator", "akash@skgourmetspices.com"])
 		self.assertEqual(seed_admin_names("Administrator", {}, {}), ["Administrator"])
+
+	def test_akash_roles_show_the_menu_and_the_list_allows_the_delete(self):
+		"""Akash has System Manager, Accounts Manager, and Invoice Admin.
+
+		The menu is drawn from the Invoice Admin role. The server still refuses
+		him until his user name is on the Invoice Admin list, and a cancelled
+		invoice still needs a reason.
+		"""
+		roles = ["System Manager", "Accounts Manager", "Invoice Admin", "Sales User"]
+		self.assertTrue(sales_invoice_menu_shows_delete(SEED_OWNER_EMAIL, [], roles, []))
+		self.assertFalse(can_delete_invoices(SEED_OWNER_EMAIL, [], roles))
+		self.assertEqual(
+			delete_block(SEED_OWNER_EMAIL, [], 2, "", roles, reason="Wrong bill", require_reason=True),
+			"Only an Invoice Admin can rename or delete invoices.",
+		)
+		self.assertTrue(sales_invoice_menu_shows_delete(SEED_OWNER_EMAIL, [SEED_OWNER_EMAIL], roles, []))
+		self.assertIsNone(
+			delete_block(
+				SEED_OWNER_EMAIL,
+				[SEED_OWNER_EMAIL],
+				2,
+				"",
+				roles,
+				reason="Wrong bill",
+				require_reason=True,
+			)
+		)
+		self.assertFalse(
+			sales_invoice_menu_shows_delete(
+				"accounts@example.com",
+				[],
+				["System Manager", "Accounts Manager"],
+				[],
+			)
+		)
+		self.assertTrue(role_keeps_invoice_delete("Invoice Admin", "Sales Invoice"))
+		self.assertFalse(role_keeps_invoice_delete("Accounts Manager", "Sales Invoice"))
+		self.assertFalse(role_keeps_invoice_delete("System Manager", "Sales Invoice"))
+		updates = delete_permission_updates(
+			[
+				{"name": "perm-admin", "role": "Invoice Admin", "permlevel": 0, "delete": 0},
+				{"name": "perm-accounts", "role": "Accounts Manager", "permlevel": 0, "delete": 1},
+				{"name": "perm-system", "role": "System Manager", "permlevel": 0, "delete": 1},
+			],
+			"Sales Invoice",
+		)
+		self.assertEqual(
+			updates,
+			[
+				{"name": "perm-admin", "delete": 1},
+				{"name": "perm-accounts", "delete": 0},
+				{"name": "perm-system", "delete": 0},
+			],
+		)
 
 	def test_auto_einvoice_flags_are_cleared_and_features_stay(self):
 		columns = [
@@ -154,13 +212,23 @@ class TestInvoiceAdmin(unittest.TestCase):
 		self.assertIn("Reason for deletion", script)
 		self.assertIn("delete_sales_invoices", script)
 		self.assertIn("hideDelete", script)
+		self.assertIn("salesInvoiceMenuDelete", script)
+		self.assertIn('roles.indexOf("Invoice Admin")', script)
+		self.assertIn("can_delete", script)
 		self.assertNotIn("melliflous_can_delete_invoice", script)
 		listing = (PACKAGE / "public" / "js" / "invoice_admin_list.js").read_text()
 		self.assertIn("Reason for deletion", listing)
 		self.assertIn("melliflous_invoice_admin", listing)
+		self.assertIn("clear_actions_menu", listing)
+		self.assertIn("set_actions_menu_items", listing)
+		self.assertIn('roles.indexOf("Invoice Admin")', listing)
 		self.assertIn("invoice_admin_list.js", (PACKAGE / "hooks.py").read_text())
 		self.assertIn(
 			"melliflous_branding.patches.v0_14.restrict_sales_invoice_delete",
+			(PACKAGE / "patches.txt").read_text(),
+		)
+		self.assertIn(
+			"melliflous_branding.patches.v0_15.restore_invoice_admin_delete",
 			(PACKAGE / "patches.txt").read_text(),
 		)
 		log = json.loads(
@@ -185,7 +253,6 @@ class TestInvoiceAdmin(unittest.TestCase):
 		self.assertEqual(
 			turned_off,
 			[
-				{"name": "perm-admin", "delete": 0},
 				{"name": "perm-accounts", "delete": 0},
 				{"name": "perm-system", "delete": 0},
 				{"name": "perm-sales", "delete": 0},
