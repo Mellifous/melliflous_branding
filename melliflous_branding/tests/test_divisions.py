@@ -53,7 +53,7 @@ class TestDivisions(unittest.TestCase):
 		self.assertIn("melliflous-division-switch", script)
 		self.assertIn("desk_divisions", script)
 		self.assertIn("melliflous-context-style", script)
-		self.assertIn("20261127e", (PACKAGE / "hooks.py").read_text())
+		self.assertIn("20261128a", (PACKAGE / "hooks.py").read_text())
 		self.assertIn("melliflous-context-chip", script)
 		self.assertIn("melliflous-context-sheet", script)
 		self.assertIn("is-compact", script)

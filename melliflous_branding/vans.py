@@ -127,7 +127,7 @@ def vans_360_boot_app() -> dict:
 		"app_title": "Vans 360",
 		"app_route": "/desk/vans-360",
 		"desk_route": "",
-		"app_logo_url": "/assets/melliflous_branding/images/melliflous_icon_512.png",
+		"app_logo_url": "/assets/melliflous_branding/images/vans_360.png",
 		"dock": [],
 	}
 

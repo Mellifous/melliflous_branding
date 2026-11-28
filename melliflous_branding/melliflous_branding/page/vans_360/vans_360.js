@@ -1,5 +1,6 @@
 frappe.pages["vans-360"].on_page_load = function (wrapper) {
 	const page = frappe.ui.make_app_page({ parent: wrapper, title: __("Vans 360"), single_column: true });
+	placeVanMark(wrapper);
 	const boot = (frappe.boot && frappe.boot.melliflous_branding) || {};
 	page.company = page.add_field({
 		fieldname: "company",
@@ -77,6 +78,32 @@ frappe.pages["vans-360"].on_page_load = function (wrapper) {
 
 	load();
 };
+
+function placeVanMark(wrapper) {
+	const title = wrapper.querySelector(".page-title .title-text, .title-text");
+	if (!title || title.querySelector(".vans-360-mark")) return;
+	const mark = document.createElement("span");
+	mark.className = "vans-360-mark";
+	mark.setAttribute("aria-hidden", "true");
+	mark.style.cssText = "display:inline-flex;width:28px;height:28px;margin-right:8px;vertical-align:middle;color:#c8102e";
+	const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+	svg.setAttribute("viewBox", "0 0 24 24");
+	svg.setAttribute("width", "28");
+	svg.setAttribute("height", "28");
+	svg.setAttribute("fill", "none");
+	svg.setAttribute("stroke", "currentColor");
+	svg.setAttribute("stroke-width", "1.8");
+	svg.setAttribute("stroke-linecap", "round");
+	svg.setAttribute("stroke-linejoin", "round");
+	const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+	path.setAttribute(
+		"d",
+		"M3 7h11v8H3V7zm11 2h4l3 3v3h-7V9zM6 18a2 2 0 1 0 .01-4A2 2 0 0 0 6 18zm11 0a2 2 0 1 0 .01-4A2 2 0 0 0 17 18z"
+	);
+	svg.appendChild(path);
+	mark.appendChild(svg);
+	title.prepend(mark);
+}
 
 function render(host, data) {
 	const overview = data.overview || {};

@@ -1,6 +1,7 @@
 # Copyright (c) 2026, Melliflous and contributors
 # License: MIT. See license.txt
 
+import json
 import unittest
 from datetime import date
 from pathlib import Path
@@ -20,6 +21,7 @@ from melliflous_branding.vans import (
 	parse_fa_csv,
 	period_bounds,
 	place_vans_360_app,
+	vans_360_boot_app,
 	report_figures,
 	report_name,
 	report_table,
@@ -214,7 +216,15 @@ class TestVans(unittest.TestCase):
 		self.assertIn("custom_van", (package / "van_records.py").read_text())
 		self.assertIn("v0_17.ensure_vans", (package / "patches.txt").read_text())
 		self.assertIn("place_vans_boot", (package / "boot.py").read_text())
-		self.assertIn("Vans 360", (package / "public/js/desk_theme.js").read_text())
+		self.assertEqual(vans_360_boot_app()["app_logo_url"], "/assets/melliflous_branding/images/vans_360.png")
+		self.assertTrue((package / "public/images/vans_360.png").is_file())
+		theme = (package / "public/js/desk_theme.js").read_text()
+		self.assertEqual(theme.count('{ label: "Vans 360"'), 1)
+		self.assertIn('href: "/desk/vans-360"', theme)
+		self.assertNotIn('label: "Vans"', theme)
+		self.assertIn("tone-van", (package / "public/css/desk_theme.css").read_text())
+		self.assertIn("placeVanMark", (package / "melliflous_branding/page/vans_360/vans_360.js").read_text())
+		self.assertEqual(json.loads((package / "melliflous_branding/page/vans_360/vans_360.json").read_text())["icon"], "truck")
 
 
 if __name__ == "__main__":
