@@ -85,6 +85,7 @@ ESSENTIAL_SHORTCUTS: dict[str, tuple[str, ...]] = {
 		"Payment Received",
 		"Customer",
 		"Distributor 360",
+		"Vans 360",
 	),
 	"Stock": ("Item", "Stock Entry", "Stock Balance", "Delivery Note"),
 	"Buying": ("Supplier", "Purchase Order", "Purchase Invoice"),

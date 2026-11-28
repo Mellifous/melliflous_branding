@@ -111,6 +111,7 @@
 			"Payment Received",
 			"Customer",
 			"Distributor 360",
+			"Vans 360",
 		],
 		Stock: ["Item", "Stock Entry", "Stock Balance", "Delivery Note"],
 		Buying: ["Supplier", "Purchase Order", "Purchase Invoice"],
@@ -434,6 +435,7 @@
 			},
 		},
 		{ label: "Distributor 360", tone: "tone-maroon", href: "/desk/distributor-360" },
+		{ label: "Vans 360", tone: "tone-van", href: "/desk/vans-360" },
 	];
 
 	const SHORTCUT_ICONS = {
@@ -443,6 +445,7 @@
 		"tone-teal": "M6 6h15l-1.5 9h-12L6 6zM6 6 5 3H2M9 20a1 1 0 1 0 .01-2A1 1 0 0 0 9 20zm8 0a1 1 0 1 0 .01-2A1 1 0 0 0 17 20z",
 		"tone-amber": "M4 8h16v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8zM6 5h12v3H6V5zm3 8h6",
 		"tone-maroon": "M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zM5 20a7 7 0 0 1 14 0",
+		"tone-van": "M3 7h11v8H3V7zm11 2h4l3 3v3h-7V9zM6 18a2 2 0 1 0 .01-4A2 2 0 0 0 6 18zm11 0a2 2 0 1 0 .01-4A2 2 0 0 0 17 18z",
 	};
 
 	function shortcutIcon(tone) {

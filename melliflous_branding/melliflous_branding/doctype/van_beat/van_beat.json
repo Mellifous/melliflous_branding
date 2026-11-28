@@ -1,0 +1,32 @@
+{
+ "actions": [],
+ "autoname": "field:beat_name",
+ "creation": "2026-11-28 04:40:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": ["beat_name", "van", "area", "planned_counters", "every_n_days", "active", "company", "division"],
+ "fields": [
+  {"fieldname": "beat_name", "fieldtype": "Data", "label": "Beat", "reqd": 1, "unique": 1, "in_list_view": 1},
+  {"fieldname": "van", "fieldtype": "Link", "label": "Van", "options": "Van", "search_index": 1, "in_list_view": 1},
+  {"fieldname": "area", "fieldtype": "Data", "label": "Area", "in_list_view": 1},
+  {"fieldname": "planned_counters", "fieldtype": "Int", "label": "Planned counters"},
+  {"fieldname": "every_n_days", "fieldtype": "Int", "label": "Visit every N days", "default": "7"},
+  {"fieldname": "active", "fieldtype": "Check", "label": "Active", "default": "1"},
+  {"fieldname": "company", "fieldtype": "Link", "label": "Company", "options": "Company", "search_index": 1},
+  {"fieldname": "division", "fieldtype": "Link", "label": "Division", "options": "Division", "search_index": 1}
+ ],
+ "links": [],
+ "modified": "2026-11-28 04:40:00.000000",
+ "module": "Melliflous Branding",
+ "name": "Van Beat",
+ "naming_rule": "By fieldname",
+ "permissions": [
+  {"role": "Van Manager", "read": 1, "write": 1, "create": 1, "delete": 1, "report": 1, "export": 1, "print": 1},
+  {"role": "Van Editor", "read": 1, "write": 1, "create": 1, "delete": 0, "report": 1, "export": 1, "print": 1},
+  {"role": "Van Reader", "read": 1, "report": 1, "export": 1, "print": 1},
+  {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 0, "report": 1, "export": 1},
+  {"role": "Sales User", "read": 1, "write": 1, "create": 1, "delete": 0, "report": 1}
+ ],
+ "sort_field": "beat_name",
+ "sort_order": "ASC"
+}

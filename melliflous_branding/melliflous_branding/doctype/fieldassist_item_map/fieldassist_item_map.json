@@ -1,0 +1,28 @@
+{
+ "actions": [],
+ "autoname": "field:fa_sku",
+ "creation": "2026-11-28 04:40:00.000000",
+ "description": "Remembers which FieldAssist SKU is which Item. The upload uses this and does not guess.",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": ["fa_sku", "item", "item_name"],
+ "fields": [
+  {"fieldname": "fa_sku", "fieldtype": "Data", "label": "FieldAssist SKU", "reqd": 1, "unique": 1, "in_list_view": 1, "search_index": 1},
+  {"fieldname": "item", "fieldtype": "Link", "label": "Item", "options": "Item", "reqd": 1, "in_list_view": 1},
+  {"fetch_from": "item.item_name", "fieldname": "item_name", "fieldtype": "Data", "label": "Item Name", "read_only": 1, "in_list_view": 1}
+ ],
+ "links": [],
+ "modified": "2026-11-28 04:40:00.000000",
+ "module": "Melliflous Branding",
+ "name": "FieldAssist Item Map",
+ "naming_rule": "By fieldname",
+ "permissions": [
+  {"role": "Van Manager", "read": 1, "write": 1, "create": 1, "delete": 1, "report": 1, "export": 1},
+  {"role": "Van Editor", "read": 1, "write": 1, "create": 1, "delete": 0, "report": 1, "export": 1},
+  {"role": "Van Reader", "read": 1, "report": 1, "export": 1},
+  {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 0, "report": 1, "export": 1},
+  {"role": "Sales User", "read": 1, "write": 1, "create": 1, "delete": 0, "report": 1}
+ ],
+ "sort_field": "fa_sku",
+ "sort_order": "ASC"
+}
