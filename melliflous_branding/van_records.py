@@ -305,7 +305,7 @@ def vans_dashboard(company=None, division=None, preset="MTD", start=None, end=No
 	reports = _reports(codes, start_d, end_d) if codes else []
 	invoices = _invoices(codes, start_d, end_d) if codes else []
 	beats = _beats(codes) if codes else []
-	transfers = _transfers(company, division)
+	transfers = _transfers(company, division, start_d, end_d)
 	payload = assemble_dashboard(vans, reports, invoices, beats, transfers, day, start_d, end_d)
 	payload["stock"] = _stock(vans)
 	return payload
@@ -393,7 +393,7 @@ def _beats(vans):
 	)
 
 
-def _transfers(company, division):
+def _transfers(company, division, start=None, end=None):
 	if not frappe.db.table_exists("Cash Transfer"):
 		return []
 	filters = {}
@@ -401,6 +401,8 @@ def _transfers(company, division):
 		filters["company"] = company
 	if division:
 		filters["division"] = division
+	if start and end:
+		filters["posting_date"] = ["between", [_iso(start), _iso(end)]]
 	return frappe.get_all(
 		"Cash Transfer",
 		filters=filters,
@@ -507,7 +509,7 @@ def van_report_download(kind="Detailed sales", company=None, division=None, pres
 			fields=["item", "qty", "rate", "amount"],
 		)
 	beats = _beats(codes)
-	transfers = _transfers(company, division)
+	transfers = _transfers(company, division, start_d, end_d)
 	columns, data = report_table(kind, reports, vans, beats, transfers, today())
 	if (file_format or "").lower() == "html":
 		return {"filename": "vans.html", "body": rows_to_html(kind, columns, data)}

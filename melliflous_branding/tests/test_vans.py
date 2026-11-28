@@ -142,6 +142,12 @@ class TestVans(unittest.TestCase):
 		start, end = period_bounds("Custom", date(2026, 11, 3), "2026-11-01", "2026-11-03")
 		overview = fleet_overview(vans, reports, date(2026, 11, 3), start, end)
 		self.assertEqual(overview["sales"], 1000)
+		self.assertEqual(overview["target"], 6500 * 3)
+		self.assertEqual(overview["vans_worked"], 1)
+		week = fleet_overview(vans[:1], [], date(2026, 11, 27), date(2026, 11, 23), date(2026, 11, 29))
+		self.assertEqual(week["target"], 6500 * 7)
+		month = fleet_overview(vans[:1], [], date(2026, 11, 27), date(2026, 11, 1), date(2026, 11, 30))
+		self.assertEqual(month["target"], 6500 * 30)
 		self.assertEqual(overview["new_outlets"], 1)
 		self.assertEqual(overview["vans_logged_today"], 0)
 		kinds = {row["kind"] for row in exceptions(vans, reports, start, end)}

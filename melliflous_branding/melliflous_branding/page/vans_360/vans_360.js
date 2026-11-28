@@ -1,4 +1,5 @@
 // Vans 360. The numbers still come from vans_dashboard. This file only draws them.
+frappe.pages["vans-360"] = frappe.pages["vans-360"] || {};
 frappe.pages["vans-360"].on_page_load = function (wrapper) {
 	const page = frappe.ui.make_app_page({ parent: wrapper, title: __("Vans 360"), single_column: true });
 	wrapper.classList.add("vans-360-page");
@@ -8,7 +9,8 @@ frappe.pages["vans-360"].on_page_load = function (wrapper) {
 	const state = {
 		company: boot.company || "",
 		division: boot.division || "",
-		preset: "MTD",
+		kind: "month",
+		anchor: todayISO(),
 	};
 	const root = document.createElement("div");
 	root.className = "vans-360";
@@ -30,6 +32,20 @@ frappe.pages["vans-360"].on_page_load = function (wrapper) {
 		"</div></div>" +
 		'<div class="vans-filter-panel" hidden>' +
 		'<div class="vans-company"></div><div class="vans-division"></div>' +
+		"</div>" +
+		'<div class="vans-range">' +
+		'<div class="vans-kind" role="group" aria-label="' + esc(__("Range")) + '">' +
+		'<button type="button" data-kind="day">Day</button>' +
+		'<button type="button" data-kind="week">Week</button>' +
+		'<button type="button" data-kind="month" class="is-on">Month</button>' +
+		"</div>" +
+		'<div class="vans-picker">' +
+		'<button type="button" class="vans-step" data-step="-1" aria-label="' + esc(__("Previous")) + '">‹</button>' +
+		'<input class="vans-date" type="date" aria-label="' + esc(__("Date")) + '">' +
+		'<input class="vans-month" type="month" aria-label="' + esc(__("Month")) + '" hidden>' +
+		'<button type="button" class="vans-step" data-step="1" aria-label="' + esc(__("Next")) + '">›</button>' +
+		"</div>" +
+		'<p class="vans-range-label"></p>' +
 		"</div>" +
 		'<div class="vans-results"></div>';
 
@@ -88,11 +104,29 @@ frappe.pages["vans-360"].on_page_load = function (wrapper) {
 		}
 		const preset = event.target.closest("[data-preset]");
 		if (preset && root.contains(preset)) {
-			state.preset = preset.dataset.preset;
-			root.querySelectorAll("[data-preset]").forEach((button) => {
-				button.classList.toggle("is-on", button === preset);
-			});
+			state.anchor = todayISO();
+			state.kind = preset.dataset.preset === "Today" ? "day" : preset.dataset.preset === "Week" ? "week" : "month";
+			syncPicker();
 			load();
+			return;
+		}
+		const kind = event.target.closest("[data-kind]");
+		if (kind && root.contains(kind)) {
+			state.kind = kind.dataset.kind;
+			syncPicker();
+			load();
+			return;
+		}
+		const step = event.target.closest("[data-step]");
+		if (step && root.contains(step)) {
+			state.anchor = shiftAnchor(state.anchor, state.kind, Number(step.dataset.step));
+			syncPicker();
+			load();
+			return;
+		}
+		const drill = event.target.closest("[data-list], [data-doc]");
+		if (drill && root.contains(drill)) {
+			openDrill(drill);
 			return;
 		}
 		const filters = event.target.closest(".vans-filter-toggle");
@@ -111,17 +145,37 @@ frappe.pages["vans-360"].on_page_load = function (wrapper) {
 		toggle.setAttribute("aria-expanded", open ? "true" : "false");
 	});
 
+	const dateInput = root.querySelector(".vans-date");
+	const monthInput = root.querySelector(".vans-month");
+	dateInput.addEventListener("change", () => {
+		if (!dateInput.value) return;
+		state.anchor = dateInput.value;
+		syncPicker();
+		load();
+	});
+	monthInput.addEventListener("change", () => {
+		if (!monthInput.value) return;
+		state.anchor = monthInput.value + "-01";
+		syncPicker();
+		load();
+	});
+
 	function load() {
+		const bounds = boundsFor(state.kind, state.anchor);
+		state.start = bounds.start;
+		state.end = bounds.end;
 		results.innerHTML = '<p class="vans-empty">' + esc(__("Loading…")) + "</p>";
 		frappe.call({
 			method: "melliflous_branding.van_records.vans_dashboard",
 			args: {
 				company: state.company,
 				division: state.division,
-				preset: state.preset,
+				preset: "Custom",
+				start: state.start,
+				end: state.end,
 			},
 			callback(response) {
-				draw(results, (response && response.message) || {});
+				draw(results, (response && response.message) || {}, state);
 			},
 			error() {
 				results.innerHTML = '<p class="vans-empty">' + esc(__("Could not load Vans 360.")) + "</p>";
@@ -136,7 +190,9 @@ frappe.pages["vans-360"].on_page_load = function (wrapper) {
 				kind: "Detailed sales",
 				company: state.company,
 				division: state.division,
-				preset: state.preset,
+				preset: "Custom",
+				start: state.start,
+				end: state.end,
 				file_format: fileFormat,
 			},
 			callback(response) {
@@ -155,6 +211,32 @@ frappe.pages["vans-360"].on_page_load = function (wrapper) {
 		});
 	}
 
+	function syncPicker() {
+		const today = todayISO();
+		const bounds = boundsFor(state.kind, state.anchor);
+		state.start = bounds.start;
+		state.end = bounds.end;
+		root.querySelectorAll("[data-kind]").forEach((button) => {
+			button.classList.toggle("is-on", button.dataset.kind === state.kind);
+		});
+		root.querySelectorAll("[data-preset]").forEach((button) => {
+			const preset = button.dataset.preset;
+			const on =
+				preset === "Today"
+					? state.kind === "day" && state.anchor === today
+					: preset === "Week"
+						? state.kind === "week" && bounds.start <= today && today <= bounds.end
+						: state.kind === "month" && state.anchor.slice(0, 7) === today.slice(0, 7);
+			button.classList.toggle("is-on", on);
+		});
+		dateInput.hidden = state.kind === "month";
+		monthInput.hidden = state.kind !== "month";
+		dateInput.value = state.anchor;
+		monthInput.value = state.anchor.slice(0, 7);
+		root.querySelector(".vans-range-label").textContent = rangeLabel(state.kind, bounds.start, bounds.end);
+	}
+
+	syncPicker();
 	load();
 };
 
@@ -176,12 +258,13 @@ function placeVanMark(wrapper) {
 	title.prepend(mark);
 }
 
-function draw(host, data) {
+function draw(host, data, scope) {
 	const overview = data.overview || {};
 	const vans = data.vans || [];
 	const live = vans.filter((row) => String(row.status || "") === "Live");
 	const fleet = (live.length || vans.length || 0);
-	const out = Number(overview.vans_logged_today) || 0;
+	const out = Number(overview.vans_worked != null ? overview.vans_worked : overview.vans_logged_today) || 0;
+	const span = scope || {};
 	const percent = Number(overview.percent) || 0;
 	const missed = Number(overview.missed_van_days) || 0;
 	const mismatches = Number(overview.mismatches) || 0;
@@ -189,63 +272,65 @@ function draw(host, data) {
 	const outlets = Number(overview.new_outlets) || 0;
 	const salesTone = !overview.target ? "" : percent >= 100 ? "is-good" : "is-warn";
 	const cards = [
-		kpi("Daily Run Rate", overview.run_rate == null ? "—" : rupee(overview.run_rate, true), "M4 16a8 8 0 0 1 16 0", ""),
-		kpi("Vans Out Today", fleet ? out + " of " + fleet : String(out), "M3 7h11v8H3V7zm11 2h4l3 3v3h-7V9z", out && fleet && out >= fleet ? "is-good" : ""),
-		kpi("Strike Rate", pct(strike), "M5 13l4 4 10-10", strike >= 60 ? "is-good" : strike ? "is-warn" : ""),
-		kpi("Missed Van Days", String(missed), "M8 4v3M16 4v3M5 9h14v10H5zM9 13l6 4", missed > 0 ? "is-bad" : "is-good"),
-		kpi("Mismatches", String(mismatches), "M12 4l8 14H4zM12 10v4M12 16h.01", mismatches > 0 ? "is-bad" : "is-good"),
-		kpi("New Outlets", String(outlets), "M12 8v8M8 12h8", outlets > 0 ? "is-good" : ""),
+		kpi("Daily Run Rate", overview.run_rate == null ? "—" : rupee(overview.run_rate, true), "M4 16a8 8 0 0 1 16 0", "", listAttrs(span, "Van Daily Report", "date")),
+		kpi("Vans Out", fleet ? out + " of " + fleet : String(out), "M3 7h11v8H3V7zm11 2h4l3 3v3h-7V9z", out && fleet && out >= fleet ? "is-good" : "", listAttrs(span, "Van Daily Report", "date") + ' data-worked-flag="1"'),
+		kpi("Strike Rate", pct(strike), "M5 13l4 4 10-10", strike >= 60 ? "is-good" : strike ? "is-warn" : "", listAttrs(span, "Van Daily Report", "date")),
+		kpi("Missed Van Days", String(missed), "M8 4v3M16 4v3M5 9h14v10H5zM9 13l6 4", missed > 0 ? "is-bad" : "is-good", listAttrs(span, "Van Daily Report", "date")),
+		kpi("Mismatches", String(mismatches), "M12 4l8 14H4zM12 10v4M12 16h.01", mismatches > 0 ? "is-bad" : "is-good", listAttrs(span, "Van Daily Report", "date") + ' data-mismatch="1"'),
+		kpi("New Outlets", String(outlets), "M12 8v8M8 12h8", outlets > 0 ? "is-good" : "", listAttrs(span, "Van Daily Report", "date") + ' data-outlets="1"'),
 	].join("");
 	const bar = Math.max(0, Math.min(percent, 100));
 	host.innerHTML =
-		'<article class="vans-kpi vans-kpi-wide ' + salesTone + '">' +
-		'<div class="vans-kpi-label">' + icon("M4 16l5-5 4 4 7-8") + "<span>Sales vs Target</span></div>" +
-		'<div class="vans-kpi-value">' + esc(rupee(overview.sales, true)) + "</div>" +
-		'<p class="vans-kpi-note">Target ' + esc(rupee(overview.target, true)) + " · " + esc(pct(percent)) + "</p>" +
-		'<div class="vans-bar" role="progressbar" aria-valuenow="' + esc(String(Math.round(percent))) + '" aria-valuemin="0" aria-valuemax="100"><span style="width:' + bar + '%"></span></div>' +
-		"</article>" +
+		'<button type="button" class="vans-kpi vans-kpi-wide vans-tap ' + salesTone + '"' + listAttrs(span, "Van Daily Report", "date") + ">" +
+		'<span class="vans-kpi-label">' + icon("M4 16l5-5 4 4 7-8") + "<span>Sales vs Target</span></span>" +
+		'<span class="vans-kpi-value">' + esc(rupee(overview.sales, true)) + "</span>" +
+		'<span class="vans-kpi-note">Target ' + esc(rupee(overview.target, true)) + " · " + esc(pct(percent)) + "</span>" +
+		'<span class="vans-bar" role="progressbar" aria-valuenow="' + esc(String(Math.round(percent))) + '" aria-valuemin="0" aria-valuemax="100"><span style="width:' + bar + '%"></span></span>' +
+		"</button>" +
 		'<div class="vans-kpis">' + cards + "</div>" +
 		sectionBlock("Leaderboard", "M4 18V6M10 18V10M16 18V4M22 18H2", true, data.leaderboard, [
 			{ label: "Salesperson", text: (row) => row.worked_by || "—" },
 			{ label: "Sales", text: (row) => rupee(row.sales, true) },
 			{ label: "Target", text: (row) => rupee(row.target, true) },
 			{ label: "Days Worked", text: (row) => String(row.days ?? 0) },
-		]) +
-		sectionBlock("Cash", "M3 10h18v8H3zM5 6h14l2 4H3z", true, null, null, cashBody(data.cash || {})) +
+		], (row) => listAttrs(span, "Van Daily Report", "date") + attr("data-worked", row.worked_by)) +
+		sectionBlock("Cash", "M3 10h18v8H3zM5 6h14l2 4H3z", true, null, null, cashBody(data.cash || {}, span)) +
 		sectionBlock("Exceptions", "M12 9v4M12 17h.01", false, data.exceptions, [
 			{ label: "Van", text: (row) => row.van || "—" },
 			{ label: "Issue", text: (row) => issueLabel(row.kind) },
 			{ label: "Date", text: (row) => prettyDate(row.date) },
-		]) +
+		], (row) => listAttrs(Object.assign({}, span, row.date ? { start: String(row.date).slice(0, 10), end: String(row.date).slice(0, 10) } : {}), "Van Daily Report", "date") + attr("data-van", row.van)) +
 		sectionBlock("Beats", "M4 8h16v10H4z", false, data.beats, [
 			{ label: "Beat", text: (row) => row.beat || "—" },
 			{ label: "Van", text: (row) => row.van || "—" },
 			{ label: "Last Visited", text: (row) => prettyDate(row.last_worked) },
 			{ label: "Overdue", text: (row) => (Number(row.overdue) ? "Overdue" : "On time") },
-		]) +
+		], (row) => (row.beat_id || row.beat ? attr("data-doc", "Van Beat") + attr("data-name", row.beat_id || row.beat) : attr("data-doc", "Van") + attr("data-name", row.van))) +
 		sectionBlock("Reported vs invoiced", "M6 4h12v16H6z", false, data.reported_vs_invoiced, [
 			{ label: "Date", text: (row) => prettyDate(row.date) },
 			{ label: "Van", text: (row) => row.van || "—" },
 			{ label: "Reported", text: (row) => rupee(row.reported, true) },
 			{ label: "Invoiced", text: (row) => rupee(row.invoiced, true) },
 			{ label: "Unbilled", text: (row) => (Number(row.unbilled) ? "Unbilled" : "Billed") },
-		]);
+		], (row) => listAttrs({ company: span.company, start: String(row.date || "").slice(0, 10), end: String(row.date || "").slice(0, 10) }, "Sales Invoice", "posting_date") + attr("data-custom-van", row.van));
 }
 
-function kpi(label, value, path, tone) {
+function kpi(label, value, path, tone, attrs) {
 	return (
-		'<article class="vans-kpi ' + tone + '"><div class="vans-kpi-label">' +
+		'<button type="button" class="vans-kpi vans-tap ' + tone + '"' + (attrs || "") + '><span class="vans-kpi-label">' +
 		icon(path) +
-		"<span>" + esc(label) + "</span></div><div class=\"vans-kpi-value\">" +
+		"<span>" + esc(label) + '</span></span><span class="vans-kpi-value">' +
 		esc(value) +
-		"</div></article>"
+		"</span></button>"
 	);
 }
 
-function sectionBlock(title, path, open, rows, fields, bodyHtml) {
+function sectionBlock(title, path, open, rows, fields, bodyOrOpen) {
+	const html = typeof bodyOrOpen === "string" ? bodyOrOpen : null;
+	const openAttrs = typeof bodyOrOpen === "function" ? bodyOrOpen : null;
 	const list = rows || [];
-	const count = bodyHtml != null ? cashCount(bodyHtml) : list.length;
-	const body = bodyHtml != null ? bodyHtml : list.length ? items(list, fields) : emptyLine();
+	const count = html != null ? cashCount(html) : list.length;
+	const body = html != null ? html : list.length ? items(list, fields, openAttrs) : emptyLine();
 	return (
 		'<section class="vans-section' + (open ? " is-open" : "") + '">' +
 		'<button type="button" class="vans-section-toggle" aria-expanded="' + (open ? "true" : "false") + '">' +
@@ -255,7 +340,7 @@ function sectionBlock(title, path, open, rows, fields, bodyHtml) {
 	);
 }
 
-function cashBody(cash) {
+function cashBody(cash, span) {
 	const balances = cash.balances || [];
 	const transfers = cash.transfers || [];
 	if (!balances.length && !transfers.length) return emptyLine();
@@ -265,7 +350,7 @@ function cashBody(cash) {
 			? items(balances, [
 				{ label: "Holder", text: (row) => row.holder || "—" },
 				{ label: "Cash in Hand", text: (row) => rupee(row.balance, true) },
-			])
+			], () => listAttrs(span, "Cash Transfer", "posting_date"))
 			: emptyLine()) +
 		"<h3>Transfers</h3>" +
 		(transfers.length
@@ -274,7 +359,7 @@ function cashBody(cash) {
 				{ label: "From", text: (row) => row.from_holder || "—" },
 				{ label: "To", text: (row) => row.to_holder || row.to_bank || "—" },
 				{ label: "Amount", text: (row) => rupee(row.amount, true) },
-			])
+			], (row) => attr("data-doc", "Cash Transfer") + attr("data-name", row.name))
 			: emptyLine())
 	);
 }
@@ -283,7 +368,7 @@ function cashCount(html) {
 	return (html.match(/class="vans-item"/g) || []).length;
 }
 
-function items(rows, fields) {
+function items(rows, fields, openAttrs) {
 	return rows
 		.slice(0, 40)
 		.map((row) => {
@@ -292,7 +377,8 @@ function items(rows, fields) {
 				.slice(1)
 				.map((field) => "<div><dt>" + esc(field.label) + "</dt><dd>" + esc(field.text(row)) + "</dd></div>")
 				.join("");
-			return '<article class="vans-item"><div class="vans-item-title">' + esc(title.text(row)) + "</div><dl>" + rest + "</dl></article>";
+			const attrs = openAttrs ? openAttrs(row) : "";
+			return '<button type="button" class="vans-item vans-tap"' + attrs + '><span class="vans-item-title">' + esc(title.text(row)) + "</span><dl>" + rest + "</dl></button>";
 		})
 		.join("");
 }
@@ -355,9 +441,114 @@ function prettyDate(value) {
 	return String(Number(match[3])) + " " + months[Number(match[2]) - 1];
 }
 
+function todayISO() {
+	const now = new Date();
+	return isoDate(new Date(now.getFullYear(), now.getMonth(), now.getDate()));
+}
+
+function isoDate(day) {
+	const month = String(day.getMonth() + 1).padStart(2, "0");
+	const date = String(day.getDate()).padStart(2, "0");
+	return day.getFullYear() + "-" + month + "-" + date;
+}
+
+function parseISO(value) {
+	const parts = String(value || "").slice(0, 10).split("-");
+	return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+}
+
+function boundsFor(kind, anchor) {
+	const day = parseISO(anchor);
+	if (kind === "day") {
+		const text = isoDate(day);
+		return { start: text, end: text };
+	}
+	if (kind === "week") {
+		const monday = new Date(day.getFullYear(), day.getMonth(), day.getDate() - ((day.getDay() + 6) % 7));
+		const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6);
+		return { start: isoDate(monday), end: isoDate(sunday) };
+	}
+	const start = new Date(day.getFullYear(), day.getMonth(), 1);
+	const end = new Date(day.getFullYear(), day.getMonth() + 1, 0);
+	return { start: isoDate(start), end: isoDate(end) };
+}
+
+function shiftAnchor(anchor, kind, step) {
+	const day = parseISO(anchor);
+	if (kind === "day") day.setDate(day.getDate() + step);
+	else if (kind === "week") day.setDate(day.getDate() + step * 7);
+	else day.setMonth(day.getMonth() + step);
+	return isoDate(day);
+}
+
+function rangeLabel(kind, start, end) {
+	if (kind === "day") return prettyFull(start);
+	if (kind === "month") {
+		const day = parseISO(start);
+		const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+		return months[day.getMonth()] + " " + day.getFullYear();
+	}
+	const from = parseISO(start);
+	const to = parseISO(end);
+	const short = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+	if (from.getMonth() === to.getMonth() && from.getFullYear() === to.getFullYear()) {
+		return from.getDate() + "-" + to.getDate() + " " + short[from.getMonth()] + " " + from.getFullYear();
+	}
+	return prettyFull(start) + " – " + prettyFull(end);
+}
+
+function prettyFull(value) {
+	const day = parseISO(value);
+	const short = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+	return day.getDate() + " " + short[day.getMonth()] + " " + day.getFullYear();
+}
+
+function attr(name, value) {
+	if (value == null || value === "") return "";
+	return " " + name + '="' + esc(value) + '"';
+}
+
+function listAttrs(span, doctype, dateField) {
+	return (
+		attr("data-list", doctype) +
+		attr("data-datefield", dateField) +
+		attr("data-from", span && span.start) +
+		attr("data-to", span && span.end) +
+		attr("data-company", span && span.company) +
+		attr("data-division", span && span.division)
+	);
+}
+
+function openDrill(node) {
+	if (!window.frappe || !frappe.set_route) return;
+	const doc = node.dataset.doc;
+	const name = node.dataset.name;
+	if (doc && name) {
+		frappe.set_route("Form", doc, name);
+		return;
+	}
+	const list = node.dataset.list;
+	if (!list) return;
+	const filters = {};
+	if (node.dataset.company) filters.company = node.dataset.company;
+	if (node.dataset.division) filters.division = node.dataset.division;
+	if (node.dataset.van) filters.van = node.dataset.van;
+	if (node.dataset.customVan) filters.custom_van = node.dataset.customVan;
+	if (node.dataset.worked) filters.worked_by = node.dataset.worked;
+	const from = node.dataset.from;
+	const to = node.dataset.to;
+	const dateField = node.dataset.datefield || "date";
+	if (from && to) filters[dateField] = ["Between", [from, to]];
+	if (node.dataset.workedFlag) filters.worked = ["!=", "No"];
+	if (node.dataset.mismatch) filters.mismatch = [">", 0];
+	if (node.dataset.outlets) filters.new_outlets = [">", 0];
+	frappe.route_options = filters;
+	frappe.set_route("List", list);
+}
+
 function esc(value) {
 	const text = String(value == null ? "" : value);
-	if (window.frappe && frappe.utils && frappe.utils.escape_html) return frappe.utils.escape_html(text);
+	if (typeof window !== "undefined" && window.frappe && frappe.utils && frappe.utils.escape_html) return frappe.utils.escape_html(text);
 	return text.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
 }
 
@@ -394,21 +585,39 @@ const VANS_CSS = `
 	color: #1c1917;
 	font-weight: 700;
 	font-size: 14px;
+	cursor: pointer;
 }
+.vans-btn:hover, .vans-filter-toggle:hover, .vans-step:hover { border-color: #a8a29e; }
+.vans-btn:active, .vans-filter-toggle:active, .vans-step:active { background: #f5f5f4; }
 .vans-btn-solid { background: #1c1917; color: #fff; border-color: #1c1917; }
 .vans-text-link { color: #44403c; font-size: 13px; font-weight: 600; margin-left: auto; }
 .vans-toolbar { margin-bottom: 10px; }
 .vans-period { display: flex; flex: 1 1 220px; padding: 3px; border-radius: 999px; background: #efefef; }
-.vans-period button {
+.vans-period button, .vans-kind button {
 	flex: 1;
-	min-height: 40px;
+	min-height: 44px;
 	border: 0;
 	border-radius: 999px;
 	background: transparent;
 	color: #44403c;
 	font-weight: 700;
+	cursor: pointer;
 }
-.vans-period button.is-on { background: #fff; color: #1c1917; box-shadow: 0 1px 2px rgba(28, 25, 23, 0.08); }
+.vans-period button.is-on, .vans-kind button.is-on { background: #fff; color: #1c1917; box-shadow: 0 1px 2px rgba(28, 25, 23, 0.08); }
+.vans-range { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 8px; }
+.vans-kind { display: flex; flex: 1 1 220px; padding: 3px; border-radius: 999px; background: #efefef; }
+.vans-picker { display: flex; flex: 1 1 220px; align-items: center; gap: 8px; }
+.vans-step, .vans-date, .vans-month {
+	min-height: 44px;
+	border: 1px solid #d6d3d1;
+	border-radius: 12px;
+	background: #fff;
+	color: #1c1917;
+	font-size: 16px;
+}
+.vans-step { width: 44px; font-size: 22px; cursor: pointer; }
+.vans-date, .vans-month { flex: 1; padding: 0 10px; }
+.vans-range-label { flex: 1 1 100%; margin: 0; font-weight: 800; color: #1c1917; }
 .vans-filter-panel { display: grid; gap: 8px; margin: 0 0 12px; }
 .vans-filter-panel[hidden] { display: none !important; }
 .vans-kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
@@ -418,7 +627,9 @@ const VANS_CSS = `
 	border-radius: 16px;
 	box-shadow: 0 1px 2px rgba(28, 25, 23, 0.05), 0 8px 20px rgba(28, 25, 23, 0.04);
 }
-.vans-kpi { padding: 12px; min-width: 0; }
+.vans-kpi { display: flex; flex-direction: column; align-items: stretch; width: 100%; min-height: 44px; padding: 12px; min-width: 0; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.vans-kpi:hover, .vans-item:hover { border-color: #a8a29e; }
+.vans-kpi:active, .vans-item:active { background: #f5f5f4; }
 .vans-kpi-wide { margin-top: 4px; }
 .vans-kpi-label, .vans-section-toggle { display: flex; align-items: center; gap: 6px; color: #44403c; font-size: 12px; font-weight: 700; }
 .vans-kpi-label svg, .vans-section-toggle svg { flex: 0 0 auto; }
@@ -449,7 +660,7 @@ const VANS_CSS = `
 .vans-section-body { display: none; padding: 0 12px 12px; }
 .vans-section.is-open .vans-section-body { display: block; }
 .vans-section h3 { margin: 8px 0; font-size: 13px; color: #57534e; }
-.vans-item { padding: 10px 0; border-top: 1px solid #e7e5e4; }
+.vans-item { display: block; width: 100%; min-height: 44px; padding: 10px 0; border: 0; border-top: 1px solid #e7e5e4; border-radius: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .vans-item-title { font-weight: 800; margin-bottom: 6px; }
 .vans-item dl { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; margin: 0; }
 .vans-item dt { font-size: 11px; color: #57534e; font-weight: 600; }
