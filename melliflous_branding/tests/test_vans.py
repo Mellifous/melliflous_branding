@@ -223,7 +223,12 @@ class TestVans(unittest.TestCase):
 		self.assertIn('href: "/desk/vans-360"', theme)
 		self.assertNotIn('label: "Vans"', theme)
 		self.assertIn("tone-van", (package / "public/css/desk_theme.css").read_text())
-		self.assertIn("placeVanMark", (package / "melliflous_branding/page/vans_360/vans_360.js").read_text())
+		self.assertIn("placeVanMark", script)
+		self.assertIn("Sales vs Target", script)
+		self.assertIn("No reports yet for this period", script)
+		self.assertIn("Daily Report", script)
+		self.assertIn("Cash Transfer", script)
+		self.assertIn('data-preset="MTD"', script)
 		self.assertEqual(json.loads((package / "melliflous_branding/page/vans_360/vans_360.json").read_text())["icon"], "truck")
 
 
