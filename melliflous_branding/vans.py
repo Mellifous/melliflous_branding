@@ -447,19 +447,18 @@ def fleet_overview(vans, reports, today, start, end) -> dict:
 	today_d = as_date(today) or end_d
 	live = [row for row in vans or [] if clean(row.get("status")) == "Live"]
 	sales = 0.0
-	target = 0.0
 	visited = 0
 	productive = 0
 	mismatch_count = 0
 	new_outlets = 0
 	logged_today = set()
+	worked_vans = set()
 	worked_days = set()
 	last_keyed = ""
 	for row in reports or []:
 		if not _in_period(row.get("date"), start_d, end_d):
 			continue
 		sales += money(row.get("sales"))
-		target += money(row.get("target"))
 		visited += whole(row.get("counters_visited"))
 		productive += whole(row.get("productive_counters"))
 		if money(row.get("mismatch")):
@@ -468,18 +467,25 @@ def fleet_overview(vans, reports, today, start, end) -> dict:
 		if clean(row.get("worked")) != "No":
 			worked_day = as_date(row.get("date"))
 			if worked_day:
+				worked_vans.add(clean(row.get("van")))
 				worked_days.add((clean(row.get("van")), worked_day.isoformat()))
 				if worked_day == today_d:
 					logged_today.add(clean(row.get("van")))
 		keyed = clean(row.get("modified"))
 		if keyed > last_keyed:
 			last_keyed = keyed
-	days = (end_d - start_d).days + 1 if start_d and end_d else 0
+	days = (end_d - start_d).days + 1 if start_d and end_d and end_d >= start_d else 0
 	missed = max(len(live) * days - len(worked_days), 0)
-	month_days = (today_d.replace(day=1) + timedelta(days=32)).replace(day=1) - timedelta(days=1)
-	days_left = max((month_days - today_d).days, 0) if today_d else 0
-	month_target = sum(money(row.get("daily_target")) * month_days.day for row in live)
-	run_rate = money((month_target - sales) / days_left) if days_left else None
+	# A day or a week is the daily target times the days in the range.
+	# A month is that same daily target across every day of the month.
+	target = sum(money(row.get("daily_target")) * days for row in live)
+	if today_d and start_d and today_d < start_d:
+		days_left = days
+	elif today_d and end_d:
+		days_left = max((end_d - today_d).days, 0)
+	else:
+		days_left = 0
+	run_rate = money((target - sales) / days_left) if days_left else None
 	percent = money(sales / target * 100) if target else 0.0
 	strike = money(productive / visited * 100) if visited else 0.0
 	return {
@@ -489,6 +495,7 @@ def fleet_overview(vans, reports, today, start, end) -> dict:
 		"run_rate": run_rate,
 		"days_left": days_left,
 		"vans_logged_today": len(logged_today),
+		"vans_worked": len(worked_vans),
 		"strike": strike,
 		"missed_van_days": missed,
 		"mismatches": mismatch_count,
@@ -577,6 +584,7 @@ def beat_status(beats, reports, today) -> list:
 				"planned_counters": whole(beat.get("planned_counters")),
 				"last_worked": seen.isoformat() if seen else "",
 				"overdue": 1 if overdue else 0,
+				"beat_id": clean(beat.get("name")),
 			}
 		)
 	return rows
